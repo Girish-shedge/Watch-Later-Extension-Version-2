@@ -1,0 +1,23 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="111" height="62" viewBox="0 0 111 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="tabler-icon-brand-youtube">
+<rect width="111" height="62" rx="12" fill="url(#paint0_linear_0_4)"/>
+<g id="Vector">
+<path d="M45.5 27C45.5 25.9391 45.9214 24.9217 46.6716 24.1716C47.4217 23.4214 48.4391 23 49.5 23H61.5C62.5609 23 63.5783 23.4214 64.3284 24.1716C65.0786 24.9217 65.5 25.9391 65.5 27V35C65.5 36.0609 65.0786 37.0783 64.3284 37.8284C63.5783 38.5786 62.5609 39 61.5 39H49.5C48.4391 39 47.4217 38.5786 46.6716 37.8284C45.9214 37.0783 45.5 36.0609 45.5 35V27Z" stroke="url(#paint1_linear_0_4)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M53.5 28L58.5 31L53.5 34V28Z" stroke="url(#paint2_linear_0_4)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="0" y1="31" x2="111" y2="31" gradientUnits="userSpaceOnUse">
+<stop stop-color="#D9D9D9"/>
+<stop offset="1" stop-color="#F5F5F5"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_4" x1="55.5" y1="23" x2="55.5" y2="39" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C5C5C5"/>
+<stop offset="1" stop-color="#8B8B8B"/>
+</linearGradient>
+<linearGradient id="paint2_linear_0_4" x1="55.5" y1="23" x2="55.5" y2="39" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C5C5C5"/>
+<stop offset="1" stop-color="#8B8B8B"/>
+</linearGradient>
+</defs>
+</svg>

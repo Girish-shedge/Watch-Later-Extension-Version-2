@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Watch Later</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+   <!-- Offline modal (Figma 36:3008) — remounted like Wrong URL; legacy markup removed -->
+
+  <!-- ==========================================================================
+       0) ONBOARDING (logged-out flow always starts at Onboarding 01)
+       ========================================================================== -->
+  <div id="onboarding" class="hidden">
+
+    <!-- Onboarding 01 — Pain Hook (Figma 37:4810) -->
+    <section id="onboarding1" class="onboarding-screen">
+      <div class="onb-cards">
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+      </div>
+      <div class="onb-modal">
+        <div class="onb-ticker"><span class="onb-tick active" data-onb-goto="0" role="button" tabindex="0" aria-label="Go to step 1"></span><span class="onb-tick" data-onb-goto="1" role="button" tabindex="0" aria-label="Go to step 2"></span><span class="onb-tick" data-onb-goto="2" role="button" tabindex="0" aria-label="Go to step 3"></span></div>
+        <div class="onb-modal-main">
+          <div class="onb-heading">
+            <div class="onb-heading-row">
+              <p>Tired of</p>
+              <span class="onb-chip">100&rsquo;s</span>
+              <p>of unwatched</p>
+            </div>
+            <p>videos piling up in your</p>
+            <p>YouTube playlist</p>
+          </div>
+          <button id="onb1Next" class="onb-btn"><span class="onb-btn-inner">Next</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Onboarding 02 — Promise (Figma 36:1561) -->
+    <section id="onboarding2" class="onboarding-screen hidden">
+      <div class="onb-cards">
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+      </div>
+      <div class="onb-modal">
+        <div class="onb-ticker"><span class="onb-tick" data-onb-goto="0" role="button" tabindex="0" aria-label="Go to step 1"></span><span class="onb-tick active" data-onb-goto="1" role="button" tabindex="0" aria-label="Go to step 2"></span><span class="onb-tick" data-onb-goto="2" role="button" tabindex="0" aria-label="Go to step 3"></span></div>
+        <div class="onb-modal-main">
+          <div class="onb-heading">
+            <p>Stop saving everything - start</p>
+            <p>watching what actually</p>
+            <div class="onb-heading-row">
+              <p>matters, on</p>
+              <span class="onb-chip">your time</span>
+            </div>
+          </div>
+          <div class="onb-btn-row">
+            <button id="onb2Back" class="onb-btn onb-btn-secondary" type="button"><span class="onb-btn-inner">Back</span></button>
+            <button id="onb2Next" class="onb-btn" type="button"><span class="onb-btn-inner">Next</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Onboarding 03 — Introduction (Figma 91:757) · schedule shell + bottom sheet -->
+    <section id="onboarding3" class="onboarding-screen onb-sched-screen hidden">
+      <div class="sched-bg" aria-hidden="true">
+        <img id="onb3BgImg" class="sched-bg-img" alt="" />
+      </div>
+      <div class="sched-dim" aria-hidden="true"></div>
+
+      <svg class="sched-defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+          <clipPath id="onb3ThumbClip" clipPathUnits="userSpaceOnUse">
+            <path d="M239.916 0H16C7.16344 0 0 7.16345 0 16V156.514C0 165.35 7.16345 172.514 16 172.514H292C300.837 172.514 308 165.35 308 156.514V39.5711C308 30.7345 300.837 23.5711 292 23.5711H263.487C256.978 23.5711 251.702 18.2945 251.702 11.7855C251.702 5.27656 246.425 0 239.916 0Z"/>
+          </clipPath>
+        </defs>
+      </svg>
+
+      <header class="sched-nav">
+        <span class="sched-icon-btn onb-nav-spacer" aria-hidden="true"></span>
+        <img class="sched-logo" src="Icon/schedule-logo.svg" alt="Watch Later Extension" width="74" height="28" />
+        <button id="onb3Close" class="sched-icon-btn" type="button" aria-label="Close">
+          <img class="sched-icon" src="Icon/schedule-icon-close.svg" width="20" height="20" alt="" aria-hidden="true" />
+        </button>
+      </header>
+
+      <div class="sched-video onb-yt-card">
+        <div class="sched-thumb onb-yt-thumb">
+          <iframe
+            id="onb3Yt"
+            class="onb-yt-iframe"
+            title="Watch Later intro"
+            src=""
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          ></iframe>
+        </div>
+        <div class="sched-duration" aria-label="Video duration">
+          <span>00:30</span>
+        </div>
+        <div class="onb-player-controls">
+          <button type="button" id="onb3MuteBtn" class="onb-player-ctrl is-muted" aria-pressed="true" aria-label="Unmute video">
+            <svg class="onb-mute-icon onb-mute-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" />
+              <path d="M16 10l4 4m0 -4l-4 4" />
+            </svg>
+            <svg class="onb-mute-icon onb-mute-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 8a5 5 0 0 1 0 8" />
+              <path d="M17.7 5a9 9 0 0 1 0 14" />
+              <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="onb-overlay" id="onb3Overlay"></div>
+      <div class="onb-modal onb-intro-sheet" id="onb3Sheet">
+        <div class="onb-sheet-panel" id="onb3IntroPanel">
+          <div class="onb-ticker"><span class="onb-tick" data-onb-goto="0" role="button" tabindex="0" aria-label="Go to step 1"></span><span class="onb-tick" data-onb-goto="1" role="button" tabindex="0" aria-label="Go to step 2"></span><span class="onb-tick active" data-onb-goto="2" role="button" tabindex="0" aria-label="Go to step 3"></span></div>
+          <div class="onb-text-block">
+            <div class="onb-heading">
+              <p>Introducing Watch Later</p>
+              <div class="onb-heading-row tall">
+                <span class="onb-chip">Extension</span>
+                <p>for YouTube</p>
+              </div>
+            </div>
+            <p class="onb-body">Calmer way to deal with your Watch Later pile</p>
+          </div>
+          <div class="onb-btn-row">
+            <button id="onb3Back" class="onb-btn onb-btn-secondary" type="button"><span class="onb-btn-inner">Back</span></button>
+            <button id="onb3Next" class="onb-btn" type="button"><span class="onb-btn-inner">Let&rsquo;s fix this</span></button>
+          </div>
+        </div>
+        <div class="onb-sheet-panel hidden" id="onb3PermsPanel">
+          <div class="onb-heading">
+            <div class="onb-heading-row">
+              <p>Need a few</p>
+              <span class="onb-chip">Google Calendar</span>
+            </div>
+            <div class="onb-heading-row tall">
+              <p>permissions to help you</p>
+            </div>
+          </div>
+          <div class="onb-perms">
+            <div class="onb-perm">
+              <div class="onb-perm-inner">
+                <p class="onb-perm-label"><b>FIND TIME</b> that&rsquo;s actually free</p>
+                <img class="onb-perm-num" src="Icon/onboarding-num1.svg" alt="" />
+                <span class="onb-perm-art art1"><img src="Icon/onboarding-calendar.png" alt="" /></span>
+              </div>
+            </div>
+            <div class="onb-perm">
+              <div class="onb-perm-inner">
+                <p class="onb-perm-label"><b>SCHEDULE</b> what you choose</p>
+                <img class="onb-perm-num" src="Icon/onboarding-num2.svg" alt="" />
+                <span class="onb-perm-art art2"><img src="Icon/onboarding-calendar.png" alt="" /></span>
+              </div>
+            </div>
+            <div class="onb-perm">
+              <div class="onb-perm-inner">
+                <p class="onb-perm-label"><b>REMIND</b> you before it<br />starts</p>
+                <img class="onb-perm-num" src="Icon/onboarding-num3.svg" alt="" />
+                <span class="onb-perm-art art3"><img src="Icon/onboarding-calendar.png" alt="" /></span>
+              </div>
+            </div>
+          </div>
+          <div class="onb-actions">
+            <div class="onb-btn-row">
+              <button id="onb4Back" class="onb-btn onb-btn-secondary" type="button"><span class="onb-btn-inner">Close</span></button>
+              <button id="onb4Next" class="onb-btn" type="button"><span class="onb-btn-inner">Yes, I allow</span></button>
+            </div>
+            <div class="onb-info">
+              <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M10 7.5H10.0083M9.16667 10H10V13.3333H10.8333M2.5 10C2.5 10.9849 2.69399 11.9602 3.0709 12.8701C3.44781 13.7801 4.00026 14.6069 4.6967 15.3033C5.39314 15.9997 6.21993 16.5522 7.12987 16.9291C8.03982 17.306 9.01509 17.5 10 17.5C10.9849 17.5 11.9602 17.306 12.8701 16.9291C13.7801 16.5522 14.6069 15.9997 15.3033 15.3033C15.9997 14.6069 16.5522 13.7801 16.9291 12.8701C17.306 11.9602 17.5 10.9849 17.5 10C17.5 8.01088 16.7098 6.10322 15.3033 4.6967C13.8968 3.29018 11.9891 2.5 10 2.5C8.01088 2.5 6.10322 3.29018 4.6967 4.6967C3.29018 6.10322 2.5 8.01088 2.5 10Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p>You can revoke this later anytime from settings</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Onboarding 04 — kept for goTo index; content lives in #onb3PermsPanel -->
+    <section id="onboarding4" class="onboarding-screen onb-perms-screen hidden" aria-hidden="true"></section>
+
+    <!-- Onboarding 05 — post-login calendar scan (Figma 58:6541) -->
+    <section id="onboarding5" class="onboarding-screen hidden">
+      <div class="onb-cards">
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+        <div class="onb-card">
+          <img class="onb-thumb" src="Icon/onboarding-video-thumb.svg" alt="" />
+          <div class="onb-card-body">
+            <div class="onb-lines"><span class="onb-line"></span><span class="onb-line"></span></div>
+            <p class="onb-label">Unwatched since 45 days</p>
+          </div>
+        </div>
+      </div>
+      <div class="onb-overlay"></div>
+      <div class="onb-modal">
+        <div class="onb-cal" id="onbCal">
+          <div class="onb-cal-header">
+            <p>MONTH</p>
+            <p id="onbCalMonthLabel">AUG 2026</p>
+          </div>
+          <div class="onb-cal-grid" id="onbCalGrid" aria-hidden="true">
+            <!-- filled by startOnbCalScan(): 3×5 Mon–Fri weeks -->
+          </div>
+          <div class="onb-scan-veil" id="onbScanVeil" aria-hidden="true"></div>
+          <div class="onb-scan-pill" id="onbScanPill"><span id="onbScanPct">Scanned 0%</span></div>
+        </div>
+        <div class="onb-text-block">
+          <div class="onb-heading">
+            <div class="onb-heading-row tall">
+              <p>Hey</p>
+              <span id="scanName" class="onb-chip">there,</span>
+              <p>hold on we&rsquo;re</p>
+            </div>
+            <p>scanning your calendar</p>
+          </div>
+          <p class="onb-body">We're looking at your free/busy patterns to suggest slots that actually fit your schedule.</p>
+        </div>
+        <div class="onb-status">
+          <!-- tabler-icon-info-circle -->
+          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M10 7.5H10.0083M9.16667 10H10V13.3333H10.8333M2.5 10C2.5 10.9849 2.69399 11.9602 3.0709 12.8701C3.44781 13.7801 4.00026 14.6069 4.6967 15.3033C5.39314 15.9997 6.21993 16.5522 7.12987 16.9291C8.03982 17.306 9.01509 17.5 10 17.5C10.9849 17.5 11.9602 17.306 12.8701 16.9291C13.7801 16.5522 14.6069 15.9997 15.3033 15.3033C15.9997 14.6069 16.5522 13.7801 16.9291 12.8701C17.306 11.9602 17.5 10.9849 17.5 10C17.5 8.01088 16.7098 6.10322 15.3033 4.6967C13.8968 3.29018 11.9891 2.5 10 2.5C8.01088 2.5 6.10322 3.29018 4.6967 4.6967C3.29018 6.10322 2.5 8.01088 2.5 10Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p>We never check your events or their details.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ==========================================================================
+       1) POPUP: Container & Wave Animation
+       ========================================================================== -->
+  <div class="popup-container">
+  <div id="popupWrapper">
+      <div id="themeWave"></div>
+
+
+      <div id="skeletonLayer" class="skel-layer">
+
+        <!-- Schedule screen skeleton (mirrors 36:1906) -->
+        <div class="skel-screen is-active" data-skel="schedule" aria-hidden="true">
+          <div class="skel-nav">
+            <div class="skeleton skel-icon"></div>
+            <div class="skeleton skel-logo"></div>
+            <div class="skeleton skel-icon"></div>
+          </div>
+          <div class="skeleton skel-video"></div>
+          <div class="skel-sheet">
+            <div class="skel-sheet-head">
+              <div class="skeleton skel-label"></div>
+              <div class="skeleton skel-prefs"></div>
+            </div>
+            <div class="skel-slots">
+              <div class="skeleton skel-slot"></div>
+              <div class="skeleton skel-slot"></div>
+              <div class="skeleton skel-slot"></div>
+              <div class="skeleton skel-slot"></div>
+            </div>
+            <div class="skeleton skel-cta"></div>
+          </div>
+        </div>
+
+        <!-- Wrong URL skeleton (mirrors 36:2102 / 36:3080 sheet) -->
+        <div class="skel-screen" data-skel="wrong-url" aria-hidden="true">
+          <div class="skel-nav">
+            <div class="skeleton skel-icon"></div>
+            <div class="skeleton skel-logo"></div>
+            <div class="skeleton skel-icon"></div>
+          </div>
+          <div class="skel-sheet">
+            <div class="skeleton skel-art"></div>
+            <div class="skel-title-row">
+              <div class="skeleton skel-title"></div>
+              <div class="skeleton skel-chip"></div>
+            </div>
+            <div class="skeleton skel-body"></div>
+            <div class="skeleton skel-body-short"></div>
+            <div class="skeleton skel-cta"></div>
+          </div>
+        </div>
+
+        <!-- Offline / network skeleton (mirrors 36:2941 sheet) -->
+        <div class="skel-screen" data-skel="offline" aria-hidden="true">
+          <div class="skel-nav">
+            <div class="skeleton skel-icon"></div>
+            <div class="skeleton skel-logo"></div>
+            <div class="skeleton skel-icon"></div>
+          </div>
+          <div class="skel-sheet">
+            <div class="skeleton skel-art"></div>
+            <div class="skel-title-row">
+              <div class="skeleton skel-title"></div>
+              <div class="skeleton skel-chip"></div>
+            </div>
+            <div class="skeleton skel-body"></div>
+            <div class="skeleton skel-body-short"></div>
+            <div class="skeleton skel-cta"></div>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ------------------------------------------------------------------------
+           2.2) REAL CONTENT: Hidden until JS initializes the UI
+           ------------------------------------------------------------------------ -->
+      <div id="realContent" class="hidden">
+
+        <!-- Schedule screen (Figma 36:1906) -->
+        <div class="sched-screen" id="scheduleScreen">
+          <!-- 36:1907 BG Image: live YT thumb + 80 blur + pixel-stretch approx -->
+          <div class="sched-bg" aria-hidden="true">
+            <img id="schedBgImg" class="sched-bg-img" alt="" />
+          </div>
+
+          <!-- 77:156 / 36:1908 Backdrop Dim · over BG, under video card · Soft Light + noise + blur(40px) -->
+          <div class="sched-dim" aria-hidden="true"></div>
+
+          <!-- Clip + Glass refraction filter (36:1911 depth×refraction=16, dispersion 0.5) -->
+          <svg class="sched-defs" width="0" height="0" aria-hidden="true" focusable="false">
+            <defs>
+              <filter id="schedGlassRefract" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3" result="noise"/>
+                <feGaussianBlur in="noise" stdDeviation="1.2" result="soft"/>
+                <feDisplacementMap in="SourceGraphic" in2="soft" scale="16" xChannelSelector="R" yChannelSelector="G" result="mid"/>
+                <feColorMatrix in="mid" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="R"/>
+                <feColorMatrix in="mid" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="G"/>
+                <feColorMatrix in="mid" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="B"/>
+                <feOffset in="R" dx="-0.75" dy="-0.75" result="Ro"/>
+                <feOffset in="B" dx="0.75" dy="0.75" result="Bo"/>
+                <feBlend in="Ro" in2="G" mode="screen" result="RG"/>
+                <feBlend in="RG" in2="Bo" mode="screen"/>
+              </filter>
+              <clipPath id="schedThumbClip" clipPathUnits="userSpaceOnUse">
+                <path d="M239.916 0H16C7.16344 0 0 7.16345 0 16V156.514C0 165.35 7.16345 172.514 16 172.514H292C300.837 172.514 308 165.35 308 156.514V39.5711C308 30.7345 300.837 23.5711 292 23.5711H263.487C256.978 23.5711 251.702 18.2945 251.702 11.7855C251.702 5.27656 246.425 0 239.916 0Z"/>
+              </clipPath>
+            </defs>
+          </svg>
+
+          <!-- 36:1909 Schedule / Top Nav · pad 8/8/0/8 · SPACE_BETWEEN · menu | logo | close -->
+          <header class="sched-nav">
+            <button id="menuBtn" class="sched-icon-btn" type="button" aria-label="Menu">
+              <img class="sched-icon" src="Icon/schedule-icon-menu.svg" width="20" height="20" alt="" aria-hidden="true" />
+            </button>
+            <img class="sched-logo" src="Icon/schedule-logo.svg" alt="Watch Later Extension" width="74" height="28" />
+            <button id="closePopup" class="sched-icon-btn" type="button" aria-label="Close">
+              <img class="sched-icon" src="Icon/schedule-icon-close.svg" width="20" height="20" alt="" aria-hidden="true" />
+            </button>
+          </header>
+
+          <!-- kept for JS that still touches #profileIcon (avatar swap); visually unused -->
+          <img id="profileIcon" class="hidden" src="Icon/streakcounter.svg" alt="" />
+
+          <div class="sched-video" id="videoCard">
+            <!-- 72:152 Thumbnail Frame · clipped to 72:153 mask -->
+            <div class="sched-thumb" id="thumbFrame">
+              <img id="videoThumb" class="sched-video-img" alt="" />
+            </div>
+            <!-- 72:150 Duration Pill · 53×20 white glass · Label 12/16 -->
+            <div class="sched-duration" aria-label="Video duration">
+              <span id="videoDuration">—:—</span>
+            </div>
+            <!-- 36:1926 Title Frame · pad 12 · bottom radius 16 · progressive blur 0→40 · fade 0→50% overlay -->
+            <div class="sched-title-frame">
+              <div class="sched-title-blur" aria-hidden="true">
+                <span class="sched-title-blur-band" data-blur="10"></span>
+                <span class="sched-title-blur-band" data-blur="20"></span>
+                <span class="sched-title-blur-band" data-blur="30"></span>
+                <span class="sched-title-blur-band" data-blur="40"></span>
+              </div>
+              <div class="sched-video-fade" aria-hidden="true"></div>
+              <p id="videoTitle" class="sched-video-title">Loading video…</p>
+            </div>
+          </div>
+
+          <div class="sched-prefs-backdrop" id="schedPrefsBackdrop" hidden aria-hidden="true"></div>
+
+          <div class="sched-sheet" id="schedSheet">
+            <div class="sched-sheet-home" id="schedSheetHome">
+              <div class="sched-sheet-head">
+                <p class="sched-sheet-label">Select Time Slot</p>
+                <button id="changePrefsBtn" class="sched-prefs" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Change Preferences
+                </button>
+              </div>
+              <div id="slotGrid" class="sched-slots" role="listbox" aria-label="Available time slots"></div>
+              <button id="scheduleBtn" class="onb-btn" type="button">
+                <span class="onb-btn-inner">Schedule to Google Calendar</span>
+              </button>
+            </div>
+
+            <!-- 36:2189 Day preferences (expands over schedule) -->
+            <div class="sched-prefs-panel hidden" id="schedPrefsPanel" aria-hidden="true">
+              <div class="prefs-top">
+                <div class="prefs-header">
+                  <span class="prefs-header-spacer" aria-hidden="true"></span>
+                  <div class="prefs-title">
+                    <span>Your</span>
+                    <span class="prefs-day-chip">day</span>
+                    <span>preferences</span>
+                  </div>
+                  <button type="button" class="prefs-close" id="prefsCloseBtn" aria-label="Close preferences">
+                    <svg viewBox="0 0 14 14" width="14" height="14" fill="none" aria-hidden="true">
+                      <path d="M10.5 3.5 7 7m0 0L3.5 10.5M7 7l3.5 3.5M7 7 3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="prefs-status" role="status">
+                  <svg viewBox="0 0 18 18" width="18" height="18" fill="none" aria-hidden="true">
+                    <circle cx="9" cy="9" r="6.75" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M9 5.5v4M9 12.2h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  <span>Suggestions are based on your behavior</span>
+                </div>
+              </div>
+
+              <div class="prefs-days" id="prefsDays" role="group" aria-label="Preferred days"></div>
+
+              <div class="prefs-sunday" id="prefsSunday">
+                <div class="prefs-sunday-inner">
+                  <img class="prefs-sunday-img" src="Icon/prefs-sunday-koala.png" alt="" width="32" height="32" />
+                  <p class="prefs-sunday-copy">Include Sunday too? Sundays<br />are for fun. Go out have fun :)</p>
+                  <button type="button" class="prefs-sunday-check" id="prefsSundayBtn" aria-pressed="false" aria-label="Include Sunday">
+                    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
+                      <path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="prefs-actions">
+                <button type="button" class="onb-btn" id="prefsNextBtn">
+                  <span class="onb-btn-inner">Next</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 58:7076 Time preferences (same sheet, step 2) -->
+            <div class="sched-prefs-panel hidden" id="schedTimePrefsPanel" aria-hidden="true">
+              <div class="prefs-top">
+                <div class="prefs-header">
+                  <span class="prefs-header-spacer" aria-hidden="true"></span>
+                  <div class="prefs-title">
+                    <span>Your</span>
+                    <span class="prefs-day-chip">time</span>
+                    <span>preferences</span>
+                  </div>
+                  <button type="button" class="prefs-close" id="prefsTimeCloseBtn" aria-label="Close preferences">
+                    <svg viewBox="0 0 14 14" width="14" height="14" fill="none" aria-hidden="true">
+                      <path d="M10.5 3.5 7 7m0 0L3.5 10.5M7 7l3.5 3.5M7 7 3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="prefs-status" role="status">
+                  <svg viewBox="0 0 18 18" width="18" height="18" fill="none" aria-hidden="true">
+                    <circle cx="9" cy="9" r="6.75" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M9 5.5v4M9 12.2h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  <span>Suggestions are based on your behavior</span>
+                </div>
+              </div>
+
+              <div class="prefs-days" id="prefsTimes" role="group" aria-label="Preferred time slots"></div>
+
+              <div class="prefs-sunday" id="prefsNight">
+                <div class="prefs-sunday-inner">
+                  <img class="prefs-sunday-img" src="Icon/prefs-sunday-koala.png" alt="" width="32" height="32" />
+                  <p class="prefs-sunday-copy prefs-night-copy">Are you a night owl? Do you stay up past midnight (12AM - 3AM)?</p>
+                  <button type="button" class="prefs-sunday-check" id="prefsNightBtn" aria-pressed="false" aria-label="Include late night 12AM to 3AM">
+                    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
+                      <path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="prefs-actions">
+                <button type="button" class="onb-btn icon-only" id="prefsTimeBackBtn" aria-label="Back">
+                  <span class="onb-btn-inner">
+                    <svg viewBox="0 0 22 22" width="22" height="22" fill="none" aria-hidden="true">
+                      <path d="M13.5 5.5 8 11l5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </button>
+                <button type="button" class="onb-btn" id="prefsSaveBtn">
+                  <span class="onb-btn-inner">Save &amp; Close</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- legacy hooks kept hidden so existing JS doesn't crash -->
+        <div id="greeting" class="greeting hidden"></div>
+        <div class="progress-streak-wrapper hidden" id="streakProgress">
+          <div class="streak-bar-bg" id="streakBarContainer">
+            <div class="streak-bar-fill" id="streakFill"></div>
+          </div>
+          <img id="streakMarker" class="streak-marker-icon" src="Icon/streakcounter.svg" alt="" />
+        </div>
+        <div id="slotSelectorRow" class="hidden"></div>
+        <div id="survey-container" class="survey-container hidden" aria-live="polite"></div>
+
+        <!-- Failure screen (v1 chrome — still used on Calendar create failure) -->
+        <div id="failureScreen" class="hidden">
+          <img id="failedImage" src="Icon/Failed.png" alt="Failed" style="display: block; margin: 16px auto; max-width: 100%;" />
+          <p id="failedMessage"></p>
+          <a id="retryLink">Try Again</a>
+        </div>
+
+        <div id="feedback" class="feedback hidden" role="alert" aria-atomic="true"></div>
+
+        <div class="footer hidden" id="footer">
+          <div class="footer-left">
+            <button class="footer-btn theme-toggle" type="button">
+              <img src="Icon/darkmode.svg" alt="Theme Toggle" />
+            </button>
+            <button class="footer-btn coffee-btn" type="button">How it works?</button>
+          </div>
+          <div class="footer-right">
+            <button id="thumbUpBtn" class="feedback-btn" type="button">
+              <img src="Icon/thumbup.svg" alt="Thumbs Up" />
+            </button>
+            <button id="thumbDownBtn" class="feedback-btn" type="button">
+              <img src="Icon/thumbdown.svg" alt="Thumbs Down" />
+            </button>
+          </div>
+        </div>
+
+      </div> <!-- end #realContent -->
+
+    </div> <!-- end #popupWrapper -->
+
+  </div> <!-- end .popup-container -->
+
+  <!-- ==========================================================================
+       3) OVERLAYS & MENUS
+       ========================================================================== -->
+  <div id="profileMenu" class="profile-menu hidden">
+    <div class="profile-menu-item" id="viewHistory">View History</div>
+    <div class="profile-menu-item" id="slotPreferences">Slot Preferences</div>
+    <div class="profile-menu-item" id="dayPreferences">Preference Days</div>
+    <div class="profile-menu-item" id="feedbackBtn">Feedback</div>
+    <div class="profile-menu-item" id="referFriendBtn">Refer a friend</div>
+    <div class="profile-menu-item" id="enterReferralBtn">Enter referral code</div>
+    <div class="profile-menu-item" id="logoutBtn">Logout</div>
+  </div>
+
+  <div id="toast" class="toast">We appreciate your feedback</div>
+
+  <!-- 102:1204 View history playlist — remounted onto #scheduleScreen -->
+  <div id="historyOverlay" class="history-overlay hidden" hidden aria-hidden="true">
+    <div class="history-backdrop" id="historyBackdrop"></div>
+    <div class="history-panel" id="historyPanel" role="dialog" aria-labelledby="historyTitle">
+      <header class="history-nav">
+        <button type="button" class="history-icon-btn" id="historyBackBtn" aria-label="Back">
+          <img class="history-icon history-icon--back" src="Icon/history-icon-back.svg" width="16" height="16" alt="" />
+        </button>
+        <h2 class="history-title" id="historyTitle">
+          <span>View</span>
+          <span class="onb-chip">history</span>
+          <span>playlist</span>
+        </h2>
+        <button type="button" class="history-icon-btn" id="historyCloseBtn" aria-label="Close">
+          <img class="history-icon" src="Icon/history-icon-close.svg" width="16" height="16" alt="" />
+        </button>
+      </header>
+
+      <div class="history-toolbar">
+        <div class="history-filter" id="historyFilter">
+          <button type="button" class="history-filter-btn" id="historyFilterBtn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="historyFilterLabel">Scheduled (0)</span>
+            <img class="history-icon history-icon--chevron" src="Icon/history-icon-chevron.svg" width="16" height="16" alt="" />
+          </button>
+          <div class="history-filter-menu hidden" id="historyFilterMenu" role="listbox" hidden>
+            <button type="button" class="history-filter-option" role="option" data-filter="scheduled">Scheduled (0)</button>
+            <button type="button" class="history-filter-option" role="option" data-filter="watched">Watched (0)</button>
+            <button type="button" class="history-filter-option" role="option" data-filter="forced">Forced (0)</button>
+          </div>
+        </div>
+        <label class="history-search" for="historySearchInput">
+          <img class="history-icon" src="Icon/history-icon-search.svg" width="16" height="16" alt="" />
+          <input type="text" id="historySearchInput" placeholder="Search" autocomplete="off" />
+          <button type="button" class="history-search-clear hidden" id="historySearchClear" aria-label="Clear search" hidden>
+            <img class="history-icon" src="Icon/history-icon-clear.svg" width="16" height="16" alt="" />
+          </button>
+        </label>
+      </div>
+
+      <div class="history-list" id="historyList"></div>
+
+      <footer class="history-pager">
+        <button type="button" class="history-icon-btn" id="historyPrevBtn" aria-label="Previous page">
+          <img class="history-icon history-icon--back" src="Icon/history-icon-back.svg" width="16" height="16" alt="" />
+        </button>
+        <p class="history-pager-label" id="historyPagerLabel">0-0 of 0 rows</p>
+        <button type="button" class="history-icon-btn" id="historyNextBtn" aria-label="Next page">
+          <img class="history-icon history-icon--fwd" src="Icon/history-icon-back.svg" width="16" height="16" alt="" />
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- 58:6710 Schedule success — remounted onto #scheduleScreen -->
+  <div id="successOverlay" class="success-overlay hidden" hidden aria-hidden="true">
+    <div class="success-backdrop" id="successBackdrop"></div>
+    <div class="success-panel" id="successPanel" role="dialog" aria-labelledby="successTitle">
+      <div class="success-topo" aria-hidden="true">
+        <img class="success-topo-img" src="Icon/success-topo.png" alt="" width="615" height="303" />
+      </div>
+
+      <div class="success-hero">
+        <div class="success-card success-card--ghost" aria-hidden="true">
+          <p class="success-card-title" id="successGhostTitle"></p>
+          <p class="success-card-time success-card-time--ghost" id="successGhostTime"></p>
+        </div>
+        <div class="success-card success-card--front">
+          <p class="success-card-title" id="successCardTitle"></p>
+          <p class="success-card-time" id="successCardTime"></p>
+        </div>
+        <img class="success-sparkle success-sparkle--tr" src="Icon/success-sparkle-tr.svg" width="29" height="27" alt="" aria-hidden="true" />
+        <img class="success-sparkle success-sparkle--bl" src="Icon/success-sparkle-bl.svg" width="18" height="17" alt="" aria-hidden="true" />
+      </div>
+
+      <div class="success-copy">
+        <h2 class="success-heading" id="successTitle">
+          <span class="success-heading-row">
+            <span>Video</span>
+            <span class="onb-chip">scheduled</span>
+            <span>successfully</span>
+          </span>
+          <span class="success-heading-line">to your Google calendar</span>
+        </h2>
+        <p class="success-body">Scheduled. Google Calendar will remind you 15 minutes before.</p>
+      </div>
+
+      <div class="onb-btn-row success-actions">
+        <button type="button" class="onb-btn success-btn-secondary" id="successViewPlaylistBtn">
+          <span class="onb-btn-inner">View Playlist</span>
+        </button>
+        <button type="button" class="onb-btn" id="successGoBackBtn">
+          <span class="onb-btn-inner">Go Back</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 36:2102 Wrong URL — remounted onto #onboarding or #scheduleScreen -->
+  <div id="wrongUrlOverlay" class="wrong-url-overlay hidden" hidden aria-hidden="true">
+    <div class="wrong-url-backdrop" id="wrongUrlBackdrop"></div>
+    <div class="wrong-url-panel" id="wrongUrlPanel">
+      <div class="wrong-url-art" aria-hidden="true">
+        <img class="wrong-url-art-img" src="Icon/wrong-url-art.png" alt="" width="300" height="180" />
+        <div class="wrong-url-art-fade"></div>
+      </div>
+      <div class="wrong-url-copy">
+        <div class="wrong-url-title">
+          <span>Oops!</span>
+          <span class="onb-chip">Wrong URL</span>
+        </div>
+        <p class="wrong-url-body">This isn’t a YouTube video page. Open any video on youtube.com, then try again.</p>
+      </div>
+      <button type="button" class="onb-btn" id="wrongUrlFixBtn">
+        <span class="onb-btn-inner">Open any video on YouTube and retry</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 36:3008 No internet — remounted onto current screen -->
+  <div id="networkLostScreen" class="offline-overlay hidden" hidden aria-hidden="true">
+    <div class="offline-backdrop" id="offlineBackdrop"></div>
+    <div class="offline-panel" id="offlinePanel">
+      <div class="offline-hero">
+        <img class="offline-hero-bg" src="Icon/offline-fact-bg.png" alt="" width="300" height="204" />
+        <div class="offline-fact">
+          <div class="offline-fact-badge">DO YOU KNOW?</div>
+          <div class="offline-fact-shell">
+            <div class="offline-fact-inner">
+              <p class="offline-fact-text" id="offlineFactText"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="offline-ticker" id="offlineTicker" aria-hidden="true">
+        <span class="offline-tick active"></span>
+        <span class="offline-tick"></span>
+        <span class="offline-tick"></span>
+        <span class="offline-tick"></span>
+        <span class="offline-tick"></span>
+      </div>
+      <div class="offline-copy">
+        <div class="offline-title">
+          <span>No</span>
+          <span class="onb-chip">internet</span>
+          <span>connection</span>
+        </div>
+        <p class="offline-body">Hang tight we’ll retry as soon as you’re back online.</p>
+      </div>
+      <button type="button" class="onb-btn" id="tryAgainBtn">
+        <span class="onb-btn-inner">Try again</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       4) SCRIPTS
+       ========================================================================== -->
+  <script src="preview-stub.js"></script>
+  <script src="lib/supabase.js"></script>
+  <script src="popup.js"></script>
+
+</body>
+</html>

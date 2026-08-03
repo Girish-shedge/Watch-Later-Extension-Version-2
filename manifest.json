@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Watch Later Extension for YouTube",
+  "description": "Don't just save YouTube videos to watch later, actually watch them!",
+  "version": "1.1.5",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxG9v/LgTSDFIDeVeAXj9n3DeCaB8W78qdXJHbV91y8fV4ed8wN4WcqJHMHFu29Om3ivMcptF2mtRKsDjjq5jD2hOe26EYvfWiPiODQTMZX4uzthCj9WMyYsc7xI36YUPYH1YHax4trvXS1lBIy7+yBTYIFanG6+wialF8jznV/GCPKsoP1lHYITJngLIY0d+LBTPigdF0bl00MNoVMrviQtg9VB55agAjk6tIu1ige453yl0o1s3D5+7BhDnf1LdLrgLApASd4hod6Ae3tvDfkABnO5/VLxPQnH2p+p59Ci1HYH08sAjpVIjJagROVQT6W/WkizBtAo8+dC+SQ7uywIDAQAB",
+  "icons": {
+    "16": "Icon/WatchLater.png",
+    "48": "Icon/WatchLater.png",
+    "128": "Icon/WatchLater.png"
+  },
+  "permissions": [
+    "identity",
+    "storage",
+    "alarms",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "oauth2": {
+  "client_id": "392838470948-g3utd3qn171c9tdgjevg27pceasan4gm.apps.googleusercontent.com",
+  "scopes": ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/userinfo.email"]
+},
+  "host_permissions": [
+    "https://ayzqfwtoeckgycmqzlve.supabase.co/*",
+    "https://*.youtube.com/*",
+    "https://www.youtube-nocookie.com/*",
+    "https://i.ytimg.com/*",
+    "https://www.googleapis.com/*",
+    "https://www.googleapis.com/auth/calendar"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+"action": {
+  "default_popup": "popup.html"
+},
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com;"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["ding.mp3"],
+      "matches": ["<all_urls>"]
+    }
+  ] 
+}

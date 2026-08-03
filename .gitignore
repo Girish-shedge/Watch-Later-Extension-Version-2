@@ -1,0 +1,25 @@
+# Dependencies / tooling
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+
+# Local secrets (never commit)
+ClientSecret.json
+**/ClientSecret.json
+*.pem
+
+# Supabase CLI temp
+supabase/.temp/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*~
+
+# Git backups
+.git-v1-backup/
