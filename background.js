@@ -113,11 +113,25 @@ function googleAuthFlow({ silent }) {
     chrome.identity.launchWebAuthFlow(
       { url: buildGoogleAuthUrl({ silent }), interactive: !silent },
       redirectUrl => {
-        if (chrome.runtime.lastError || !redirectUrl) return resolve(null);
+        if (chrome.runtime.lastError || !redirectUrl) {
+          const msg = chrome.runtime.lastError?.message || '';
+          // Distinguish cancel vs blocked so the popup can show the right screen.
+          if (/could not be opened|blocked|user gesture/i.test(msg)) {
+            return resolve({ error: 'popup_blocked', detail: msg });
+          }
+          return resolve({ error: 'cancelled', detail: msg || 'cancelled' });
+        }
         const frag = new URLSearchParams(new URL(redirectUrl).hash.substring(1));
         const id_token = frag.get('id_token');
         const access_token = frag.get('access_token');
-        resolve(id_token && access_token ? { id_token, access_token } : null);
+        const oauthErr = frag.get('error');
+        if (oauthErr === 'access_denied') {
+          return resolve({ error: 'denied', detail: oauthErr });
+        }
+        if (oauthErr) {
+          return resolve({ error: /redirect/i.test(oauthErr) ? 'config' : 'generic', detail: oauthErr });
+        }
+        resolve(id_token && access_token ? { id_token, access_token } : { error: 'interrupted' });
       }
     );
   });
@@ -143,7 +157,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
   }
 
   const google = await googleAuthFlow({ silent: true });
-  if (google) {
+  if (google?.access_token) {
     await chrome.storage.local.set({ google_access_token: google.access_token });
     console.log('✅ Google token refreshed silently');
   } else {
@@ -162,8 +176,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function startOAuthFlow(sendResponse, { silent }) {
   try {
     const google = await googleAuthFlow({ silent });
-    if (!google) {
-      sendResponse({ success: false, error: 'Google auth failed or was cancelled' });
+    if (!google?.id_token || !google?.access_token) {
+      const code = google?.error || 'cancelled';
+      sendResponse({
+        success: false,
+        code,
+        error: google?.detail || 'Google auth failed or was cancelled'
+      });
       return;
     }
 

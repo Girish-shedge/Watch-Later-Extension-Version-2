@@ -26,11 +26,22 @@
   --color-text-inverse: #ffffff;   /* Text-Inverse */
   --color-text-label: #666666;     /* card label grey */
   --color-pink: #e75da8;           /* Pink */
+  --color-onb-unwatched: #ff0000;  /* Pain stamp ? Figma `red` */
+  --color-onb-watched: #00601e;    /* Promise stamp (Figma 143:4481) */
+  --color-onb-title: rgba(19, 19, 19, 0.75); /* Body on cards 143:4421 */
+  --color-onb-duration-bg: rgba(0, 0, 0, 0.75); /* thumb duration chip */
+  --onb-thumb-w: 111px; /* Figma 110.693 */
+  --onb-thumb-h: 62px;
+  --onb-duration-w: 19px; /* scaled schedule pill 53?0.359 */
+  --onb-duration-h: 7px;  /* scaled 20?0.359 */
+  --type-onb-duration: 800 4px/4px var(--font-condensed); /* scaled Label 12 */
   --color-surface-white: #ffffff;  /* Surface-White */
   --color-grey-grad-start: #d9d9d9; /* Grey-Gradient */
   --color-grey-grad-end: #f5f5f5;
   --color-screen-grad-start: #f2f2f2; /* screen background gradient */
   --color-screen-grad-end: #ffffff;
+  --onb-cards-gap: var(--space-4); /* 16 ? Figma onbCards 143:4413 */
+  --onb-cards-pad-y: var(--space-2); /* 8 top/bottom; 0 left/right */
   --color-accent-grad-start: #6647f0; /* primary purple button gradient */
   --color-accent-grad-end: #3b13ec;
   --color-ticker-active: #d9d9d9;
@@ -39,8 +50,13 @@
   --color-btn-sheen-end: rgba(255, 255, 255, 0);
   --color-btn-inner-border: rgba(255, 255, 255, 0.4);
   --color-btn-inner-border-end: rgba(59, 19, 236, 0); /* ring fades out at bottom */
-  --color-overlay-dark: rgba(40, 40, 40, 0.5);   /* screens 3?4 card-stack overlay */
+  --color-overlay-dark: rgba(40, 40, 40, 0.5);   /* screens 3–4 card-stack overlay */
   --color-overlay-light: rgba(255, 255, 255, 0.5);
+  /* Auth dim (Figma 171:743): #282828 → #FFFFFF @ 50% fill opacity */
+  --color-auth-dim-top: rgba(40, 40, 40, 0.5);
+  --color-auth-dim-bottom: rgba(255, 255, 255, 0.5);
+  --color-auth-video-fade-start: rgba(200, 202, 206, 0.05); /* Animation VIDEO overlay stop 0 */
+  --shadow-auth-warn: 2px 2px 6px rgba(234, 234, 229, 0.5); /* Figma 171:800 */
   --color-tint-pink: #f8d3e7;   /* screen 3 tinted modal gradient */
   --color-tint-blue: #d8eeff;
   --color-perm-keyword: #4b0090; /* screen 4 permission cards */
@@ -169,7 +185,9 @@
   /* Figma Modal (38:4968) / Schedule Bottom Sheet (36:1928) */
   --pad-modal-top: 12px;
   --pad-modal-x: 12px;
-  --pad-modal-bottom: 6px;
+  --pad-modal-bottom: 12px; /* modals: 12 all sides (was 6) */
+  --pad-auth-bottom: 12px; /* alias — auth sheets use same 12 */
+  --shadow-modal-card: 2px 2px 12px rgba(234, 234, 229, 0.5); /* Figma shadow/modal-card */
 }
 
 :root {
@@ -211,15 +229,15 @@ body {
 
 html {
   width: var(--frame-w);
-  max-width: var(--frame-w);
-  height: var(--frame-h);
+  max-width: 100%;
+  height: 100%;
 }
 
 body {
   margin: 0;
   width: var(--frame-w);
-  max-width: var(--frame-w);
-  height: var(--frame-h);
+  max-width: 100%;
+  height: 100%;
   overflow-x: hidden;
   background: transparent; /* allow the popup-container shape to show */
 }
@@ -249,7 +267,7 @@ body.wl-preview .popup-container,
 body.wl-preview #onboarding,
 body.wl-preview #popupWrapper {
   width: var(--frame-w);
-  max-width: var(--frame-w);
+  max-width: 100%;
   height: var(--frame-h);
   flex-shrink: 0;
 }
@@ -274,8 +292,8 @@ body.wl-preview #networkLostScreen {
   position: relative;
   box-sizing: border-box;
   width: var(--frame-w);
-  max-width: var(--frame-w);
-  height: var(--frame-h);
+  max-width: 100%;
+  height: 100%;
   background: var(--color-bg-surface);
   overflow: hidden;
 }
@@ -296,8 +314,8 @@ body.wl-preview #networkLostScreen {
 #popupWrapper {
   box-sizing: border-box;
   width: var(--frame-w); /* Figma Extension - 01 (36:1906) */
-  max-width: var(--frame-w);
-  height: var(--frame-h);
+  max-width: 100%;
+  height: 100%;
   position: relative;
   padding: 0;
   background: transparent;
@@ -1001,8 +1019,8 @@ legend {
   background: #fff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* optional for subtle elevation */
   width: var(--frame-w);
-  max-width: var(--frame-w);
-  height: var(--frame-h);
+  max-width: 100%;
+  height: 100%;
   box-sizing: border-box;
 }
 
@@ -1705,8 +1723,8 @@ body.dark-mode select {
 #skeletonLayer,
 .skel-layer {
   box-sizing: border-box;
-  width: var(--frame-w);
-  height: var(--frame-h);
+  width: 100%;
+  height: 100%;
   min-height: var(--frame-h);
   padding: var(--space-2);
 }
@@ -1839,15 +1857,29 @@ body.onboarding-active .popup-container {
   position: relative;
   width: var(--frame-w);
   height: var(--frame-h);
-  border-radius: var(--radius-screen);
+  border-radius: 0; /* Pain/Promise BG export is square */
   background: linear-gradient(to bottom, var(--color-screen-grad-start), var(--color-screen-grad-end));
   overflow: hidden;
+}
+
+/* Single exported BG ? Figma 143:4407 / 153:5244 */
+.onb-frame-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  pointer-events: none;
 }
 
 .onboarding-screen {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1855,12 +1887,18 @@ body.onboarding-active .popup-container {
   width: var(--frame-w);
   height: var(--frame-h);
   padding: var(--space-2);
-  border-radius: var(--radius-screen);
-  background: transparent; /* frame gradient lives on #onboarding */
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
-/* card stack ? slides 1?2: 3 visible; mid 100% / edges 95% (JS morphs ease-in-out) */
+/* Pain/Promise: cards flush L/R (0 horizontal pad); modal keeps inset 8 */
+#onboardingPain,
+#onboardingPromise {
+  padding: 0;
+}
+
+/* card stack ? Figma onbCards 143:4413: gap 16, py 8, px 0 */
 .onb-cards {
   display: flex;
   flex-direction: column;
@@ -1869,82 +1907,122 @@ body.onboarding-active .popup-container {
   overflow: visible; /* screen clips; cards run behind the modal */
 }
 
-#onboarding1 .onb-cards,
-#onboarding2 .onb-cards {
-  height: calc(var(--frame-h) - 2 * var(--space-2)); /* 486 - 16 = 470 */
-  justify-content: space-between; /* auto spacing between cards */
-  gap: 0;
+#onboardingPain .onb-cards,
+#onboardingPromise .onb-cards {
+  height: var(--frame-h);
+  justify-content: flex-start;
+  gap: var(--onb-cards-gap); /* 16 */
+  padding: var(--onb-cards-pad-y) 0; /* 8 top/bottom, 0 L/R */
+  box-sizing: border-box;
   will-change: transform;
 }
-#onboarding1 .onb-card,
-#onboarding2 .onb-card {
-  width: 95%;
-  will-change: width, opacity;
+#newUserWrongUrl .onb-cards {
+  height: calc(var(--frame-h) - 2 * var(--space-2));
+  justify-content: flex-start;
+  gap: var(--onb-cards-gap);
+  padding: var(--onb-cards-pad-y) 0;
+  box-sizing: border-box;
+  will-change: transform;
+}
+#onboardingPain .onb-card,
+#onboardingPromise .onb-card,
+#newUserWrongUrl .onb-card {
+  width: 100%;
+  will-change: opacity;
   pointer-events: none;
 }
-#onboarding1 .onb-card:nth-child(2),
-#onboarding2 .onb-card:nth-child(2) {
-  width: 100%;
-}
-#onboarding1 .onb-card:nth-child(n + 4),
-#onboarding2 .onb-card:nth-child(n + 4) {
+#onboardingPain .onb-card:nth-child(n + 4),
+#onboardingPromise .onb-card:nth-child(n + 4),
+#newUserWrongUrl .onb-card:nth-child(n + 4) {
   opacity: 0;
 }
 
+/* YT card ? Figma 143:4421 */
 .onb-card {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2); /* 8 */
   box-sizing: border-box;
   flex-shrink: 0;
   width: 100%;
-  padding: var(--space-2);
-  border-radius: var(--radius-card);
+  padding: var(--space-2); /* 8 */
+  border-radius: var(--radius-card); /* 12 */
   background: var(--color-surface-white);
+}
+
+/* YT frame ? Figma 150:4619 (scaled schedule thumb + duration) */
+.onb-thumb-wrap {
+  position: relative;
+  width: var(--onb-thumb-w);
+  height: var(--onb-thumb-h);
+  flex-shrink: 0;
 }
 
 .onb-thumb {
   display: block;
-  width: 111px;
-  height: 62px;
-  flex-shrink: 0;
-  border-radius: var(--radius-card);
+  width: var(--onb-thumb-w);
+  height: var(--onb-thumb-h);
   object-fit: cover;
+  clip-path: url(#onbThumbClip);
+}
+
+.onb-duration {
+  position: absolute;
+  top: 0;
+  left: calc(var(--onb-thumb-w) - var(--onb-duration-w)); /* Figma left 91.64 */
+  z-index: 1;
+  box-sizing: border-box;
+  width: var(--onb-duration-w);
+  height: var(--onb-duration-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-onb-duration-bg);
+  color: var(--color-text-inverse);
+  font: var(--type-onb-duration);
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .onb-card-body {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 2px; /* Figma 143:4424 title?label */
   align-self: stretch;
   flex: 1 0 0;
   min-width: 0;
-  height: 62px; /* match thumb so label sits on the bottom edge */
+  height: var(--onb-thumb-h);
 }
 
-.onb-lines {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1); /* 4px ? Figma 37:4892 */
+/* Title ? Body 16/20 @ rgba(19,19,19,0.75), 2-line clamp */
+.onb-title {
+  margin: 0;
   width: 100%;
-}
-.onb-line {
-  display: block;
-  width: 100%;
-  height: 17px;
-  border-radius: var(--radius-card);
-  background: linear-gradient(to right, var(--color-grey-grad-start), var(--color-grey-grad-end));
+  font: var(--type-body);
+  letter-spacing: var(--tracking-body);
+  color: var(--color-onb-title);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .onb-label {
   margin: 0;
   font: var(--type-label);
-  color: var(--color-text-muted); /* Figma #666 ? not warning amber */
+  color: var(--color-onb-unwatched);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* bottom sheet ? Figma Modal 38:4968: 12 top/sides, 6 bottom; inset 8 */
+#onboardingPromise .onb-label {
+  color: var(--color-onb-watched);
+}
+/* bottom sheet — 12 all sides, gap 16; no drop shadow */
 .onb-modal {
   position: absolute;
   bottom: var(--space-2);
@@ -1956,12 +2034,12 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   box-sizing: border-box;
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
+  padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 /* slides 1?2: ticker stays put; heading/CTA crossfade inside */
 .onb-modal-main {
@@ -2045,13 +2123,13 @@ body.onboarding-active .popup-container {
   white-space: nowrap;
 }
 /* Slides 1?2 pink chips: straighten on hover */
-#onboarding1 .onb-chip,
-#onboarding2 .onb-chip {
+#onboardingPain .onb-chip,
+#onboardingPromise .onb-chip {
   transition: transform 0.25s ease-in-out;
   cursor: default;
 }
-#onboarding1 .onb-chip:hover,
-#onboarding2 .onb-chip:hover {
+#onboardingPain .onb-chip:hover,
+#onboardingPromise .onb-chip:hover {
   transform: rotate(0deg);
 }
 
@@ -2143,12 +2221,19 @@ body.onboarding-active .popup-container {
   justify-content: flex-start;
   align-items: center;
   padding: var(--space-2);
-  /* sheet is absolute; keep chrome centered in the padded area */
+  overflow: hidden;
+  position: relative;
 }
 .onb-sched-screen .sched-nav,
-.onb-sched-screen .sched-video {
+.onb-sched-screen .sched-video,
+.onb-sched-screen .onb-perms-decor-sheet {
   position: relative;
   z-index: 1;
+}
+/* No #schedThumbClip in onboarding ? approximate notch with radius */
+.onb-sched-screen .sched-video-img {
+  clip-path: none;
+  border-radius: var(--radius-modal);
 }
 .onb-sched-screen .onb-intro-sheet {
   z-index: 2;
@@ -2194,11 +2279,11 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
+  gap: var(--space-4);
+  padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
   transform-origin: bottom center;
   will-change: transform;
 }
@@ -2240,8 +2325,8 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
+  gap: var(--space-4);
+  padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
 }
@@ -2294,7 +2379,7 @@ body.onboarding-active .popup-container {
 .onb-player-ctrl:not(.is-muted) .onb-mute-on { display: block; }
 .onb-player-ctrl:not(.is-muted) .onb-mute-off { display: none; }
 
-#onboarding5 .onb-modal {
+#onboardingAnalyzing .onb-modal {
   z-index: 2;
 }
 
@@ -2418,10 +2503,10 @@ body.onboarding-active .popup-container {
 }
 
 /* ?? Screen 5: post-login "scanning your calendar" (Figma 58:6541) ?? */
-#onboarding5 .onb-modal {
+#onboardingAnalyzing .onb-modal {
   gap: var(--space-4);
 }
-#onboarding5 .onb-text-block {
+#onboardingAnalyzing .onb-text-block {
   gap: var(--space-3);
 }
 
@@ -2562,8 +2647,8 @@ body.onboarding-active .popup-container {
   align-items: center;
   gap: var(--space-3);
   box-sizing: border-box;
-  width: var(--frame-w);
-  height: var(--frame-h);
+  width: 100%;
+  height: 100%;
   min-height: var(--frame-h);
   padding: var(--space-2);
   overflow: hidden;
@@ -2949,13 +3034,13 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   box-sizing: border-box;
   width: auto;
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
+  padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 .wrong-url-art {
   position: relative;
@@ -3019,6 +3104,87 @@ body.onboarding-active .popup-container {
   flex-shrink: 0;
 }
 
+/* 137:2490 newUserWrongUrl ? Pain chrome under dim + wrong-URL sheet */
+#newUserWrongUrl .onb-overlay.is-visible {
+  opacity: 1;
+  z-index: 3;
+}
+#newUserWrongUrl .onb-modal-deco {
+  pointer-events: none;
+  z-index: 1;
+}
+#newUserWrongUrl .new-user-wrong-url-panel {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-2);
+  transform: translateX(-50%);
+  z-index: 4;
+  width: 324px;
+  max-width: calc(100% - var(--space-4));
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  gap: var(--space-4);
+  box-shadow: none;
+}
+#newUserWrongUrl .new-user-wrong-url-panel .onb-btn {
+  max-width: none;
+}
+
+/* Wrong URL screen ? Figma 137:2688: image BG + hardcoded dim/modal */
+.wua-screen {
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: auto;
+}
+.wua-bg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.wua-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--color-overlay-dark),
+    var(--color-overlay-light)
+  );
+  backdrop-filter: blur(var(--blur-prefs-backdrop));
+  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
+}
+.wua-panel {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  top: 128px;
+  bottom: auto;
+  z-index: 2;
+  margin: 0;
+  width: auto;
+  max-width: none;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+  pointer-events: auto;
+}
+.wua-panel .onb-btn {
+  max-width: none;
+  width: 100%;
+}
+.wua-panel .onb-chip {
+  transform: rotate(-1deg);
+}
 /* 36:3008 No internet modal */
 .offline-overlay {
   position: absolute;
@@ -3054,12 +3220,12 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
   box-sizing: border-box;
   padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
 }
 .offline-hero {
   position: relative;
@@ -3632,16 +3798,15 @@ body.onboarding-active .popup-container {
   top: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   box-sizing: border-box;
   width: auto;
   height: var(--history-panel-h); /* fixed ? even with 0 rows */
   max-height: var(--history-panel-h);
-  /* Figma 102:1204 uses 12 all sides (not modal bottom 6) */
   padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -4145,7 +4310,7 @@ body.onboarding-active .popup-container {
   box-sizing: border-box;
   width: auto;
   height: var(--success-panel-h);
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
+  padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: linear-gradient(
     180deg,
@@ -4154,7 +4319,7 @@ body.onboarding-active .popup-container {
     var(--color-success-grad-3) 37.2%,
     var(--color-surface-white) 61.8%
   );
-  box-shadow: var(--shadow-modal);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -4338,3 +4503,277 @@ body.onboarding-active .popup-container {
 .success-btn-secondary .onb-btn-inner {
   color: var(--color-success-btn-text);
 }
+
+/* -- Auth flow overlays (Connecting + OAuth errors) -- */
+.auth-flow-host {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+.auth-flow-host.hidden { display: none !important; }
+#onboarding .auth-flow-host,
+#onboardingPermissions .auth-flow-host,
+#popupWrapper .auth-flow-host {
+  border-radius: inherit;
+}
+.auth-flow-host:not(.hidden) { pointer-events: auto; }
+.auth-flow-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /*
+   * Figma 118:1876 / 171:743 — hardcoded CSS (PNG export bakes schedule under + looks flat).
+   * Linear #282828 → #FFFFFF with each stop already @ 50% opacity + blur 1px.
+   */
+  background: linear-gradient(
+    to bottom,
+    var(--color-auth-dim-top),
+    var(--color-auth-dim-bottom)
+  );
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+.auth-flow-live-thumb {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+.auth-flow-live-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(var(--blur-sched-bg, 80px));
+  transform: scale(1.2);
+  object-position: 50% var(--sched-bg-pos-y, 11.41%);
+}
+/* Wrong URL fall cards BG behind auth sheets (wrongURLfallanimation) */
+.auth-flow-fall-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.auth-flow-fall-bg.hidden { display: none !important; }
+body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
+.auth-panel {
+  position: relative;
+  z-index: 2;
+  width: 324px; /* Figma auth stack width */
+  max-width: calc(100% - var(--space-4));
+  margin: 0 auto var(--space-2);
+  padding: 0;
+  background: var(--color-surface-white);
+  border-radius: var(--radius-card);
+  box-shadow: none; /* no drop shadow on auth modals */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.auth-video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1280 / 720; /* Figma Animation 324×182.25 */
+  overflow: hidden;
+  background: var(--color-surface-white);
+  flex-shrink: 0;
+}
+.auth-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+}
+/* Figma VIDEO fill + GRADIENT_LINEAR → white (steep bottom fade) */
+.auth-video-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--color-auth-video-fade-start) 0%,
+    var(--color-auth-video-fade-start) 48%,
+    rgba(255, 255, 255, 0.55) 78%,
+    var(--color-surface-white) 100%
+  );
+}
+.auth-sheet-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4); /* 16 */
+  padding: var(--space-3); /* 12 all sides */
+  background: var(--color-surface-white);
+  box-sizing: border-box;
+}
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+}
+.auth-panel .onb-btn-row,
+.auth-actions .onb-btn {
+  width: 100%;
+}
+.auth-copy {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  text-align: center;
+}
+.auth-heading-stack {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.auth-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.auth-panel .onb-chip {
+  transform: rotate(-1deg); /* Figma auth chips */
+}
+.auth-heading {
+  font: var(--type-heading); /* Heading 26/28 Bold */
+  color: var(--color-text-primary);
+  margin: 0;
+  text-align: center;
+  font-feature-settings: "dlig" 1;
+}
+.auth-body {
+  font: var(--type-body); /* Body Text 16/20 Semibold */
+  letter-spacing: var(--tracking-body);
+  color: var(--color-text-label);
+  margin: 0;
+  text-align: center;
+  font-feature-settings: "ordn" 1, "ornm" 1;
+}
+/* Figma authWarnBanner — PNG exports (171:800 / 171:934 / 117:1128) */
+.auth-warn-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+.auth-warn-banner.hidden { display: none; }
+.auth-warn-banner-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+.auth-warn-live-text {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  font: var(--type-subtext);
+  letter-spacing: var(--tracking-subtext);
+  color: var(--color-warning-text);
+}
+.auth-warn-live-text.hidden { display: none; }
+/* Analyzing error: swap PNG for live Sub-Text on same chrome */
+.auth-warn-banner.is-live {
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1.6px solid var(--color-warning-text);
+  background: linear-gradient(
+    to top,
+    var(--color-warning-bg) 26.79%,
+    var(--color-surface-white) 132.96%
+  );
+  box-shadow: var(--shadow-auth-warn);
+}
+.auth-warn-banner.is-live .auth-warn-banner-img { display: none; }
+.auth-warn-banner.is-live .auth-warn-live-text { display: block; }
+.auth-why-btn {
+  cursor: pointer;
+  width: 100%;
+}
+button.auth-warn-banner {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.auth-host-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 40px;
+  background: var(--color-sched-icon-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.auth-host-close img { width: 20px; height: 20px; filter: brightness(0) invert(1); }
+#onboardingPermissions .onb-overlay.is-visible,
+#onboardingAnalyzing .onb-overlay.is-visible {
+  opacity: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+.onb-sched-screen .onb-perms-decor-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+#onboardingPermissions .auth-sheet,
+#onboardingAnalyzing .auth-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-2);
+  transform: translateX(-50%);
+  z-index: 4;
+  width: 324px;
+  max-width: calc(100% - var(--space-4));
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-white);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  box-sizing: border-box;
+}
+#onboardingPermissions.is-auth-covered .auth-sheet {
+  visibility: hidden; /* Figma Connecting: schedule chrome only under dim */
+}
+body.is-auth-flow #authFlowHost { display: flex; }

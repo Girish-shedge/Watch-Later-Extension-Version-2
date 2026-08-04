@@ -551,15 +551,100 @@ function showToast(message) {
   }, 2500);
 }
 
-/** Preview boot: logged-out onboarding; click through like the real extension. */
+/** Preview boot: logged-out onboarding; click through like the real extension.
+ *  ?auth=connecting|cancelled|denied|interrupted|generic|permissions|analyzing|newwrongurl
+ *  ?returning=1 → skip Pain (onboardingComplete) and open Connecting
+ *  ?wrongurl=1 → first-time Wrong URL onboarding (Pain→…→wrongURLwrongURL)
+ *  ?anim=fall → Wrong URL cards BG + hardcoded overlay/modal
+ */
 function startPreviewMode() {
   document.body.classList.add('wl-preview');
   hideNetworkLostScreen();
   hideSkeleton();
   document.getElementById('realContent')?.classList.remove('hidden');
+
+  const params = new URLSearchParams(location.search || '');
+  const authScreen = params.get('auth');
+  const returning = params.get('returning') === '1';
+  const forceWrongUrl = params.get('wrongurl') === '1';
+
   chrome.storage.local.remove(
-    ['supabase_token', 'supabase_refresh', 'google_access_token', 'userId'],
-    () => showOnboarding()
+    ['supabase_token', 'supabase_refresh', 'google_access_token', 'userId', ONB_FLAG_SCANNED],
+    async () => {
+      if (forceWrongUrl || authScreen === 'newwrongurl') {
+        await storageSet({ [ONB_FLAG_COMPLETE]: false });
+        showOnboarding({ wrongUrl: true });
+        // Preview: ?wrongurl=1&auth=connecting|cancelled|… → fall BG + shared auth sheet
+        const authPanels = {
+          connecting: 'authConnecting',
+          cancelled: 'authSignInCancelled',
+          denied: 'authCalendarDenied',
+          interrupted: 'authFlowInterrupted',
+          generic: 'authSomethingWrong'
+        };
+        if (authScreen && authPanels[authScreen]) {
+          setTimeout(async () => {
+            wireAuthPanelsOnce();
+            if (onboardingGoTo) await onboardingGoTo(2);
+            await prepareAuthBackdrop();
+            showAuthPanel(authPanels[authScreen]);
+            if (authScreen === 'connecting') showPopupBlockedBanner();
+          }, 200);
+        }
+        return;
+      }
+      if (params.get('anim') === 'fall' || authScreen === 'fallanim') {
+        showWrongUrlFallAnim();
+        return;
+      }
+      if (returning || authScreen === 'connecting' && params.get('kind') === 'returning') {
+        await storageSet({ [ONB_FLAG_COMPLETE]: true });
+        await showReturningConnecting();
+        return;
+      }
+      if (authScreen) {
+        await storageSet({ [ONB_FLAG_COMPLETE]: authScreen !== 'pain' });
+        showOnboarding();
+        setTimeout(async () => {
+          wireAuthPanelsOnce();
+          if (authScreen === 'permissions' && onboardingGoTo) await onboardingGoTo(2);
+          else if (authScreen === 'analyzing') {
+            await storageSet({
+              supabase_token: 'preview-token',
+              supabase_refresh: 'preview-refresh',
+              google_access_token: 'preview-google',
+              userId: 'preview-user',
+              [ONB_FLAG_COMPLETE]: true
+            });
+            await finishPostAuthScan('Preview');
+          } else if (authScreen === 'connecting') {
+            if (onboardingGoTo) await onboardingGoTo(2);
+            await prepareAuthBackdrop();
+            showAuthPanel('authConnecting');
+            showPopupBlockedBanner();
+          } else if (authScreen === 'cancelled') {
+            if (onboardingGoTo) await onboardingGoTo(2);
+            await prepareAuthBackdrop();
+            showAuthPanel('authSignInCancelled');
+          } else if (authScreen === 'denied') {
+            if (onboardingGoTo) await onboardingGoTo(2);
+            await prepareAuthBackdrop();
+            showAuthPanel('authCalendarDenied');
+          } else if (authScreen === 'interrupted') {
+            if (onboardingGoTo) await onboardingGoTo(2);
+            await prepareAuthBackdrop();
+            showAuthPanel('authFlowInterrupted');
+          } else if (authScreen === 'generic') {
+            if (onboardingGoTo) await onboardingGoTo(2);
+            await prepareAuthBackdrop();
+            showAuthPanel('authSomethingWrong');
+          }
+        }, 200);
+        return;
+      }
+      await storageSet({ [ONB_FLAG_COMPLETE]: false });
+      showOnboarding();
+    }
   );
 }
 
@@ -835,26 +920,21 @@ function recycleOnbCardOrder(ids) {
   return ids.slice(1).concat(ids[0]);
 }
 
-/** Carousel slot: 3 visible — top/bottom 95%, middle 100%; ease morph via paintOnbCardSlots. */
+/** Carousel slot: 3 visible full-width; opacity only (no width morph). */
 function onb1CardSlot(index, phase) {
-  const edge = { width: '95%', opacity: '1' };
-  const mid = { width: '100%', opacity: '1' };
-  const hidden = { width: '95%', opacity: '0' };
+  const show = { width: '100%', opacity: '1' };
+  const hide = { width: '100%', opacity: '0' };
   if (phase === 'rest') {
-    if (index === 0) return edge;
-    if (index === 1) return mid;
-    if (index === 2) return edge;
-    return hidden;
+    if (index <= 2) return show;
+    return hide;
   }
-  // During scroll: top fades out; mid→top; bottom→mid; next fades in as bottom
-  if (index === 0) return { width: '95%', opacity: '0' };
-  if (index === 1) return edge;
-  if (index === 2) return mid;
-  if (index === 3) return edge;
-  return hidden;
+  // During scroll: top fades out; next fades in as bottom
+  if (index === 0) return hide;
+  if (index <= 3) return show;
+  return hide;
 }
 
-/** Ascending day counts for onboarding cards: start, start+step, … */
+/** Ascending day counts (selfcheck / legacy); live cards use randomOnbDay. */
 function ascendingOnbDays(count, start = 7, step = 7) {
   return Array.from({ length: count }, (_, i) => start + i * step);
 }
@@ -867,7 +947,136 @@ function formatOnbWatchedLabel(days) {
   return `Watched since ${days} days`;
 }
 
-/** Paint labels in ascending order; returns the last day used (for recycle continuation). */
+/** Promise stamp — Figma 143:4481 “Watched 2 hrs ago”. */
+function formatOnbWatchedAgo() {
+  const roll = Math.random();
+  if (roll < 0.4) {
+    const mins = 1 + Math.floor(Math.random() * 59);
+    return mins === 1 ? 'Watched 1 min ago' : `Watched ${mins} mins ago`;
+  }
+  if (roll < 0.75) {
+    const hrs = 1 + Math.floor(Math.random() * 11);
+    return hrs === 1 ? 'Watched 1 hr ago' : `Watched ${hrs} hrs ago`;
+  }
+  const days = 1 + Math.floor(Math.random() * 14);
+  return days === 1 ? 'Watched 1 day ago' : `Watched ${days} days ago`;
+}
+
+/** Random day stamp for Pain cards (7–66). */
+function randomOnbDay() {
+  return 7 + Math.floor(Math.random() * 60);
+}
+
+/** Local onboarding thumbs (9) — life / psychology themed cards. */
+const ONB_THUMBS = [
+  'Icon/onb/onb-thumb-01.png',
+  'Icon/onb/onb-thumb-02.png',
+  'Icon/onb/onb-thumb-03.png',
+  'Icon/onb/onb-thumb-04.png',
+  'Icon/onb/onb-thumb-05.png',
+  'Icon/onb/onb-thumb-06.png',
+  'Icon/onb/onb-thumb-07.png',
+  'Icon/onb/onb-thumb-08.png',
+  'Icon/onb/onb-thumb-09.png',
+];
+
+/** Multi-line life & psychology titles (no emojis; long enough to wrap). */
+const ONB_LIFE_TITLES = [
+  'The Psychology of Letting Go: Why Everything Passes and How to Find Peace in Uncertainty',
+  'Stop Chasing Productivity: The Mental Cost of Hustle Culture and What to Do Instead',
+  'Slow Down, You Are Doing Fine: Mindfulness Habits That Actually Calm an Overworked Mind',
+  'The Human Rush: How Modern Life Speeds Up Anxiety and How to Reclaim Your Pace',
+  'Dear Self, Look How Far You Have Come: A Letter on Growth, Grief, and Quiet Pride',
+  'Why We Bloom in Unexpected Seasons: The Psychology of Change, Rest, and Starting Over',
+  'A Day in My Life, Rewritten: Building Routines That Protect Your Mental Health',
+  'Serendipity Is Not a Coincidence: How Meaning, Chance, and Mindset Shape Happiness',
+  'Digital Detox for the Restless Brain: Finding Focus When Everything Feels Urgent',
+  'The Art of Soft Ambition: Succeeding Without Burning Out Your Nervous System',
+  'When Overthinking Steals the Present: Practical Ways to Quiet Rumination Fast',
+  'Attachment, Loneliness, and Belonging: Understanding the Relationships That Shape Us',
+];
+
+let onbCardDeck = null; // [{ id, title, thumb, duration, durationSec }]
+let onbCardCursor = 0;
+
+function randomOnbDurationSec() {
+  // ponytail: decorative stamp only; 2–55 min looks like real YT lengths
+  return 120 + Math.floor(Math.random() * (55 * 60 - 120));
+}
+
+function pickOnbLifeTitle(exclude = '') {
+  const pool = ONB_LIFE_TITLES.filter(t => t !== exclude);
+  const src = pool.length ? pool : ONB_LIFE_TITLES;
+  return src[Math.floor(Math.random() * src.length)];
+}
+
+function makeOnbCardMeta(thumbIndex, prevTitle = '') {
+  const durationSec = randomOnbDurationSec();
+  return {
+    id: `onb-${thumbIndex}`,
+    thumb: ONB_THUMBS[thumbIndex],
+    title: pickOnbLifeTitle(prevTitle),
+    durationSec,
+    duration: formatDurationLabel(durationSec),
+  };
+}
+
+function ensureOnbCardDeck() {
+  if (onbCardDeck?.length) return onbCardDeck;
+  const order = shuffleCopy([...ONB_THUMBS.keys()]);
+  onbCardDeck = order.map(i => makeOnbCardMeta(i));
+  onbCardCursor = 0;
+  return onbCardDeck;
+}
+
+function pickOnbCardMeta(excludeIds = []) {
+  const deck = ensureOnbCardDeck();
+  if (!deck.length) return null;
+  // Loop the 9 thumbs; re-roll title + duration each time for variety
+  let meta = null;
+  for (let n = 0; n < deck.length; n++) {
+    const i = (onbCardCursor + n) % deck.length;
+    const candidate = deck[i];
+    if (!excludeIds.includes(candidate.id)) {
+      onbCardCursor = (i + 1) % deck.length;
+      meta = makeOnbCardMeta(Number(candidate.id.replace('onb-', '')), candidate.title);
+      deck[i] = meta;
+      break;
+    }
+  }
+  return meta || makeOnbCardMeta(0);
+}
+
+function paintOnbCardContent(card, meta, formatLabel) {
+  if (!card) return;
+  const thumb = card.querySelector('.onb-thumb');
+  const title = card.querySelector('.onb-title');
+  const label = card.querySelector('.onb-label');
+  const dur = card.querySelector('.onb-duration');
+  if (meta) {
+    card.dataset.ytId = meta.id;
+    if (thumb) {
+      thumb.src = meta.thumb;
+      thumb.alt = '';
+    }
+    if (title) title.textContent = meta.title;
+    if (dur) dur.textContent = meta.duration || formatDurationLabel(meta.durationSec);
+  }
+  if (label) label.textContent = typeof formatLabel === 'function' ? formatLabel() : String(formatLabel || '');
+}
+
+/** Fill cards from the 9 local thumbs (shuffled order). */
+function seedOnbCardsFromYoutube(root, formatLabel) {
+  const cards = [...root.querySelectorAll('.onb-card')];
+  if (!cards.length) return;
+  onbCardDeck = null; // fresh shuffle each enter
+  const deck = ensureOnbCardDeck();
+  cards.forEach((card, i) => {
+    paintOnbCardContent(card, deck[i % deck.length], formatLabel);
+  });
+}
+
+/** Paint labels only (legacy / selfcheck helper). */
 function seedOnbCardLabels(root, formatLabel, start = 7, step = 7) {
   const labels = [...root.querySelectorAll('.onb-label')];
   const days = ascendingOnbDays(labels.length, start, step);
@@ -893,7 +1102,7 @@ function pauseOnbCardScroll() {
 function stopOnbCardScroll() {
   pauseOnbCardScroll();
   // clear freeze leftovers on both slide stacks
-  ['#onboarding1', '#onboarding2'].forEach(sel => {
+  ['#onboardingPain', '#onboardingPromise', '#onboardingPermissions', '#onboardingAnalyzing'].forEach(sel => {
     const stack = document.querySelector(`${sel} .onb-cards`);
     if (!stack) return;
     stack.style.transition = '';
@@ -909,7 +1118,7 @@ function stopOnbCardScroll() {
 function paintOnbCardSlots(stack, phase, durationMs) {
   const cards = [...stack.children];
   if (durationMs > 0) {
-    const ease = `width ${durationMs}ms ease-in-out, opacity ${durationMs}ms ease-in-out`;
+    const ease = `opacity ${durationMs}ms cubic-bezier(0.34, 1.4, 0.64, 1)`;
     cards.forEach(c => { c.style.transition = ease; });
     void stack.offsetHeight;
   } else {
@@ -922,20 +1131,19 @@ function paintOnbCardSlots(stack, phase, durationMs) {
   });
 }
 
-/** Slides 1–2: 3 visible cards; mid 100% / edges 95%; morph ease-in-out while scrolling. */
+/** Slides 1–2: full-width cards; 1.5× faster bouncy ease-in-out scroll. */
 function startOnbCardScroll(screenSel, formatLabel) {
   stopOnbCardScroll();
   const stack = document.querySelector(`${screenSel} .onb-cards`);
   if (!stack) return;
   const state = { abort: false, stack };
   onbCardAnim = state;
-  // ponytail: smooth carousel pace; upgrade via Figma motion tokens if they land
-  const DURATION_MS = 1600;
-  const PAUSE_MS = 900;
-  const DAY_STEP = 7;
+  // ponytail: 1.5× prior pace + bounce; upgrade via Figma motion tokens if they land
+  const DURATION_MS = Math.round(1600 / 1.5); // ~1067
+  const PAUSE_MS = Math.round(900 / 1.5); // 600
+  const BOUNCE = 'cubic-bezier(0.34, 1.4, 0.64, 1)';
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  let nextDay = seedOnbCardLabels(stack, formatLabel, 7, DAY_STEP) + DAY_STEP;
   paintOnbCardSlots(stack, 'rest', 0);
 
   (async function loop() {
@@ -943,11 +1151,10 @@ function startOnbCardScroll(screenSel, formatLabel) {
       const first = stack.firstElementChild;
       const second = first?.nextElementSibling;
       if (!first) break;
-      // Auto space-between: pitch = live distance between card tops
       const step = second
         ? (second.offsetTop - first.offsetTop)
         : first.offsetHeight;
-      stack.style.transition = `transform ${DURATION_MS}ms ease-in-out`;
+      stack.style.transition = `transform ${DURATION_MS}ms ${BOUNCE}`;
       void stack.offsetHeight;
       paintOnbCardSlots(stack, 'end', DURATION_MS);
       stack.style.transform = `translateY(-${step}px)`;
@@ -955,11 +1162,13 @@ function startOnbCardScroll(screenSel, formatLabel) {
       if (state.abort) break;
       stack.style.transition = 'none';
       stack.appendChild(first);
-      const recycledLabel = first.querySelector('.onb-label');
-      if (recycledLabel) {
-        recycledLabel.textContent = formatLabel(nextDay);
-        nextDay += DAY_STEP;
-      }
+      const visibleIds = [...stack.querySelectorAll('.onb-card')]
+        .slice(0, 3)
+        .map(c => c.dataset.ytId)
+        .filter(Boolean);
+      const meta = pickOnbCardMeta(visibleIds);
+      if (meta) first.dataset.ytId = meta.id;
+      paintOnbCardContent(first, meta, formatLabel);
       stack.style.transform = 'translateY(0)';
       paintOnbCardSlots(stack, 'rest', 0);
       void stack.offsetHeight;
@@ -968,23 +1177,27 @@ function startOnbCardScroll(screenSel, formatLabel) {
   })();
 }
 
-/** First paint / page change: cards ease in from below, then the carousel runs. */
-async function enterOnbCardsThenPlay(screenSel, formatLabel) {
+/** First paint / page change: cards slowly slide in from below, then the carousel runs. */
+async function enterOnbCardsThenPlay(screenSel, formatLabel, opts = {}) {
   const stack = document.querySelector(`${screenSel} .onb-cards`);
-  const ENTER_MS = 900;
+  // ponytail: slow enter (~1.1s); carousel keeps its own 1.5× bounce pace
+  const ENTER_MS = 1100;
+  const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
   const wait = ms => new Promise(r => setTimeout(r, ms));
   if (!stack) {
     startOnbCardScroll(screenSel, formatLabel);
     return;
   }
-  stopOnbCardScroll();
-  seedOnbCardLabels(stack, formatLabel, 7, 7);
-  paintOnbCardSlots(stack, 'rest', 0);
-  stack.style.transition = 'none';
-  stack.style.transform = 'translateY(56%)';
-  stack.style.opacity = '0';
-  void stack.offsetHeight;
-  stack.style.transition = `transform ${ENTER_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${ENTER_MS}ms ease-out`;
+  if (!opts.prepped) {
+    stopOnbCardScroll();
+    await seedOnbCardsFromYoutube(stack, formatLabel);
+    paintOnbCardSlots(stack, 'rest', 0);
+    stack.style.transition = 'none';
+    stack.style.transform = 'translateY(56%)';
+    stack.style.opacity = '0';
+    void stack.offsetHeight;
+  }
+  stack.style.transition = `transform ${ENTER_MS}ms ${EASE}, opacity ${ENTER_MS}ms ease-out`;
   stack.style.transform = 'translateY(0)';
   stack.style.opacity = '1';
   await wait(ENTER_MS);
@@ -992,6 +1205,19 @@ async function enterOnbCardsThenPlay(screenSel, formatLabel) {
   stack.style.transform = '';
   stack.style.opacity = '';
   startOnbCardScroll(screenSel, formatLabel);
+}
+
+/** Park cards off-screen below before a Pain↔Promise crossfade. */
+async function prepOnbCardsEnter(screenSel, formatLabel) {
+  const stack = document.querySelector(`${screenSel} .onb-cards`);
+  if (!stack) return;
+  pauseOnbCardScroll();
+  await seedOnbCardsFromYoutube(stack, formatLabel);
+  paintOnbCardSlots(stack, 'rest', 0);
+  stack.style.transition = 'none';
+  stack.style.transform = 'translateY(56%)';
+  stack.style.opacity = '0';
+  void stack.offsetHeight;
 }
 
 function setOnbTickerActive(screen, activeIndex) {
@@ -1382,31 +1608,435 @@ function hideOnboarding() {
   stopOnbCardScroll();
   stopOnb3Video();
   stopOnbCalScan();
-  resetOnb3SheetPanels();
+  hideAuthFlow();
+  hideNewUserWrongUrl();
   document.getElementById('onboarding')?.classList.add('hidden');
-  document.body.classList.remove('onboarding-active');
+  document.getElementById('scheduleScreen')?.classList.remove('hidden');
+  document.body.classList.remove('onboarding-active', 'is-auth-flow', 'is-auth-connecting');
 }
 
-function showOnboarding() {
-  const screens = ['onboarding1', 'onboarding2', 'onboarding3', 'onboarding4', 'onboarding5']
-    .map(id => document.getElementById(id));
+const ONB_FLAG_COMPLETE = 'onboardingComplete';
+const ONB_FLAG_SCANNED = 'calendarScanned';
+const ANALYZE_MIN_MS = 2500;
+const ANALYZE_MAX_MS = 8000;
+
+let authFlowKind = 'new'; // 'new' | 'new-wrong-url' | 'returning'
+let authPopupBlockedCount = 0;
+let authLoginInFlight = false;
+let onboardingGoTo = null; // set by showOnboarding
+
+function storageGet(keys) {
+  return new Promise(res => chrome.storage.local.get(keys, res));
+}
+function storageSet(obj) {
+  return new Promise(res => chrome.storage.local.set(obj, res));
+}
+
+/** Infer flags for installs that predate these keys. */
+async function migrateOnboardingFlags(userId) {
+  const cur = await storageGet([ONB_FLAG_COMPLETE, ONB_FLAG_SCANNED, 'supabase_token', 'supabase_refresh']);
+  const patch = {};
+  if (cur[ONB_FLAG_COMPLETE] == null && cur.supabase_token && cur.supabase_refresh) {
+    patch[ONB_FLAG_COMPLETE] = true;
+  }
+  if (cur[ONB_FLAG_SCANNED] == null && userId && typeof supabaseClient !== 'undefined') {
+    try {
+      const { data } = await supabaseClient.from('UserSlots').select('days').eq('user_id', userId).maybeSingle();
+      if (Array.isArray(data?.days) && data.days.length) patch[ONB_FLAG_SCANNED] = true;
+    } catch (_) { /* ignore */ }
+  }
+  if (Object.keys(patch).length) await storageSet(patch);
+  return { ...cur, ...patch };
+}
+
+function classifyOAuthError(resp, meta = {}) {
+  const err = String(resp?.error || meta.error || '').toLowerCase();
+  const code = resp?.code || meta.code || '';
+  if (code === 'popup_blocked' || meta.popupBlocked) return 'popup_blocked';
+  if (code === 'denied' || /access.?denied|scope|permission/.test(err)) return 'denied';
+  if (code === 'interrupted' || /interrupt/.test(err)) return 'interrupted';
+  if (code === 'config' || /redirect_uri|invalid_client|unauthorized_client/.test(err)) return 'config';
+  if (code === 'cancelled' || /cancel|closed|dismiss/.test(err)) return 'cancelled';
+  if (!resp?.success && !err) return 'cancelled';
+  if (/network|timeout|fetch|failed to fetch/.test(err)) return 'generic';
+  return 'generic';
+}
+
+function hideAuthFlow() {
+  const host = document.getElementById('authFlowHost');
+  if (!host) return;
+  host.classList.add('hidden');
+  host.hidden = true;
+  host.setAttribute('aria-hidden', 'true');
+  host.querySelectorAll('.auth-panel').forEach(p => {
+    p.classList.add('hidden');
+    p.hidden = true;
+  });
+  host.querySelectorAll('.auth-video').forEach(v => {
+    try { v.pause(); } catch (_) {}
+  });
+  const banner = document.getElementById('authPopupBlockedBanner');
+  if (banner) { banner.classList.add('hidden'); banner.hidden = true; }
+  document.body.classList.remove('is-auth-flow', 'is-auth-connecting', 'is-auth-wrong-url');
+  document.getElementById('onboardingPermissions')?.classList.remove('is-auth-covered');
+  document.getElementById('authFlowLiveThumb')?.classList.add('hidden');
+  const fallBg = document.getElementById('authFlowFallBg');
+  if (fallBg) { fallBg.classList.add('hidden'); fallBg.setAttribute('aria-hidden', 'true'); }
+}
+
+function showAuthPanel(panelId) {
+  const host = document.getElementById('authFlowHost');
+  if (!host) return;
+  // Prefer visible host: permissions when open, else onboarding root, else popup frame
+  const perms = document.getElementById('onboardingPermissions');
+  const onb = document.getElementById('onboarding');
+  const mount =
+    (perms && !perms.classList.contains('hidden') && perms) ||
+    (onb && !onb.classList.contains('hidden') && onb) ||
+    document.getElementById('popupWrapper') ||
+    document.body;
+  if (host.parentElement !== mount) mount.appendChild(host);
+
+  host.hidden = false;
+  host.classList.remove('hidden');
+  host.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('is-auth-flow');
+  if (panelId === 'authConnecting') document.body.classList.add('is-auth-connecting');
+  else document.body.classList.remove('is-auth-connecting');
+  // Figma Connecting/errors: schedule chrome under dim — hide permissions modal sheet
+  if (perms && !perms.classList.contains('hidden')) perms.classList.add('is-auth-covered');
+
+  host.querySelectorAll('.auth-panel').forEach(p => {
+    const on = p.id === panelId;
+    p.classList.toggle('hidden', !on);
+    p.hidden = !on;
+    const vid = p.querySelector('.auth-video');
+    if (!vid) return;
+    if (on) {
+      try { vid.currentTime = 0; vid.play().catch(() => {}); } catch (_) {}
+    } else {
+      try { vid.pause(); } catch (_) {}
+    }
+  });
+}
+
+async function prepareAuthBackdrop() {
+  const thumbWrap = document.getElementById('authFlowLiveThumb');
+  const img = document.getElementById('authFlowThumbImg');
+  const fallBg = document.getElementById('authFlowFallBg');
+
+  // Wrong URL first-time: cards + fall BG (wrongURLfallanimation), not schedule chrome
+  if (authFlowKind === 'new-wrong-url') {
+    document.body.classList.add('is-auth-wrong-url');
+    thumbWrap?.classList.add('hidden');
+    if (fallBg) {
+      fallBg.classList.remove('hidden');
+      fallBg.setAttribute('aria-hidden', 'false');
+    }
+    return;
+  }
+
+  document.body.classList.remove('is-auth-wrong-url');
+  if (fallBg) {
+    fallBg.classList.add('hidden');
+    fallBg.setAttribute('aria-hidden', 'true');
+  }
+
+  const tab = await getActiveInjectableTab().catch(() => null);
+  const onWatch = isYouTubeWatchUrl(tab?.url);
+  if (onWatch && thumbWrap && img) {
+    try {
+      const id = new URL(tab.url).searchParams.get('v');
+      img.src = id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
+      thumbWrap.classList.remove('hidden');
+    } catch (_) {
+      thumbWrap.classList.add('hidden');
+    }
+  } else {
+    thumbWrap?.classList.add('hidden');
+  }
+}
+
+function wireAuthPanelsOnce() {
+  const host = document.getElementById('authFlowHost');
+  if (!host || host.dataset.wired) return;
+  host.dataset.wired = '1';
+
+  host.querySelectorAll('[data-auth-retry]').forEach(btn => {
+    btn.addEventListener('click', () => startConnectingAndLogin());
+  });
+  host.querySelectorAll('[data-auth-not-now]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      hideAuthFlow();
+      if (authFlowKind === 'new' || authFlowKind === 'new-wrong-url') {
+        if (typeof onboardingGoTo === 'function') onboardingGoTo(2);
+      } else {
+        window.close();
+      }
+    });
+  });
+  document.getElementById('authPopupBlockedBanner')?.addEventListener('click', () => {
+    startConnectingAndLogin({ fromBanner: true });
+  });
+  document.getElementById('authWhyCalendar')?.addEventListener('click', () => {
+    hideAuthFlow();
+    if (typeof onboardingGoTo === 'function') onboardingGoTo(2);
+  });
+}
+
+function showPopupBlockedBanner() {
+  const banner = document.getElementById('authPopupBlockedBanner');
+  if (!banner) return;
+  banner.hidden = false;
+  banner.classList.remove('hidden');
+}
+
+async function finishPostAuthScan(name) {
+  const first = (name || '').trim().split(' ')[0];
+  const scanName = document.getElementById('scanName');
+  if (scanName) scanName.textContent = (first || 'there') + ',';
+
+  await storageSet({ [ONB_FLAG_COMPLETE]: true });
+  hideNewUserWrongUrl();
+
+  // Returning reconnect: skip Analyzing UI → Schedule (silent prefs refresh if needed)
+  if (authFlowKind === 'returning') {
+    const flags = await storageGet([ONB_FLAG_SCANNED]);
+    if (!flags[ONB_FLAG_SCANNED]) {
+      try {
+        const stored = await storageGet(['userId', 'google_access_token']);
+        await analyzeAndSavePrefs(stored.userId, stored.google_access_token, { force: true });
+      } catch (_) { /* schedule still opens; prefs may be empty */ }
+      await storageSet({ [ONB_FLAG_SCANNED]: true });
+    }
+    hideAuthFlow();
+    hideOnboarding();
+    await initPopup();
+    return;
+  }
+
+  const flags = await storageGet([ONB_FLAG_SCANNED]);
+  if (flags[ONB_FLAG_SCANNED]) {
+    hideAuthFlow();
+    hideOnboarding();
+    await initPopup();
+    return;
+  }
+
+  hideAuthFlow();
+  if (typeof onboardingGoTo === 'function') {
+    await onboardingGoTo(3);
+  } else {
+    document.getElementById('onboarding')?.classList.remove('hidden');
+    document.body.classList.add('onboarding-active');
+    ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'newUserWrongUrl'].forEach(id => {
+      document.getElementById(id)?.classList.add('hidden');
+    });
+    const analyzing = document.getElementById('onboardingAnalyzing');
+    analyzing?.classList.remove('hidden');
+    onbCalScanPromise = startOnbCalScan();
+  }
+
+  const statusEl = document.getElementById('onbAnalyzeStatus');
+  const statusText = document.getElementById('onbAnalyzeStatusText');
+  const statusImg = document.getElementById('onbAnalyzeStatusImg');
+  const retryBtn = document.getElementById('onbAnalyzeRetry');
+  const setAnalyzeBanner = (mode, msg) => {
+    if (!statusEl) return;
+    if (mode === 'png') {
+      statusEl.classList.remove('is-live');
+      if (statusImg) statusImg.classList.remove('hidden');
+      if (statusText) { statusText.classList.add('hidden'); statusText.hidden = true; }
+    } else {
+      statusEl.classList.add('is-live');
+      if (statusImg) statusImg.classList.add('hidden');
+      if (statusText) {
+        statusText.hidden = false;
+        statusText.classList.remove('hidden');
+        if (msg) statusText.textContent = msg;
+      }
+    }
+  };
+  setAnalyzeBanner('png');
+  if (retryBtn) { retryBtn.classList.add('hidden'); retryBtn.hidden = true; }
+
+  const runAnalyze = async () => {
+    const stored = await storageGet(['userId', 'google_access_token']);
+    let analyzeOk = false;
+    const analyzeP = (async () => {
+      try {
+        await analyzeAndSavePrefs(stored.userId, stored.google_access_token, { force: true });
+        analyzeOk = true;
+      } catch (_) {
+        analyzeOk = false;
+      }
+    })();
+    const scanP = onbCalScanPromise || Promise.resolve();
+    const minP = new Promise(r => setTimeout(r, ANALYZE_MIN_MS));
+    const maxP = new Promise(r => setTimeout(r, ANALYZE_MAX_MS));
+
+    const outcome = await Promise.race([
+      Promise.all([analyzeP, scanP, minP]).then(() => 'ok'),
+      maxP.then(() => 'timeout')
+    ]);
+
+    if (outcome === 'timeout' && !analyzeOk) {
+      await Promise.race([analyzeP, new Promise(r => setTimeout(r, 100))]);
+    }
+
+    if (!analyzeOk) {
+      setAnalyzeBanner('live', "Couldn't read your calendar. Retry without signing in again.");
+      if (retryBtn) {
+        retryBtn.hidden = false;
+        retryBtn.classList.remove('hidden');
+        retryBtn.onclick = () => {
+          retryBtn.disabled = true;
+          setAnalyzeBanner('png');
+          void runAnalyze().finally(() => { retryBtn.disabled = false; });
+        };
+      }
+      return;
+    }
+
+    await storageSet({ [ONB_FLAG_SCANNED]: true });
+    if (authFlowKind === 'new-wrong-url') {
+      hideAuthFlow();
+      stopOnbCalScan();
+      document.getElementById('onboardingAnalyzing')?.classList.add('hidden');
+      showWrongUrlFallAnim();
+      return;
+    }
+    await initPopup();
+    hideOnboarding();
+  };
+
+  await runAnalyze();
+}
+
+async function startConnectingAndLogin(opts = {}) {
+  if (authLoginInFlight) return;
+  authLoginInFlight = true;
+  wireAuthPanelsOnce();
+  await prepareAuthBackdrop();
+  showAuthPanel('authConnecting');
+  if (!opts.fromBanner) {
+    const banner = document.getElementById('authPopupBlockedBanner');
+    if (banner) { banner.classList.add('hidden'); banner.hidden = true; }
+  }
+
+  const allowBtn = document.getElementById('onbPermsAllow');
+  if (allowBtn) allowBtn.disabled = true;
+
+  try {
+    const resp = await new Promise(resolve => {
+      try {
+        chrome.runtime.sendMessage({ action: 'login' }, r => {
+          const le = chrome.runtime.lastError;
+          if (le) {
+            const msg = String(le.message || '');
+            if (/could not be opened|blocked|user gesture|cancelled before/i.test(msg)) {
+              resolve({ success: false, code: 'popup_blocked', error: msg });
+            } else {
+              resolve({ success: false, code: 'cancelled', error: msg });
+            }
+            return;
+          }
+          resolve(r || { success: false, code: 'cancelled' });
+        });
+      } catch (e) {
+        resolve({ success: false, code: 'generic', error: String(e) });
+      }
+    });
+
+    if (resp?.success) {
+      authPopupBlockedCount = 0;
+      await finishPostAuthScan(resp.name);
+      return;
+    }
+
+    const kind = classifyOAuthError(resp);
+    if (kind === 'popup_blocked') {
+      authPopupBlockedCount += 1;
+      showAuthPanel('authConnecting');
+      showPopupBlockedBanner();
+      if (authPopupBlockedCount > 2) {
+        const body = document.getElementById('authGenericBody');
+        const chip = document.getElementById('authGenericChip');
+        if (chip) chip.textContent = 'connecting';
+        if (body) {
+          body.textContent = "The sign-in window couldn't open. Allow popups for this extension, then retry.";
+        }
+        showAuthPanel('authSomethingWrong');
+        console.warn('[auth] popup_blocked escalated', resp);
+      }
+      return;
+    }
+
+    if (kind === 'denied') showAuthPanel('authCalendarDenied');
+    else if (kind === 'interrupted') showAuthPanel('authFlowInterrupted');
+    else if (kind === 'cancelled') showAuthPanel('authSignInCancelled');
+    else {
+      const body = document.getElementById('authGenericBody');
+      const chip = document.getElementById('authGenericChip');
+      const retry = document.getElementById('authGenericRetry');
+      if (chip) chip.textContent = 'connecting';
+      if (kind === 'config') {
+        if (body) body.textContent = "This looks like an extension setup issue — retrying won't fix it. Contact support if it continues.";
+        if (retry) retry.classList.add('hidden');
+        console.error('[auth] config/redirect_uri_mismatch', resp);
+      } else {
+        if (body) body.textContent = 'Please try again this usually resolves itself.';
+        if (retry) retry.classList.remove('hidden');
+      }
+      showAuthPanel('authSomethingWrong');
+    }
+  } finally {
+    authLoginInFlight = false;
+    if (allowBtn) allowBtn.disabled = false;
+  }
+}
+
+/** Lightweight reconnect for returning users (skips Pain/Promise/Permissions). */
+async function showReturningConnecting() {
+  const tab = await getActiveInjectableTab().catch(() => null);
+  if (!isYouTubeWatchUrl(tab?.url)) {
+    showNewUserWrongUrl();
+    return;
+  }
+  authFlowKind = 'returning';
+  authPopupBlockedCount = 0;
+  hideNewUserWrongUrl();
+  document.getElementById('onboarding')?.classList.add('hidden');
+  document.body.classList.remove('onboarding-active');
+  document.getElementById('scheduleScreen')?.classList.remove('hidden');
+  hideSkeleton();
+  document.getElementById('realContent')?.classList.remove('hidden');
+  const host = document.getElementById('authFlowHost');
+  const wrap = document.getElementById('popupWrapper') || document.body;
+  if (host && host.parentElement !== wrap) wrap.appendChild(host);
+  await startConnectingAndLogin();
+}
+
+function showOnboarding(opts = {}) {
+  const screens = ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'onboardingAnalyzing']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
   let current = 0;
   let transitioning = false;
   const TRANS_MS = 450;
-  const TICKER_MS = 500;
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  const syncCardAnim = (i) => {
-    if (i === 0) enterOnbCardsThenPlay('#onboarding1', formatOnbUnwatchedLabel);
-    else if (i === 1) enterOnbCardsThenPlay('#onboarding2', formatOnbUnwatchedLabel);
-    else stopOnbCardScroll();
-    // Permissions lives inside screen 3 — keep YT running for indices 2 and 3
-    if (i === 2 || i === 3) startOnb3Video();
-    else stopOnb3Video();
-    if (i === 4) {
-      enterOnbCardsThenPlay('#onboarding5', formatOnbUnwatchedLabel);
-      onbCalScanPromise = startOnbCalScan();
-    } else stopOnbCalScan();
+  authFlowKind = opts.wrongUrl ? 'new-wrong-url' : 'new';
+  authPopupBlockedCount = 0;
+
+  const syncCardAnim = (i, { prepped = false } = {}) => {
+    stopOnb3Video();
+    if (i === 0) return enterOnbCardsThenPlay('#onboardingPain', () => formatOnbUnwatchedLabel(randomOnbDay()), { prepped });
+    if (i === 1) return enterOnbCardsThenPlay('#onboardingPromise', formatOnbWatchedAgo, { prepped });
+    stopOnbCardScroll(); // Permissions + Analyzing = schedule shell
+    if (i === 3) onbCalScanPromise = startOnbCalScan();
+    else stopOnbCalScan();
+    return Promise.resolve();
   };
 
   const clearEl = (el) => {
@@ -1417,492 +2047,109 @@ function showOnboarding() {
     el.style.height = '';
   };
 
-  /** Destination card stack sweeps bottom→top, then the infinite carousel starts. */
-  const sweepCardsThenPlay = async (screenSel, formatLabel) => {
-    await enterOnbCardsThenPlay(screenSel, formatLabel);
-  };
-
-  /** Screen 2 → 3: bottom sheet FLIP-expands into schedule-shell intro (Figma 91:757). */
-  const morphExpandTo3 = async (from, to) => {
-    const MORPH_MS = 560;
-    const fromModal = from.querySelector('.onb-modal');
-    const toModal = to.querySelector('.onb-intro-sheet') || to.querySelector('.onb-modal');
-    const fromMain = from.querySelector('.onb-modal-main');
-    const fromCards = from.querySelector('.onb-cards');
-    const fromTicker = from.querySelector('.onb-ticker');
-    const toVideo = to.querySelector('.sched-video');
-    const toNav = to.querySelector('.sched-nav');
-    const fadeEase = `opacity ${MORPH_MS}ms ease-in-out`;
-    const morphEase = `transform ${MORPH_MS}ms ease-in-out, opacity ${MORPH_MS}ms ease-in-out`;
-
-    resetOnb3SheetPanels();
-    to.classList.remove('hidden');
-    from.style.zIndex = '1';
-    to.style.zIndex = '2';
-
-    [toVideo, toNav].forEach(el => {
-      if (!el) return;
-      el.style.transition = 'none';
-      el.style.opacity = '0';
-    });
-    to.querySelectorAll('.sched-dim, .sched-bg').forEach(el => {
-      el.style.transition = 'none';
-      el.style.opacity = '0';
-    });
-
-    const first = fromModal.getBoundingClientRect();
-    toModal.style.transition = 'none';
-    toModal.style.opacity = '1';
-    const intro = document.getElementById('onb3IntroPanel');
-    const perms = document.getElementById('onb3PermsPanel');
-    if (intro) { intro.style.transition = 'none'; intro.style.opacity = '0'; }
-    if (perms) perms.classList.add('hidden');
-    void to.offsetHeight;
-    const last = toModal.getBoundingClientRect();
-    const dx = (first.left + first.width / 2) - (last.left + last.width / 2);
-    const dy = first.top - last.top;
-    const sx = first.width / last.width;
-    const sy = first.height / last.height;
-    toModal.style.transformOrigin = 'bottom center';
-    toModal.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
-    void toModal.offsetHeight;
-
-    toModal.style.transition = morphEase;
-    toModal.style.transform = 'translate(0, 0) scale(1)';
-    if (fromMain) {
-      fromMain.style.transition = fadeEase;
-      fromMain.style.opacity = '0';
-    }
-    if (fromCards) {
-      fromCards.style.transition = fadeEase;
-      fromCards.style.opacity = '0';
-    }
-    if (fromTicker) {
-      fromTicker.style.transition = fadeEase;
-      fromTicker.style.opacity = '0';
-    }
-    fromModal.style.transition = fadeEase;
-    fromModal.style.opacity = '0';
-
-    await wait(MORPH_MS * 0.55);
-
-    [toVideo, toNav].forEach(el => {
-      if (!el) return;
-      el.style.transition = fadeEase;
-      el.style.opacity = '1';
-    });
-    to.querySelectorAll('.sched-dim, .sched-bg').forEach(el => {
-      el.style.transition = fadeEase;
-      el.style.opacity = '1';
-    });
-
-    // Start after the card is visible — Chromium skips autoplay while opacity:0
-    startOnb3Video({ force: true });
-
-    await wait(MORPH_MS * 0.45);
-
-    if (intro) {
-      intro.style.transition = 'opacity 220ms ease-in-out';
-      intro.style.opacity = '1';
-    }
-    await wait(220);
-
-    from.classList.add('hidden');
-    from.style.zIndex = '';
-    to.style.zIndex = '';
-    clearEl(fromMain);
-    clearEl(fromCards);
-    clearEl(fromTicker);
-    clearEl(fromModal);
-    clearEl(toModal);
-    clearEl(toVideo);
-    clearEl(toNav);
-    clearEl(intro);
-    to.querySelectorAll('.sched-dim, .sched-bg').forEach(clearEl);
-  };
-
-  /** Screen 3 intro → permissions: same sheet expands; content builds in (Figma 91:936). */
-  const morphIntroToPerms = async () => {
-    const MORPH_MS = 480;
-    const screen = document.getElementById('onboarding3');
-    const sheet = document.getElementById('onb3Sheet');
-    const intro = document.getElementById('onb3IntroPanel');
-    const perms = document.getElementById('onb3PermsPanel');
-    if (!screen || !sheet || !intro || !perms) return;
-
-    const first = sheet.getBoundingClientRect();
-    intro.style.transition = `opacity ${MORPH_MS * 0.35}ms ease-in-out`;
-    intro.style.opacity = '0';
-    await wait(MORPH_MS * 0.35);
-
-    intro.classList.add('hidden');
-    perms.classList.remove('hidden');
-    perms.style.transition = 'none';
-    perms.style.opacity = '0';
-    [...perms.children].forEach(el => {
-      el.style.transition = 'none';
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(8px)';
-    });
-    screen.classList.add('is-perms-on');
-    void sheet.offsetHeight;
-    const last = sheet.getBoundingClientRect();
-    const sy = first.height / Math.max(last.height, 1);
-    sheet.style.transition = 'none';
-    sheet.style.transformOrigin = 'bottom center';
-    sheet.style.transform = `scaleY(${sy})`;
-    void sheet.offsetHeight;
-    sheet.style.transition = `transform ${MORPH_MS}ms ease-in-out`;
-    sheet.style.transform = 'scaleY(1)';
-
-    await wait(MORPH_MS * 0.45);
-    perms.style.transition = `opacity ${MORPH_MS * 0.55}ms ease-in-out`;
-    perms.style.opacity = '1';
-
-    // Heading + actions fade in; cards 1 → 2 → 3 stagger opacity 0→1
-    const heading = perms.querySelector('.onb-heading');
-    const actions = perms.querySelector('.onb-actions');
-    const permsRow = perms.querySelector('.onb-perms');
-    const permCards = [...perms.querySelectorAll('.onb-perm')];
-    [heading, actions, permsRow].forEach(el => {
-      if (!el) return;
-      el.style.transition = 'opacity 320ms ease-in-out';
-      el.style.opacity = '1';
-      el.style.transform = 'translateY(0)';
-    });
-    permCards.forEach((card) => {
-      card.style.transition = 'none';
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(10px)';
-    });
-    void perms.offsetHeight;
-    const CARD_MS = 420;
-    const CARD_STAGGER = 220;
-    permCards.forEach((card, idx) => {
-      card.style.transition = `opacity ${CARD_MS}ms ease-in-out ${idx * CARD_STAGGER}ms, transform ${CARD_MS}ms ease-in-out ${idx * CARD_STAGGER}ms`;
-      card.style.opacity = '1';
-      card.style.transform = 'translateY(0)';
-    });
-    await wait(MORPH_MS * 0.55 + CARD_MS + CARD_STAGGER * Math.max(0, permCards.length - 1));
-    clearEl(sheet);
-    clearEl(intro);
-    clearEl(perms);
-    [...perms.children].forEach(clearEl);
-    permCards.forEach(clearEl);
-  };
-
-  const morphPermsToIntro = async () => {
-    const MORPH_MS = 400;
-    const screen = document.getElementById('onboarding3');
-    const sheet = document.getElementById('onb3Sheet');
-    const intro = document.getElementById('onb3IntroPanel');
-    const perms = document.getElementById('onb3PermsPanel');
-    if (!screen || !sheet || !intro || !perms) return;
-
-    const first = sheet.getBoundingClientRect();
-    perms.style.transition = `opacity ${MORPH_MS * 0.4}ms ease-in-out`;
-    perms.style.opacity = '0';
-    await wait(MORPH_MS * 0.4);
-
-    perms.classList.add('hidden');
-    intro.classList.remove('hidden');
-    intro.style.transition = 'none';
-    intro.style.opacity = '0';
-    screen.classList.remove('is-perms-on');
-    void sheet.offsetHeight;
-    const last = sheet.getBoundingClientRect();
-    const sy = first.height / Math.max(last.height, 1);
-    sheet.style.transition = 'none';
-    sheet.style.transformOrigin = 'bottom center';
-    sheet.style.transform = `scaleY(${sy})`;
-    void sheet.offsetHeight;
-    sheet.style.transition = `transform ${MORPH_MS}ms ease-in-out`;
-    sheet.style.transform = 'scaleY(1)';
-    intro.style.transition = `opacity ${MORPH_MS}ms ease-in-out`;
-    intro.style.opacity = '1';
-    await wait(MORPH_MS);
-    clearEl(sheet);
-    clearEl(intro);
-    clearEl(perms);
-  };
-
   const goTo = async (i) => {
-    if (transitioning || i === current || !screens[i]) return;
-    // Index 3 is the permissions panel on screen 3 (onboarding4 is a stub)
-    if (i === 3 && !screens[2]) return;
+    if (transitioning || i === current || i < 0 || i >= screens.length) return;
     transitioning = true;
-    const prev = current;
-    const dir = i > prev ? 1 : -1;
-    const from = screens[prev === 3 ? 2 : prev] || screens[prev];
-    const to = screens[i === 3 ? 2 : i];
+    hideAuthFlow();
+    const from = screens[current];
+    const to = screens[i];
+    const fadeEase = `opacity ${TRANS_MS}ms ease-in-out`;
+    const toPainOrPromise = i === 0 || i === 1;
+    const formatLabel = i === 0
+      ? () => formatOnbUnwatchedLabel(randomOnbDay())
+      : formatOnbWatchedAgo;
 
-    pauseOnbCardScroll();
-
-    // → schedule shell (screen 3): morph from slide 2, or hard-cut from ticker/other
-    if (i === 2 && prev !== 3) {
-      if (prev === 1) {
-        await morphExpandTo3(screens[1], screens[2]);
-      } else {
-        screens[prev]?.classList.add('hidden');
-        screens[prev] && (screens[prev].style.zIndex = '');
-        resetOnb3SheetPanels();
-        const dest = screens[2];
-        dest.classList.remove('hidden');
-        dest.querySelectorAll('.sched-video, .sched-nav, .sched-dim, .sched-bg, .onb-intro-sheet').forEach(el => {
-          clearEl(el);
-          el.style.opacity = '1';
-        });
-        clearEl(document.getElementById('onb3IntroPanel'));
-        startOnb3Video({ force: true });
-      }
-      syncCardAnim(2);
-      current = 2;
-      transitioning = false;
-      return;
+    // Park destination cards below before fade so they slide in after Next/Back
+    if (toPainOrPromise) {
+      await prepOnbCardsEnter(i === 0 ? '#onboardingPain' : '#onboardingPromise', formatLabel);
+    } else {
+      stopOnbCardScroll();
     }
-
-    // 3 intro → permissions (same modal morph)
-    if (prev === 2 && i === 3) {
-      await morphIntroToPerms();
-      syncCardAnim(i);
-      current = i;
-      transitioning = false;
-      return;
-    }
-
-    // permissions → 3 intro
-    if (prev === 3 && i === 2) {
-      await morphPermsToIntro();
-      syncCardAnim(i);
-      current = i;
-      transitioning = false;
-      return;
-    }
-
-    // Leaving permissions for scanning
-    if (prev === 3 && i === 4) {
-      screens[2]?.classList.add('hidden');
-      screens[3]?.classList.add('hidden');
-      resetOnb3SheetPanels();
-      stopOnb3Video();
-      const scan = screens[4];
-      scan.classList.remove('hidden');
-      scan.classList.add('is-overlay-on');
-      scan.style.opacity = '0';
-      void scan.offsetHeight;
-      scan.style.transition = `opacity ${TRANS_MS}ms ease-in-out`;
-      scan.style.opacity = '1';
-      await wait(TRANS_MS);
-      clearEl(scan);
-      syncCardAnim(i);
-      current = i;
-      transitioning = false;
-      return;
-    }
-    if (prev === 3) {
-      await morphPermsToIntro();
-      resetOnb3SheetPanels();
-      // fall through: from is still screen 3 visually
-    }
-
-    if (prev === 2 || prev === 3 || prev === 4) {
-      from.classList.remove('is-overlay-on');
-    }
-    if ((prev === 2 || prev === 3) && i !== 2 && i !== 3) stopOnb3Video();
-
-    const fromParts = onbContentParts(from);
-    const toParts = onbContentParts(to);
-    const fromTicker = from.querySelector('.onb-ticker');
-    const toTicker = to.querySelector('.onb-ticker');
-    const between12 = (prev === 0 || prev === 1) && (i === 0 || i === 1);
-    const tickerPair = fromTicker && toTicker && between12;
 
     to.classList.remove('hidden');
     from.style.zIndex = '1';
     to.style.zIndex = '2';
-    if (i === 4) to.classList.add('is-overlay-on');
-
-    if (tickerPair) {
-      fromTicker.style.visibility = 'hidden';
-      setOnbTickerActive(to, prev);
-      void toTicker.offsetWidth;
-    }
-
-    const fadeEase = `opacity ${TRANS_MS}ms ease-in-out`;
-    const slideEase = `opacity ${TRANS_MS}ms ease-in-out, transform ${TRANS_MS}ms ease-in-out`;
-
-    const prepIn = (el, withSlide) => {
-      if (!el) return;
-      el.style.transition = 'none';
-      el.style.opacity = '0';
-      if (withSlide) el.style.transform = `translateX(${dir * 16}px)`;
-    };
-    const prepOut = (el, withSlide) => {
-      if (!el) return;
-      el.style.transition = withSlide ? slideEase : fadeEase;
-    };
-
-    // 1↔2: cards sweep in after modal crossfade (handled below)
-    if (between12) {
-      prepIn(toParts.main, true);
-      if (toParts.cards) {
-        toParts.cards.style.transition = 'none';
-        toParts.cards.style.opacity = '0';
-        toParts.cards.style.transform = 'translateY(72%)';
-      }
-    } else {
-      prepIn(toParts.cards, false);
-      prepIn(toParts.main, true);
-    }
-    toParts.extras.forEach(el => prepIn(el, true));
+    to.style.transition = 'none';
+    to.style.opacity = '0';
     void to.offsetHeight;
-
-    prepOut(fromParts.cards, false);
-    prepOut(fromParts.main, true);
-    fromParts.extras.forEach(el => prepOut(el, true));
-    if (toParts.main) toParts.main.style.transition = slideEase;
-    toParts.extras.forEach(el => { el.style.transition = slideEase; });
-    if (!between12 && toParts.cards) toParts.cards.style.transition = fadeEase;
-    void to.offsetHeight;
-
-    if (fromParts.cards) fromParts.cards.style.opacity = '0';
-    if (fromParts.main) {
-      fromParts.main.style.opacity = '0';
-      fromParts.main.style.transform = `translateX(${dir * -16}px)`;
-    }
-    fromParts.extras.forEach(el => {
-      el.style.opacity = '0';
-      el.style.transform = `translateX(${dir * -16}px)`;
-    });
-    if (toParts.main) {
-      toParts.main.style.opacity = '1';
-      toParts.main.style.transform = 'translateX(0)';
-    }
-    toParts.extras.forEach(el => {
-      el.style.opacity = '1';
-      el.style.transform = 'translateX(0)';
-    });
-    if (!between12 && toParts.cards) toParts.cards.style.opacity = '1';
-
-    if (tickerPair) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setOnbTickerActive(to, i));
-      });
-    }
-
-    await wait(Math.max(TRANS_MS, tickerPair ? TICKER_MS : 0));
-
-    if (tickerPair) {
-      setOnbTickerActive(to, i);
-      fromTicker.style.visibility = '';
-    }
-
+    to.style.transition = fadeEase;
+    from.style.transition = fadeEase;
+    to.style.opacity = '1';
+    from.style.opacity = '0';
+    await wait(TRANS_MS);
     from.classList.add('hidden');
     from.style.zIndex = '';
     to.style.zIndex = '';
-    clearEl(fromParts.cards);
-    clearEl(fromParts.main);
-    fromParts.extras.forEach(clearEl);
-    clearEl(toParts.main);
-    toParts.extras.forEach(clearEl);
-
+    clearEl(from);
+    clearEl(to);
+    setOnbTickerActive(to, Math.min(i, 2));
+    await syncCardAnim(i, { prepped: toPainOrPromise });
     current = i;
-    if (between12) {
-      await sweepCardsThenPlay(i === 0 ? '#onboarding1' : '#onboarding2', formatOnbUnwatchedLabel);
-    } else {
-      clearEl(toParts.cards);
-      syncCardAnim(i);
-    }
     transitioning = false;
   };
 
+  onboardingGoTo = goTo;
+
   document.body.classList.add('onboarding-active');
   document.getElementById('onboarding')?.classList.remove('hidden');
-  bindOnb3PlayerControls();
-  resetOnb3SheetPanels();
+  hideAuthFlow();
+  hideNewUserWrongUrl();
+  stopWrongUrlFallAnim();
   screens.forEach((s, j) => {
     s.classList.toggle('hidden', j !== 0);
     s.style.zIndex = '';
-    s.classList.remove('is-overlay-on');
-    const parts = onbContentParts(s);
-    clearEl(parts.cards);
-    clearEl(parts.main);
-    parts.extras.forEach(clearEl);
-    const tick = s.querySelector('.onb-ticker');
-    if (tick) tick.style.visibility = '';
+    clearEl(s);
   });
   setOnbTickerActive(screens[0], 0);
   syncCardAnim(0);
   current = 0;
-  void ensureWatchUrlGate();
 
-  const onb1Next = document.getElementById('onb1Next');
-  const onb2Back = document.getElementById('onb2Back');
-  const onb2Next = document.getElementById('onb2Next');
-  const onb3Back = document.getElementById('onb3Back');
-  const onb3Next = document.getElementById('onb3Next');
-  const onb4Back = document.getElementById('onb4Back');
-  if (onb1Next) onb1Next.onclick = () => goTo(1);
-  if (onb2Back) onb2Back.onclick = () => goTo(0);
-  if (onb2Next) onb2Next.onclick = () => goTo(2);
-  if (onb3Back) onb3Back.onclick = () => goTo(1);
-  if (onb3Next) onb3Next.onclick = () => goTo(3);
-  if (onb4Back) onb4Back.onclick = () => goTo(2);
+  const painNext = document.getElementById('onbPainNext');
+  const promiseBack = document.getElementById('onbPromiseBack');
+  const promiseNext = document.getElementById('onbPromiseNext');
+  const permsBack = document.getElementById('onbPermsBack');
+  const permsClose = document.getElementById('onbPermsClose');
+  const permsAllow = document.getElementById('onbPermsAllow');
 
-  // Ticker dots jump to slides 1–3 (indices 0–2)
+  if (painNext) painNext.onclick = () => goTo(1);
+  if (promiseBack) promiseBack.onclick = () => goTo(0);
+  if (promiseNext) promiseNext.onclick = () => goTo(2);
+  if (permsBack) permsBack.onclick = () => goTo(1);
+  if (permsClose) permsClose.onclick = () => window.close();
+  if (permsAllow) {
+    permsAllow.onclick = () => {
+      // Preview can't OAuth — jump to Analyzing → wrongURLwrongURL (or Schedule).
+      if (window.__WL_PREVIEW__) {
+        void (async () => {
+          await storageSet({
+            supabase_token: 'preview-token',
+            supabase_refresh: 'preview-refresh',
+            google_access_token: 'preview-google',
+            userId: 'preview-user',
+            [ONB_FLAG_COMPLETE]: true
+          });
+          await finishPostAuthScan('Preview');
+        })();
+        return;
+      }
+      startConnectingAndLogin();
+    };
+  }
+
   document.querySelectorAll('[data-onb-goto]').forEach(tick => {
     if (tick.dataset.bound) return;
     tick.dataset.bound = '1';
     const jump = () => {
       const target = Number(tick.getAttribute('data-onb-goto'));
-      if (Number.isFinite(target)) goTo(target);
+      if (Number.isFinite(target) && target <= 2) goTo(target);
     };
     tick.addEventListener('click', jump);
     tick.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        jump();
-      }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jump(); }
     });
   });
-
-  // "Yes, I allow" launches the OAuth flow — keep this modal open until the user
-  // finishes (success → scanning) or cancels/fails (stay / back to intro).
-  const allowBtn = document.getElementById('onb4Next');
-  if (!allowBtn) return;
-  allowBtn.onclick = () => {
-    allowBtn.disabled = true; // single-flight: no parallel OAuth popups
-    chrome.runtime.sendMessage({ action: 'login' }, resp => {
-      void chrome.runtime.lastError;
-      allowBtn.disabled = false;
-      if (!resp?.success) {
-        showToast('Google authentication failed. Please try again.');
-        return;
-      }
-      const first = (resp.name || '').trim().split(' ')[0];
-      const scanName = document.getElementById('scanName');
-      if (scanName) scanName.textContent = (first || 'there') + ',';
-      goTo(4);
-
-      // Analyze calendar while the scan animation runs; morph to schedule when both finish.
-      (async () => {
-        try {
-          const stored = await new Promise(r =>
-            chrome.storage.local.get(['userId', 'google_access_token'], r)
-          );
-          const analyzeP = analyzeAndSavePrefs(stored.userId, stored.google_access_token);
-          const scanP = onbCalScanPromise || Promise.resolve();
-          await Promise.all([analyzeP, scanP]);
-          await initPopup();
-        } catch (err) {
-          console.error('Post-login scan handoff failed:', err);
-          try { await initPopup(); } catch (_) { /* ignore */ }
-        }
-        hideOnboarding();
-      })();
-    });
-  };
 }
+
 
 function bindThemeToggle() {
   const btn  = document.querySelector('.theme-toggle');
@@ -2033,9 +2280,21 @@ async function initPopup() {
     hideSkeleton();
     document.getElementById('realContent').classList.remove('hidden');
 
-    // onboarding covers the login screen until the user finishes both slides
-    showOnboarding();
-    
+    const flags = await migrateOnboardingFlags();
+    const tab = await getActiveInjectableTab().catch(() => null);
+    const onWatch = isYouTubeWatchUrl(tab?.url);
+
+    if (!flags[ONB_FLAG_COMPLETE]) {
+      // New user first time: watch → Pain→…→Schedule; wrong URL → same then wrongURLwrongURL
+      showOnboarding({ wrongUrl: !onWatch });
+    } else if (!onWatch) {
+      // Returning logged-out on non-watch: same gate UI (no schedule cache yet)
+      showNewUserWrongUrl();
+    } else {
+      // Returning logged-out + watch URL → Connecting → OAuth → Schedule
+      await showReturningConnecting();
+    }
+
     // **hide logged-in only controls** in logged-out state
     document.getElementById('scheduleBtn').style.display = 'none';
     document.getElementById('streakProgress')?.classList.add('hidden');
@@ -2058,6 +2317,18 @@ async function initPopup() {
   if (window.__WL_PREVIEW__) {
     paintPreviewSchedule();
     return;
+  }
+
+  // Tokens present but calendar never finished scanning (mid-scan close / post-logout) → Connecting
+  {
+    const { userId } = await storageGet(['userId']);
+    const flags = await migrateOnboardingFlags(userId);
+    if (!flags[ONB_FLAG_SCANNED]) {
+      hideSkeleton();
+      document.getElementById('realContent')?.classList.remove('hidden');
+      await showReturningConnecting();
+      return;
+    }
   }
 
   // Logged-in: show shimmer while fetching session/user
@@ -2302,7 +2573,7 @@ document.getElementById('enterReferralBtn')
   // 0) Make sure our token is still valid (and re-auth if needed)
   const valid = await ensureValidGoogleToken();
   if (!valid) {
-    showFeedback("Please log in again to access your calendar.", "error");
+    await showReturningConnecting();
     return;
   }
   const { google_access_token } = await new Promise(res =>
@@ -2313,7 +2584,16 @@ if (el.videoTitle) el.videoTitle.textContent = 'Loading video…';
 
   const activeTab = await getActiveInjectableTab().catch(() => null);
   cachedVideoUrl = activeTab?.url || '';
-  if (!(await ensureWatchUrlGate())) {
+  const onWatch = isYouTubeWatchUrl(cachedVideoUrl);
+  if (!onWatch) {
+    // Logged-in + wrong URL → restore last watch snapshot + Wrong URL overlay
+    hideSkeleton();
+    document.getElementById('realContent')?.classList.remove('hidden');
+    if (el.scheduleBtn) el.scheduleBtn.style.display = 'flex';
+    await showWrongUrlPanel({ restore: true });
+    return;
+  }
+  if (!(await ensureWatchUrlGate({ intent: 'schedule' }))) {
     hideSkeleton();
     document.getElementById('realContent')?.classList.remove('hidden');
     return;
@@ -3652,7 +3932,10 @@ modal.querySelector('#confirmLogout')?.addEventListener('click', async () => {
     await supabaseClient.from('users').delete().eq('id', user.id);
 
     chrome.storage.local.clear(() => {
-      console.log("🗑️ All local and remote data erased.");
+      // Logout ≠ first install: keep product onboarding done, wipe scan for next account.
+      chrome.storage.local.set({ [ONB_FLAG_COMPLETE]: true }, () => {
+        console.log("🗑️ All local and remote data erased (onboardingComplete kept).");
+      });
     });
   } else {
     // ✅ Keep minimal metadata in Supabase
@@ -3675,7 +3958,8 @@ modal.querySelector('#confirmLogout')?.addEventListener('click', async () => {
     chrome.storage.local.remove([
       'supabase_token',
       'supabase_refresh',
-      'google_access_token'
+      'google_access_token',
+      ONB_FLAG_SCANNED
     ]);
   }
 
@@ -3823,10 +4107,10 @@ async function saveUserPrefs(userId, { days, slots }) {
   return true;
 }
 
-async function analyzeAndSavePrefs(userId, accessToken) {
+async function analyzeAndSavePrefs(userId, accessToken, { force = false } = {}) {
   const existing = await loadUserPrefs(userId);
-  // Already personalized (days + slots) — don't overwrite on re-login
-  if (existing.days?.length && existing.slots?.length) return existing;
+  // Already personalized (days + slots) — don't overwrite on re-login unless forced (post-logout rescan)
+  if (!force && existing.days?.length && existing.slots?.length) return existing;
   let result;
   try {
     result = await analyzeCalendarPrefs(accessToken);
@@ -3949,6 +4233,88 @@ function isYouTubeWatchUrl(url) {
   }
 }
 
+function hideNewUserWrongUrl() {
+  const screen = document.getElementById('newUserWrongUrl');
+  if (!screen) return;
+  screen.classList.add('hidden');
+  screen.setAttribute('aria-hidden', 'true');
+}
+
+/* ── Figma 137:2688 Wrong URL — image BG + hardcoded dim/modal ── */
+function stopWrongUrlFallAnim() {
+  const screen = document.getElementById('wrongUrlFallAnim');
+  if (!screen) return;
+  screen.classList.add('hidden');
+  screen.setAttribute('aria-hidden', 'true');
+}
+
+function showWrongUrlFallAnim() {
+  hideWrongUrlPanel();
+  hideNewUserWrongUrl();
+  hideAuthFlow();
+  document.getElementById('scheduleScreen')?.classList.add('hidden');
+  ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'onboardingAnalyzing', 'newUserWrongUrl']
+    .forEach(id => document.getElementById(id)?.classList.add('hidden'));
+
+  const onb = document.getElementById('onboarding');
+  onb?.classList.remove('hidden');
+  document.body.classList.add('onboarding-active');
+
+  const screen = document.getElementById('wrongUrlFallAnim');
+  if (!screen) return;
+  screen.classList.remove('hidden');
+  screen.setAttribute('aria-hidden', 'false');
+
+  const fixBtn = document.getElementById('wuaWrongUrlFixBtn');
+  if (fixBtn && !fixBtn.dataset.wired) {
+    fixBtn.dataset.wired = '1';
+    fixBtn.addEventListener('click', async () => {
+      recordButtonClick('Open any video on YouTube and retry');
+      const tab = await getActiveInjectableTab().catch(() => null);
+      if (tab?.id != null) {
+        chrome.tabs.update(tab.id, { url: WRONG_URL_FIX });
+      } else {
+        chrome.tabs.create({ url: WRONG_URL_FIX });
+      }
+      window.close();
+    });
+  }
+}
+
+function showNewUserWrongUrl() {
+  hideWrongUrlPanel();
+  hideAuthFlow();
+  stopWrongUrlFallAnim();
+  document.getElementById('scheduleScreen')?.classList.add('hidden');
+  const onb = document.getElementById('onboarding');
+  onb?.classList.remove('hidden');
+  document.body.classList.add('onboarding-active');
+  ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'onboardingAnalyzing', 'wrongUrlFallAnim'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+  const screen = document.getElementById('newUserWrongUrl');
+  if (screen) {
+    screen.classList.remove('hidden');
+    screen.setAttribute('aria-hidden', 'false');
+  }
+  enterOnbCardsThenPlay('#newUserWrongUrl', () => formatOnbUnwatchedLabel(randomOnbDay()));
+
+  const fixBtn = document.getElementById('newUserWrongUrlFixBtn');
+  if (fixBtn && !fixBtn.dataset.wired) {
+    fixBtn.dataset.wired = '1';
+    fixBtn.addEventListener('click', async () => {
+      recordButtonClick('Open any video on YouTube and retry');
+      const tab = await getActiveInjectableTab().catch(() => null);
+      if (tab?.id != null) {
+        chrome.tabs.update(tab.id, { url: WRONG_URL_FIX });
+      } else {
+        chrome.tabs.create({ url: WRONG_URL_FIX });
+      }
+      window.close();
+    });
+  }
+}
+
 function wrongUrlMountParent() {
   if (document.body.classList.contains('onboarding-active')) {
     return document.getElementById('onboarding');
@@ -3965,14 +4331,22 @@ function mountWrongUrlOverlay() {
 }
 
 /** true = on a watch page (modal closed); false = Wrong URL shown */
-async function ensureWatchUrlGate() {
+async function ensureWatchUrlGate({ intent = 'schedule' } = {}) {
   const tab = await getActiveInjectableTab().catch(() => null);
   if (isYouTubeWatchUrl(tab?.url)) {
     hideWrongUrlPanel();
     return true;
   }
-  const onOnboarding = document.body.classList.contains('onboarding-active');
-  await showWrongUrlPanel({ restore: !onOnboarding });
+  if (intent === 'idle' || intent === 'general') {
+    hideWrongUrlPanel();
+    return false;
+  }
+  // Logged-out / pre-onboarding: NewUserWrongURL (Pain chrome). Logged-in: schedule overlay.
+  if (intent === 'onboarding' || intent === 'new-user') {
+    showNewUserWrongUrl();
+    return false;
+  }
+  await showWrongUrlPanel({ restore: intent !== 'onboarding' });
   return false;
 }
 

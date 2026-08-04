@@ -30,6 +30,14 @@ const onb1CardSlot = eval(`(${extractFunction('onb1CardSlot')})`);
 const ascendingOnbDays = eval(`(${extractFunction('ascendingOnbDays')})`);
 const formatOnbUnwatchedLabel = eval(`(${extractFunction('formatOnbUnwatchedLabel')})`);
 const formatOnbWatchedLabel = eval(`(${extractFunction('formatOnbWatchedLabel')})`);
+const randomOnbDay = eval(`(${extractFunction('randomOnbDay')})`);
+const ONB_LIFE_TITLES = (() => {
+  const m = src.match(/const ONB_LIFE_TITLES = (\[[\s\S]*?\]);/);
+  assert(m, 'ONB_LIFE_TITLES not found');
+  return eval(`(${m[1]})`);
+})();
+const pickOnbLifeTitle = eval(`(function () { const ONB_LIFE_TITLES = ${JSON.stringify(ONB_LIFE_TITLES)}; return (${extractFunction('pickOnbLifeTitle')}); })()`);
+const randomOnbDurationSec = eval(`(${extractFunction('randomOnbDurationSec')})`);
 const ONB_CAL_DAY = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const onbCalWeekdayRows = eval(`(function () { const ONB_CAL_DAY = ${JSON.stringify(ONB_CAL_DAY)}; return (${extractFunction('onbCalWeekdayRows')}); })()`);
 const onbCalMonthsAround = eval(`(${extractFunction('onbCalMonthsAround')})`);
@@ -93,14 +101,14 @@ assert.deepStrictEqual(shuffleCopy([1]).slice().sort(), [1]);
 }
 
 // slide-1 carousel slots: 3 visible — edges 95%, middle 100%; end step morphs + fades
-assert.deepStrictEqual(onb1CardSlot(0, 'rest'), { width: '95%', opacity: '1' });
+assert.deepStrictEqual(onb1CardSlot(0, 'rest'), { width: '100%', opacity: '1' });
 assert.deepStrictEqual(onb1CardSlot(1, 'rest'), { width: '100%', opacity: '1' });
-assert.deepStrictEqual(onb1CardSlot(2, 'rest'), { width: '95%', opacity: '1' });
-assert.deepStrictEqual(onb1CardSlot(3, 'rest'), { width: '95%', opacity: '0' });
-assert.deepStrictEqual(onb1CardSlot(0, 'end'), { width: '95%', opacity: '0' });
-assert.deepStrictEqual(onb1CardSlot(1, 'end'), { width: '95%', opacity: '1' });
+assert.deepStrictEqual(onb1CardSlot(2, 'rest'), { width: '100%', opacity: '1' });
+assert.deepStrictEqual(onb1CardSlot(3, 'rest'), { width: '100%', opacity: '0' });
+assert.deepStrictEqual(onb1CardSlot(0, 'end'), { width: '100%', opacity: '0' });
+assert.deepStrictEqual(onb1CardSlot(1, 'end'), { width: '100%', opacity: '1' });
 assert.deepStrictEqual(onb1CardSlot(2, 'end'), { width: '100%', opacity: '1' });
-assert.deepStrictEqual(onb1CardSlot(3, 'end'), { width: '95%', opacity: '1' });
+assert.deepStrictEqual(onb1CardSlot(3, 'end'), { width: '100%', opacity: '1' });
 
 // unwatched labels: ascending days (7, 14, 21, …)
 assert.deepStrictEqual(ascendingOnbDays(5, 7, 7), [7, 14, 21, 28, 35]);
@@ -109,6 +117,24 @@ assert.strictEqual(formatOnbUnwatchedLabel(45), 'Unwatched since 45 days');
 assert.strictEqual(formatOnbUnwatchedLabel(7), 'Unwatched since 7 days');
 assert.strictEqual(formatOnbWatchedLabel(45), 'Watched since 45 days');
 assert.strictEqual(formatOnbWatchedLabel(14), 'Watched since 14 days');
+{
+  const d = randomOnbDay();
+  assert.ok(d >= 7 && d <= 66, `randomOnbDay out of range: ${d}`);
+}
+{
+  const t = pickOnbLifeTitle();
+  assert.ok(t.length >= 40, `life title too short for 2 lines: ${t.length}`);
+  assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(t), 'life title has emoji');
+}
+{
+  const sec = randomOnbDurationSec();
+  assert.ok(sec >= 120 && sec < 55 * 60, `duration out of range: ${sec}`);
+}
+const formatOnbWatchedAgo = eval(`(${extractFunction('formatOnbWatchedAgo')})`);
+assert.ok(/^Watched /.test(formatOnbWatchedAgo()), 'watched ago prefix');
+// 9 local onboarding thumbs
+assert.ok(src.includes("Icon/onb/onb-thumb-01.png"), 'missing onb thumb paths');
+assert.ok(src.includes("Icon/onb/onb-thumb-09.png"), 'missing onb thumb 09');
 
 // scan calendar: Aug 2026 → first Mon–Fri week is 03–07; months around Jul include Jun/Jul/Aug
 const augWeeks = onbCalWeekdayRows(2026, 7);
@@ -241,5 +267,23 @@ assert.deepStrictEqual(
   );
   assert.strictEqual(watched[0].id, 'b');
 }
+
+{
+  // Default-arg `meta = {}` breaks brace extraction — assert source contract instead.
+  assert.ok(src.includes('function classifyOAuthError('));
+  assert.ok(/code === 'popup_blocked'/.test(src));
+  assert.ok(/redirect_uri\|invalid_client/.test(src));
+}
+
+assert.ok(src.includes("ONB_FLAG_COMPLETE = 'onboardingComplete'"));
+assert.ok(src.includes("ONB_FLAG_SCANNED = 'calendarScanned'"));
+assert.ok(src.includes('ANALYZE_MIN_MS = 2500'));
+assert.ok(src.includes('ANALYZE_MAX_MS = 8000'));
+assert.ok(src.includes("showAuthPanel('authConnecting')") || src.includes('showAuthPanel("authConnecting")'));
+assert.ok(src.includes('showReturningConnecting'));
+assert.ok(src.includes('startConnectingAndLogin'));
+assert.ok(src.includes('function showNewUserWrongUrl'));
+assert.ok(src.includes("authFlowKind === 'returning'"));
+assert.ok(src.includes('showWrongUrlPanel({ restore: true })'));
 
 console.log('✅ selfcheck passed');

@@ -23,3 +23,7 @@ supabase/.temp/
 
 # Git backups
 .git-v1-backup/
+
+# Local source dumps (not shipped)
+data/
+Icon/_skip.jpg
