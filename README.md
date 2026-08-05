@@ -24,9 +24,23 @@ npx --yes serve -p 8321
 ## Tests
 
 ```bash
-node tests/selfcheck.js
-node tests/stress-oauth.js
+node tests/selfcheck.js                     # pure UI/history helpers
+node tests/slot-algorithm-selfcheck.js      # scoring, suggestions, resume routing
+node tests/slot-algorithm-stress.js         # jam-packed / empty / hostile / DST calendars + timings
+node tests/scanandscore-tz-selfcheck.mjs    # Edge Function timezone helpers
+node tests/stress-oauth.js                  # refresh-token rotation + reuse detection
 ```
+
+## Slot algorithm
+
+`lib/slot-algorithm.js` is the reference implementation and runs client-side: the
+post-login calendar scan writes a 7×7 score grid to `calendar_slot_scores`, and
+suggestions only ever fill an *empty* `user_slot_preferences` — a rescan never
+overwrites days/times the user picked.
+
+`supabase/functions/scanAndScore/` mirrors the scoring server-side but is **not
+deployed**. It still needs a Google access token from the caller, so it only
+becomes worthwhile once a server-held refresh token exists (cron path).
 
 ## Stack
 

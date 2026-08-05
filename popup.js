@@ -582,13 +582,25 @@ function startPreviewMode() {
           interrupted: 'authFlowInterrupted',
           generic: 'authSomethingWrong'
         };
-        if (authScreen && authPanels[authScreen]) {
+        if (authScreen === 'permissions') {
+          setTimeout(() => { if (onboardingGoTo) onboardingGoTo(2); }, 200);
+        } else if (authScreen === 'analyzing') {
+          setTimeout(async () => {
+            await storageSet({
+              supabase_token: 'preview-token',
+              supabase_refresh: 'preview-refresh',
+              google_access_token: 'preview-google',
+              userId: 'preview-user',
+              [ONB_FLAG_COMPLETE]: true
+            });
+            await finishPostAuthScan('Preview');
+          }, 200);
+        } else if (authScreen && authPanels[authScreen]) {
           setTimeout(async () => {
             wireAuthPanelsOnce();
             if (onboardingGoTo) await onboardingGoTo(2);
             await prepareAuthBackdrop();
             showAuthPanel(authPanels[authScreen]);
-            if (authScreen === 'connecting') showPopupBlockedBanner();
           }, 200);
         }
         return;
@@ -621,7 +633,6 @@ function startPreviewMode() {
             if (onboardingGoTo) await onboardingGoTo(2);
             await prepareAuthBackdrop();
             showAuthPanel('authConnecting');
-            showPopupBlockedBanner();
           } else if (authScreen === 'cancelled') {
             if (onboardingGoTo) await onboardingGoTo(2);
             await prepareAuthBackdrop();
@@ -1612,7 +1623,7 @@ function hideOnboarding() {
   hideNewUserWrongUrl();
   document.getElementById('onboarding')?.classList.add('hidden');
   document.getElementById('scheduleScreen')?.classList.remove('hidden');
-  document.body.classList.remove('onboarding-active', 'is-auth-flow', 'is-auth-connecting');
+  document.body.classList.remove('onboarding-active', 'is-auth-flow', 'is-auth-connecting', 'is-onb-wrong-url');
 }
 
 const ONB_FLAG_COMPLETE = 'onboardingComplete';
@@ -1641,8 +1652,15 @@ async function migrateOnboardingFlags(userId) {
   }
   if (cur[ONB_FLAG_SCANNED] == null && userId && typeof supabaseClient !== 'undefined') {
     try {
-      const { data } = await supabaseClient.from('UserSlots').select('days').eq('user_id', userId).maybeSingle();
-      if (Array.isArray(data?.days) && data.days.length) patch[ONB_FLAG_SCANNED] = true;
+      const { data: pref } = await supabaseClient
+        .from('user_slot_preferences')
+        .select('selected_days')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const days = pref?.selected_days;
+      if (Array.isArray(days) && days.length) {
+        patch[ONB_FLAG_SCANNED] = true;
+      }
     } catch (_) { /* ignore */ }
   }
   if (Object.keys(patch).length) await storageSet(patch);
@@ -1718,6 +1736,13 @@ function showAuthPanel(panelId) {
       try { vid.pause(); } catch (_) {}
     }
   });
+
+  // Figma 171:682 — warn banner always visible on Connecting (click = Try again)
+  if (panelId === 'authConnecting') showPopupBlockedBanner();
+  else {
+    const banner = document.getElementById('authPopupBlockedBanner');
+    if (banner) { banner.classList.add('hidden'); banner.hidden = true; }
+  }
 }
 
 async function prepareAuthBackdrop() {
@@ -1805,7 +1830,10 @@ async function finishPostAuthScan(name) {
     if (!flags[ONB_FLAG_SCANNED]) {
       try {
         const stored = await storageGet(['userId', 'google_access_token']);
-        await analyzeAndSavePrefs(stored.userId, stored.google_access_token, { force: true });
+        await analyzeAndSavePrefs(stored.userId, stored.google_access_token, {
+          force: true,
+          triggeredBy: 'reconnect',
+        });
       } catch (_) { /* schedule still opens; prefs may be empty */ }
       await storageSet({ [ONB_FLAG_SCANNED]: true });
     }
@@ -1865,7 +1893,10 @@ async function finishPostAuthScan(name) {
     let analyzeOk = false;
     const analyzeP = (async () => {
       try {
-        await analyzeAndSavePrefs(stored.userId, stored.google_access_token, { force: true });
+        await analyzeAndSavePrefs(stored.userId, stored.google_access_token, {
+          force: true,
+          triggeredBy: 'onboarding',
+        });
         analyzeOk = true;
       } catch (_) {
         analyzeOk = false;
@@ -1908,6 +1939,20 @@ async function finishPostAuthScan(name) {
     }
     await initPopup();
     hideOnboarding();
+    // Field-level resume: if scan failed and prefs empty → day prefs; else schedule
+    try {
+      const stored = await storageGet(['userId']);
+      const prefs = await loadUserPrefs(stored.userId);
+      const dest = (typeof WLSlotAlgorithm !== 'undefined')
+        ? WLSlotAlgorithm.resumeDestination({
+            calendarScanned: true,
+            selectedDays: prefs.days,
+            selectedTimes: prefs.slots,
+          })
+        : 'schedule';
+      if (dest === 'pref_days') await openSchedPrefs('day');
+      else if (dest === 'pref_times') await openSchedPrefs('time');
+    } catch (_) { /* schedule already shown */ }
   };
 
   await runAnalyze();
@@ -1919,10 +1964,6 @@ async function startConnectingAndLogin(opts = {}) {
   wireAuthPanelsOnce();
   await prepareAuthBackdrop();
   showAuthPanel('authConnecting');
-  if (!opts.fromBanner) {
-    const banner = document.getElementById('authPopupBlockedBanner');
-    if (banner) { banner.classList.add('hidden'); banner.hidden = true; }
-  }
 
   const allowBtn = document.getElementById('onbPermsAllow');
   if (allowBtn) allowBtn.disabled = true;
@@ -2028,6 +2069,7 @@ function showOnboarding(opts = {}) {
 
   authFlowKind = opts.wrongUrl ? 'new-wrong-url' : 'new';
   authPopupBlockedCount = 0;
+  document.body.classList.toggle('is-onb-wrong-url', !!opts.wrongUrl);
 
   const syncCardAnim = (i, { prepped = false } = {}) => {
     stopOnb3Video();
@@ -2107,14 +2149,12 @@ function showOnboarding(opts = {}) {
   const painNext = document.getElementById('onbPainNext');
   const promiseBack = document.getElementById('onbPromiseBack');
   const promiseNext = document.getElementById('onbPromiseNext');
-  const permsBack = document.getElementById('onbPermsBack');
   const permsClose = document.getElementById('onbPermsClose');
   const permsAllow = document.getElementById('onbPermsAllow');
 
   if (painNext) painNext.onclick = () => goTo(1);
   if (promiseBack) promiseBack.onclick = () => goTo(0);
   if (promiseNext) promiseNext.onclick = () => goTo(2);
-  if (permsBack) permsBack.onclick = () => goTo(1);
   if (permsClose) permsClose.onclick = () => window.close();
   if (permsAllow) {
     permsAllow.onclick = () => {
@@ -3923,18 +3963,14 @@ modal.querySelector('#confirmLogout')?.addEventListener('click', async () => {
   recordButtonClick('Log Out');
   const remember = document.getElementById('rememberInfo').checked;
   const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
 
   if (!remember) {
-    // ❌ Wipe user completely from Supabase
-    await supabaseClient.from('UserTokens').delete().eq('user_id', user.id);
-    await supabaseClient.from('videohistory').delete().eq('user_id', user.id);
-    await supabaseClient.from('UserSlots').delete().eq('user_id', user.id);
-    await supabaseClient.from('users').delete().eq('id', user.id);
-
+    await wipeUserRemoteData(user.id);
     chrome.storage.local.clear(() => {
       // Logout ≠ first install: keep product onboarding done, wipe scan for next account.
       chrome.storage.local.set({ [ONB_FLAG_COMPLETE]: true }, () => {
-        console.log("🗑️ All local and remote data erased (onboardingComplete kept).");
+        console.log('🗑️ All local and remote data erased (onboardingComplete kept).');
       });
     });
   } else {
@@ -3946,13 +3982,6 @@ modal.querySelector('#confirmLogout')?.addEventListener('click', async () => {
       email: userData.user.email,
       name: userData.user.user_metadata.name,
       avatar_url: userData.user.user_metadata.picture
-    });
-
-    const session = await supabaseClient.auth.getSession();
-    await supabaseClient.from('UserTokens').upsert({
-      user_id: userData.user.id,
-      access_token: encodeToken(session.data.session.access_token),
-      refresh_token: encodeToken(session.data.session.refresh_token)
     });
 
     chrome.storage.local.remove([
@@ -4014,7 +4043,33 @@ async function fetchCurrentYouTubeChannelInfo() {
 
 
 
-async function fetchFreeBusyRange(accessToken, timeMin, timeMax) {
+/**
+ * Full account wipe from the popup (uncheck "remember me"). Auth user stays;
+ * only extension-owned rows are removed.
+ */
+async function wipeUserRemoteData(userId) {
+  if (!userId || window.__WL_PREVIEW__) return;
+  const del = (table, col = 'user_id') =>
+    supabaseClient.from(table).delete().eq(col, userId);
+  // Redemptions as redeemer first; owned codes next (CASCADE drops code redemptions).
+  await del('referral_redemptions', 'redeemed_user_id');
+  await del('referral_codes');
+  await Promise.all([
+    del('videohistory'),
+    del('user_slot_preferences'),
+    del('calendar_slot_scores'),
+    del('calendar_scan_runs'),
+    del('feedback'),
+  ]);
+  await del('users', 'id');
+}
+
+/**
+ * freeBusy for one range. Throws on every failure mode instead of returning [],
+ * because "no busy blocks" and "the request failed" score identically — an empty
+ * array from a 403 would tell the algorithm the user's calendar is wide open.
+ */
+async function fetchFreeBusyRange(accessToken, timeMin, timeMax, { retried = false } = {}) {
   const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     method: 'POST',
     headers: {
@@ -4027,39 +4082,24 @@ async function fetchFreeBusyRange(accessToken, timeMin, timeMax) {
       items: [{ id: 'primary' }],
     }),
   });
-  if (res.status === 401) {
+  if (res.status === 401 && !retried) {
     const ok = await ensureValidGoogleToken();
-    if (!ok) return [];
+    if (!ok) throw new Error('freeBusy 401: silent re-auth failed');
     const { google_access_token } = await new Promise(r =>
       chrome.storage.local.get('google_access_token', r)
     );
-    return fetchFreeBusyRange(google_access_token, timeMin, timeMax);
+    return fetchFreeBusyRange(google_access_token, timeMin, timeMax, { retried: true });
   }
+  if (!res.ok) throw new Error(`freeBusy HTTP ${res.status}`);
   const json = await res.json();
-  return json?.calendars?.primary?.busy || [];
+  const cal = json?.calendars?.primary;
+  // Per-calendar problems come back inside a 200 response with no busy array.
+  const calError = cal?.errors?.[0]?.reason;
+  if (calError) throw new Error(`freeBusy calendar error: ${calError}`);
+  if (!Array.isArray(cal?.busy)) throw new Error('freeBusy: malformed response');
+  return cal.busy;
 }
 
-/** Prev month → next month freeBusy window for preference scoring. */
-function prefsAnalysisWindow(now = new Date()) {
-  const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
-  return { timeMin, timeMax };
-}
-
-async function analyzeCalendarPrefs(accessToken) {
-  const { timeMin, timeMax } = prefsAnalysisWindow();
-  if (!accessToken || window.__WL_PREVIEW__ || accessToken === 'preview-google') {
-    return {
-      days: DEFAULT_PREF_DAYS.slice(),
-      slots: DEFAULT_PREF_SLOTS.slice(),
-      dayHints: Object.fromEntries(PREFS_DOW.map(k => [k, 'Free days'])),
-      slotHints: Object.fromEntries(Object.keys(SLOT_RANGES).map(k => [k, 'Free days'])),
-    };
-  }
-  // ponytail: one freeBusy call for ~90d; split if Google starts rejecting large ranges
-  const busy = await fetchFreeBusyRange(accessToken, timeMin, timeMax);
-  return scoreCalendarPrefs(busy, timeMin, timeMax);
-}
 
 async function loadUserPrefs(userId) {
   if (!userId) {
@@ -4074,62 +4114,276 @@ async function loadUserPrefs(userId) {
     }
     return { days: DEFAULT_PREF_DAYS.slice(), slots: DEFAULT_PREF_SLOTS.slice() };
   }
-  const { data, error } = await supabaseClient
-    .from('UserSlots')
-    .select('days, slots')
+
+  const { data: pref, error: prefErr } = await supabaseClient
+    .from('user_slot_preferences')
+    .select('selected_days, selected_times')
     .eq('user_id', userId)
     .maybeSingle();
-  if (error || !data) {
+  if (prefErr || !pref) {
     return { days: [], slots: [] };
   }
   return {
-    days: Array.isArray(data.days) ? data.days : [],
-    slots: Array.isArray(data.slots) ? data.slots : [],
+    days: Array.isArray(pref.selected_days) ? pref.selected_days : [],
+    slots: Array.isArray(pref.selected_times) ? pref.selected_times : [],
   };
 }
 
-async function saveUserPrefs(userId, { days, slots }) {
+async function saveUserPrefs(userId, { days, slots }, opts = {}) {
   if (!userId) return false;
+  const dayList = days?.length ? days : [];
+  const slotList = slots?.length ? slots : [];
   const payload = {
     user_id: userId,
-    days: days?.length ? days : DEFAULT_PREF_DAYS.slice(),
-    slots: slots?.length ? slots : DEFAULT_PREF_SLOTS.slice(),
+    days: dayList.length ? dayList : DEFAULT_PREF_DAYS.slice(),
+    slots: slotList.length ? slotList : DEFAULT_PREF_SLOTS.slice(),
   };
   if (window.__WL_PREVIEW__) {
     await new Promise(r => chrome.storage.local.set({ preview_user_slots: payload }, r));
     return true;
   }
-  const { error } = await supabaseClient.from('UserSlots').upsert(payload);
-  if (error) {
-    console.error('Failed to save UserSlots prefs:', error);
+
+  const prefRow = {
+    user_id: userId,
+    selected_days: dayList,
+    selected_times: slotList,
+    last_edited_at: new Date().toISOString(),
+  };
+  if (opts.suggestedDays) {
+    prefRow.suggested_days_at_setup = opts.suggestedDays;
+    prefRow.suggested_times_at_setup = opts.suggestedTimes || [];
+    prefRow.suggested_algorithm_version = opts.algorithmVersion || 1;
+  }
+  if (opts.daysEditedManually) prefRow.days_edited_manually = true;
+  if (opts.timesEditedManually) prefRow.times_edited_manually = true;
+
+  const { error: prefError } = await supabaseClient
+    .from('user_slot_preferences')
+    .upsert(prefRow);
+  if (prefError) {
+    console.error('Failed to save user_slot_preferences:', prefError);
     return false;
   }
   return true;
 }
 
-async function analyzeAndSavePrefs(userId, accessToken, { force = false } = {}) {
-  const existing = await loadUserPrefs(userId);
-  // Already personalized (days + slots) — don't overwrite on re-login unless forced (post-logout rescan)
-  if (!force && existing.days?.length && existing.slots?.length) return existing;
-  let result;
+async function loadSlotAlgoConfig() {
+  const defaults = (typeof WLSlotAlgorithm !== 'undefined' && WLSlotAlgorithm.DEFAULT_CONFIG)
+    ? { ...WLSlotAlgorithm.DEFAULT_CONFIG }
+    : { FREE_RATIO_THRESHOLD: 0.8, SELECTION_THRESHOLD: 0.7, MIN_SAMPLE_SIZE: 3, MAX_SELECTIONS: 3, ALGORITHM_VERSION: 1, STALENESS_DAYS: 30 };
+  if (window.__WL_PREVIEW__ || typeof supabaseClient === 'undefined') return defaults;
   try {
-    result = await analyzeCalendarPrefs(accessToken);
-  } catch (err) {
-    console.error('Calendar pref analysis failed:', err);
-    result = {
-      days: DEFAULT_PREF_DAYS.slice(),
-      slots: DEFAULT_PREF_SLOTS.slice(),
-      dayHints: {},
-      slotHints: {},
+    const { data } = await supabaseClient.from('slot_algorithm_config').select('key, value');
+    if (!data?.length) return defaults;
+    for (const row of data) {
+      if (row.key && row.value != null) defaults[row.key] = Number(row.value);
+    }
+  } catch (_) { /* use defaults */ }
+  return defaults;
+}
+
+const SCAN_LOCK_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * True when a scan must not start: another one is genuinely in flight, or a
+ * recent failure asked us to back off.
+ * ponytail: the in-flight lock is a TTL, not a lease — a popup closed mid-scan
+ * never writes completed_at, so a plain `status = running` check would block
+ * every future scan forever. Upgrade to a heartbeat if scans ever exceed the TTL.
+ */
+async function scanIsBlocked(userId, { respectBackoff = true } = {}) {
+  if (!userId || window.__WL_PREVIEW__) return false;
+  const { data } = await supabaseClient
+    .from('calendar_scan_runs')
+    .select('status, started_at, completed_at, not_before')
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return false;
+  const now = Date.now();
+  if (
+    data.status === 'running' &&
+    !data.completed_at &&
+    now - new Date(data.started_at).getTime() < SCAN_LOCK_TTL_MS
+  ) return true;
+  // Backoff only gates background rescans; a user who asked for this waits on Google, not on us.
+  if (respectBackoff && data.not_before && now < new Date(data.not_before).getTime()) return true;
+  return false;
+}
+
+async function scoresAreStale(userId, stalenessDays = 30) {
+  if (!userId || window.__WL_PREVIEW__) return false;
+  const { data } = await supabaseClient
+    .from('calendar_slot_scores')
+    .select('scanned_at')
+    .eq('user_id', userId)
+    .order('scanned_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data?.scanned_at) return true;
+  const ageMs = Date.now() - new Date(data.scanned_at).getTime();
+  return ageMs > stalenessDays * 86400000;
+}
+
+/**
+ * Scan freeBusy → write calendar_slot_scores.
+ * First-time (empty prefs): also suggest + save selected + suggested snapshot.
+ * Rescan: scores/hints only — never overwrite selected_days/times.
+ */
+async function analyzeAndSavePrefs(userId, accessToken, { force = false, triggeredBy = 'onboarding' } = {}) {
+  const existing = await loadUserPrefs(userId);
+  const hasSelection = !!(existing.days?.length && existing.slots?.length);
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+
+  if (window.__WL_PREVIEW__ || !accessToken || accessToken === 'preview-google' || !algo) {
+    if (!hasSelection) {
+      await saveUserPrefs(userId, {
+        days: DEFAULT_PREF_DAYS.slice(),
+        slots: DEFAULT_PREF_SLOTS.slice(),
+      }, {
+        suggestedDays: DEFAULT_PREF_DAYS.slice(),
+        suggestedTimes: DEFAULT_PREF_SLOTS.slice(),
+      });
+    }
+    return {
+      days: hasSelection ? existing.days : DEFAULT_PREF_DAYS.slice(),
+      slots: hasSelection ? existing.slots : DEFAULT_PREF_SLOTS.slice(),
+      dayHints: Object.fromEntries(PREFS_DOW.map(k => [k, 'Free days'])),
+      slotHints: Object.fromEntries(Object.keys(SLOT_RANGES).map(k => [k, 'Free days'])),
     };
   }
-  await saveUserPrefs(userId, result);
+
+  if (await scanIsBlocked(userId, { respectBackoff: triggeredBy === 'opportunistic' })) {
+    return {
+      days: existing.days,
+      slots: existing.slots,
+      dayHints: {},
+      slotHints: {},
+      skipped: true,
+    };
+  }
+
+  const config = await loadSlotAlgoConfig();
+  const { timeMin, timeMax } = algo.prefsAnalysisWindow();
+  const windowStart = timeMin.toISOString().slice(0, 10);
+  const windowEnd = timeMax.toISOString().slice(0, 10);
+
+  let runId = null;
+  try {
+    const { data: run } = await supabaseClient
+      .from('calendar_scan_runs')
+      .insert({
+        user_id: userId,
+        window_start: windowStart,
+        window_end: windowEnd,
+        status: 'running',
+        triggered_by: triggeredBy,
+      })
+      .select('id')
+      .single();
+    runId = run?.id;
+  } catch (_) { /* non-fatal */ }
+
+  let busy = [];
+  let coveredRanges = [{ start: timeMin, end: timeMax }];
+  let status = 'success';
+  let errorReason = null;
+  try {
+    busy = await fetchFreeBusyRange(accessToken, timeMin, timeMax);
+  } catch (err) {
+    errorReason = String(err?.message || err);
+    // Degraded: fetch month by month and score only the months that answered.
+    // A month we never fetched has no busy blocks, so scoring it would read as
+    // "completely free" and invent slots the user does not actually have.
+    const months = algo.monthRanges();
+    const parts = [];
+    const covered = [];
+    for (const m of months) {
+      try {
+        const chunk = await fetchFreeBusyRange(accessToken, m.start, m.end);
+        parts.push(...chunk);
+        covered.push(m);
+      } catch (e) {
+        errorReason = String(e?.message || e);
+      }
+    }
+    busy = parts;
+    coveredRanges = covered;
+    if (!covered.length) status = 'failed';
+    else if (covered.length < months.length) status = 'partial';
+    else status = 'success';
+  }
+
+  if (status === 'failed') {
+    if (runId) {
+      await supabaseClient.from('calendar_scan_runs').update({
+        status: 'failed',
+        error_reason: errorReason || 'freeBusy failed',
+        completed_at: new Date().toISOString(),
+        not_before: new Date(Date.now() + 3600000).toISOString(),
+      }).eq('id', runId);
+    }
+    // Serve last prefs; do not invent suggestions from a failed scan
+    return {
+      days: existing.days,
+      slots: existing.slots,
+      dayHints: {},
+      slotHints: {},
+      scanFailed: true,
+    };
+  }
+
+  const { scores, rows } = algo.computeScores(busy, coveredRanges, config);
+  const scannedAt = new Date().toISOString();
+  const upsertRows = rows.map(r => ({
+    user_id: userId,
+    weekday: r.weekday,
+    time_bucket: r.time_bucket,
+    score: r.score,
+    sample_size: r.sample_size,
+    confidence: r.confidence,
+    algorithm_version: r.algorithm_version,
+    scanned_at: scannedAt,
+  }));
+
+  if (upsertRows.length) {
+    const { error: scoreErr } = await supabaseClient
+      .from('calendar_slot_scores')
+      .upsert(upsertRows, { onConflict: 'user_id,weekday,time_bucket' });
+    if (scoreErr) console.error('calendar_slot_scores upsert failed:', scoreErr);
+  }
+
+  if (runId) {
+    await supabaseClient.from('calendar_scan_runs').update({
+      status,
+      error_reason: errorReason,
+      completed_at: scannedAt,
+      not_before: status === 'partial'
+        ? new Date(Date.now() + 86400000).toISOString()
+        : null,
+    }).eq('id', runId);
+  }
+
+  const { dayHints, slotHints } = algo.hintsFromScores(scores);
   await new Promise(r =>
-    chrome.storage.local.set({
-      prefs_hints: { days: result.dayHints || {}, slots: result.slotHints || {} },
-    }, r)
+    chrome.storage.local.set({ prefs_hints: { days: dayHints, slots: slotHints } }, r)
   );
-  return result;
+
+  // First-time only: write suggestions into selected + snapshot
+  if (!hasSelection) {
+    const { suggestedDays, suggestedTimes } = algo.suggestPreferences(scores, config);
+    await saveUserPrefs(userId, { days: suggestedDays, slots: suggestedTimes }, {
+      suggestedDays,
+      suggestedTimes,
+      algorithmVersion: config.ALGORITHM_VERSION,
+    });
+    return { days: suggestedDays, slots: suggestedTimes, dayHints, slotHints };
+  }
+
+  // Rescan / reconnect: selection untouched (force no longer overwrites picks)
+  void force;
+  return { days: existing.days, slots: existing.slots, dayHints, slotHints };
 }
 
 async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin = 10) {
@@ -4611,8 +4865,24 @@ async function openSchedPrefs(step = 'day') {
 
   ensurePrefsDays();
   ensurePrefsTimes();
-  await loadPrefsHints();
+
+  // Trigger A: opportunistic rescan when scores go stale (scores only; selection
+  // untouched). Deliberately not awaited — the sheet must open now, not after a
+  // freeBusy round trip; refreshed hints land on the next open.
   const userId = wireSchedPrefs._userId;
+  if (userId && !window.__WL_PREVIEW__) {
+    (async () => {
+      try {
+        const cfg = await loadSlotAlgoConfig();
+        if (!(await scoresAreStale(userId, cfg.STALENESS_DAYS || 30))) return;
+        const { google_access_token } = await storageGet(['google_access_token']);
+        if (!google_access_token) return;
+        await analyzeAndSavePrefs(userId, google_access_token, { triggeredBy: 'opportunistic' });
+      } catch (_) { /* prefs UI is already open */ }
+    })();
+  }
+
+  await loadPrefsHints();
   const prefs = await loadUserPrefs(userId);
   if (!prefs.days?.length && !prefs.slots?.length) {
     applyPrefsSelection({ days: DEFAULT_PREF_DAYS, slots: DEFAULT_PREF_SLOTS });
@@ -4709,7 +4979,10 @@ function wireSchedPrefs(userId) {
     }
     const btn = document.getElementById('prefsSaveBtn');
     if (btn) btn.disabled = true;
-    const ok = await saveUserPrefs(id, selected);
+    const ok = await saveUserPrefs(id, selected, {
+      daysEditedManually: true,
+      timesEditedManually: true,
+    });
     if (btn) btn.disabled = false;
     if (!ok && !window.__WL_PREVIEW__) {
       showToast('Failed to save preferences');
@@ -4799,10 +5072,6 @@ function updateStreakUI(streakCount) {
   if (streakCount === 10) {
     showConfetti();
   }
-}
-
-function encodeToken(token) {
-  return btoa(unescape(encodeURIComponent(token)));
 }
 
 function showConfetti() {

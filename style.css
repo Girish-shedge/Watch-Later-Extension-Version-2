@@ -42,6 +42,9 @@
   --color-screen-grad-end: #ffffff;
   --onb-cards-gap: var(--space-4); /* 16 ? Figma onbCards 143:4413 */
   --onb-cards-pad-y: var(--space-2); /* 8 top/bottom; 0 left/right */
+  --onb-card-max-w: 324px; /* Pain/Promise card max width */
+  --auth-warn-banner-w: 300px; /* Figma authWarnBanner content */
+  --auth-warn-banner-h: 34px;
   --color-accent-grad-start: #6647f0; /* primary purple button gradient */
   --color-accent-grad-end: #3b13ec;
   --color-ticker-active: #d9d9d9;
@@ -227,30 +230,39 @@ body {
   transition: background-color 0.6s ease, color 0.6s ease;
 }
 
+/*
+ * Extension popup must use absolute frame size — not height:100%.
+ * Chrome/Edge size the popup from document content; % height with no
+ * absolute ancestor collapses to a tiny cropped box (intermittent on
+ * cold CSS / onboarding ↔ schedule swaps).
+ */
 html {
   width: var(--frame-w);
-  max-width: 100%;
-  height: 100%;
+  min-width: var(--frame-w);
+  height: var(--frame-h);
+  min-height: var(--frame-h);
 }
 
 body {
   margin: 0;
   width: var(--frame-w);
-  max-width: 100%;
-  height: 100%;
-  overflow-x: hidden;
+  min-width: var(--frame-w);
+  height: var(--frame-h);
+  min-height: var(--frame-h);
+  overflow: hidden;
   background: transparent; /* allow the popup-container shape to show */
 }
 
 /* Cursor / localhost preview frame (chrome.html / popup.html?preview=1)
-   html is 340px for the real extension popup ? unlock it in preview so
-   the 340 frame can sit in the middle of the browser viewport. */
+   unlock the 340×486 lock so the frame can sit in the middle of the viewport. */
 html:has(body.wl-preview) {
   width: 100%;
-  max-width: none;
+  min-width: 0;
   height: 100%;
+  min-height: 0;
 }
 body.wl-preview {
+  min-width: 0;
   min-height: 100vh;
   height: auto;
   box-sizing: border-box;
@@ -260,15 +272,16 @@ body.wl-preview {
   padding: 24px;
   background: #2b2b2b;
   width: 100%;
-  max-width: none;
   margin: 0;
+  overflow: auto;
 }
 body.wl-preview .popup-container,
 body.wl-preview #onboarding,
 body.wl-preview #popupWrapper {
   width: var(--frame-w);
-  max-width: 100%;
+  min-width: var(--frame-w);
   height: var(--frame-h);
+  min-height: var(--frame-h);
   flex-shrink: 0;
 }
 body.wl-preview .popup-container {
@@ -292,8 +305,9 @@ body.wl-preview #networkLostScreen {
   position: relative;
   box-sizing: border-box;
   width: var(--frame-w);
-  max-width: 100%;
-  height: 100%;
+  min-width: var(--frame-w);
+  height: var(--frame-h);
+  min-height: var(--frame-h);
   background: var(--color-bg-surface);
   overflow: hidden;
 }
@@ -314,8 +328,9 @@ body.wl-preview #networkLostScreen {
 #popupWrapper {
   box-sizing: border-box;
   width: var(--frame-w); /* Figma Extension - 01 (36:1906) */
-  max-width: 100%;
-  height: 100%;
+  min-width: var(--frame-w);
+  height: var(--frame-h);
+  min-height: var(--frame-h);
   position: relative;
   padding: 0;
   background: transparent;
@@ -1856,7 +1871,9 @@ body.onboarding-active .popup-container {
 #onboarding {
   position: relative;
   width: var(--frame-w);
+  min-width: var(--frame-w);
   height: var(--frame-h);
+  min-height: var(--frame-h);
   border-radius: 0; /* Pain/Promise BG export is square */
   background: linear-gradient(to bottom, var(--color-screen-grad-start), var(--color-screen-grad-end));
   overflow: hidden;
@@ -1928,6 +1945,7 @@ body.onboarding-active .popup-container {
 #onboardingPromise .onb-card,
 #newUserWrongUrl .onb-card {
   width: 100%;
+  max-width: var(--onb-card-max-w);
   will-change: opacity;
   pointer-events: none;
 }
@@ -2223,6 +2241,45 @@ body.onboarding-active .popup-container {
   padding: var(--space-2);
   overflow: hidden;
   position: relative;
+}
+/* Wrong URL Permissions/Analyzing: fall cards BG instead of schedule chrome */
+.onb-fall-bg {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+.onb-sched-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  box-sizing: border-box;
+  pointer-events: none;
+  overflow: hidden;
+}
+.onb-sched-chrome #onbPermsClose { pointer-events: auto; }
+.onb-sched-chrome .sched-nav,
+.onb-sched-chrome .sched-video,
+.onb-sched-chrome .onb-perms-decor-sheet {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+body.is-onb-wrong-url .onb-fall-bg { display: block; }
+body.is-onb-wrong-url .onb-sched-chrome { display: none !important; }
+body.is-onb-wrong-url .onb-sched-screen {
+  padding: 0;
+  background: transparent;
 }
 .onb-sched-screen .sched-nav,
 .onb-sched-screen .sched-video,
@@ -4670,23 +4727,28 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   text-align: center;
   font-feature-settings: "ordn" 1, "ornm" 1;
 }
-/* Figma authWarnBanner — PNG exports (171:800 / 171:934 / 117:1128) */
+/* Figma authWarnBanner — PNG exports (171:800 / 171:934 / 117:1128) @ 300×34 */
 .auth-warn-banner {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: var(--auth-warn-banner-w);
+  height: var(--auth-warn-banner-h);
+  max-width: 100%;
   padding: 0;
   border: none;
   background: none;
   box-shadow: none;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 .auth-warn-banner.hidden { display: none; }
 .auth-warn-banner-img {
   display: block;
-  width: 100%;
-  height: auto;
+  width: var(--auth-warn-banner-w);
+  height: var(--auth-warn-banner-h);
+  max-width: 100%;
+  object-fit: fill;
   pointer-events: none;
   user-select: none;
 }
@@ -4701,6 +4763,8 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
 .auth-warn-live-text.hidden { display: none; }
 /* Analyzing error: swap PNG for live Sub-Text on same chrome */
 .auth-warn-banner.is-live {
+  width: 100%;
+  height: auto;
   gap: var(--space-2);
   padding: var(--space-2);
   border-radius: var(--radius-sm);
@@ -4716,7 +4780,8 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
 .auth-warn-banner.is-live .auth-warn-live-text { display: block; }
 .auth-why-btn {
   cursor: pointer;
-  width: 100%;
+  width: var(--auth-warn-banner-w);
+  max-width: 100%;
 }
 button.auth-warn-banner {
   cursor: pointer;
@@ -4763,7 +4828,8 @@ button.auth-warn-banner {
   width: 324px;
   max-width: calc(100% - var(--space-4));
   margin: 0;
-  padding: var(--space-3);
+  /* Figma 116:2318: pt 12 / pb 8 / px 12 */
+  padding: var(--space-3) var(--space-3) var(--space-2);
   border-radius: var(--radius-card);
   background: var(--color-surface-white);
   box-shadow: none;
@@ -4772,6 +4838,14 @@ button.auth-warn-banner {
   align-items: center;
   gap: var(--space-4);
   box-sizing: border-box;
+}
+#onboardingPermissions .auth-copy,
+#onboardingPermissions .auth-heading-stack {
+  gap: 0; /* Figma heading block: no gap between rows */
+}
+#onboardingPermissions .onb-chip,
+#onboardingAnalyzing .onb-chip {
+  transform: rotate(-1deg);
 }
 #onboardingPermissions.is-auth-covered .auth-sheet {
   visibility: hidden; /* Figma Connecting: schedule chrome only under dim */

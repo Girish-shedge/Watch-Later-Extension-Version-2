@@ -80,10 +80,6 @@ chrome.runtime.onStartup.addListener(() => {
 // Also install the rule when the worker wakes (alarms / messages).
 ensureYoutubeEmbedRefererRule();
 
-function encodeToken(token) {
-  return btoa(unescape(encodeURIComponent(token)));
-}
-
 async function persistSupabaseSession(session) {
   if (!session) return;
   await chrome.storage.local.set({
@@ -214,14 +210,6 @@ async function startOAuthFlow(sendResponse, { silent }) {
       avatar_url: user.user_metadata.picture
     });
     if (upsertError) console.error('Failed to upsert user:', upsertError);
-
-    // Server-side token backup (base64-encoded, not encrypted — anon key + RLS scoped)
-    const { error: tokenErr } = await supabaseClient.from('UserTokens').upsert({
-      user_id: user.id,
-      access_token: encodeToken(session.access_token),
-      refresh_token: encodeToken(session.refresh_token)
-    });
-    if (tokenErr) console.warn('Could not store token backup:', tokenErr);
 
     sendResponse({
       success: true,
