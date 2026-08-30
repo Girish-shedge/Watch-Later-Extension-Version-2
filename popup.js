@@ -4,6 +4,7 @@ let selectedSlotData  = null;
 let cachedVideoTitle  = '';
 let cachedVideoUrl    = '';
 let currentAuthUser   = null;
+let multiSessionState = { plan: null, assigned: [], complete: false, loading: false };
 
 function setScheduleBtnLabel(text) {
   const btn = document.getElementById('scheduleBtn');
@@ -223,6 +224,356 @@ function populateDropdown(slots) {
   selectedSlotData = slots[0];
 }
 
+function computeMultiFrameHeight(sessionCount = 3) {
+  const cardH = 59; /* Figma 533:5985 */
+  const cardGap = 8;
+  const cardsRowH = sessionCount * cardH + Math.max(0, sessionCount - 1) * cardGap;
+  const shellH = cardsRowH + 16; /* 8px pad × 2 — Figma 533:5983 */
+  const areaH = 28 + shellH; /* banner 48 − 20px overlap */
+  const sheetH = 12 + 20 + 16 + areaH + 16 + 40 + 12; /* header 20 + CTA --btn-h 40 — Figma 533:5969 */
+  /* Screen pad 8; gaps 16 — Option A (Figma 532:2708) */
+  return Math.ceil(8 + 44 + 16 + 172.514 + 16 + sheetH + 8);
+}
+
+function multiSessionCardSkeletonHtml() {
+  return `
+    <div class="multi-session-card multi-session-card--skeleton">
+      <div class="multi-session-card-row">
+        <span class="skeleton multi-session-skel-part"></span>
+        <span class="skeleton multi-session-skel-date"></span>
+      </div>
+      <hr class="multi-session-card-divider" aria-hidden="true" />
+      <div class="multi-session-card-row multi-session-card-row--time">
+        <span class="skeleton multi-session-skel-time"></span>
+        <span class="skeleton multi-session-skel-offset"></span>
+      </div>
+    </div>`;
+}
+
+function paintMultiSessionCardsSkeleton(sessionCount = 2) {
+  const cards = document.getElementById('multiSessionCards');
+  if (!cards) return;
+  cards.innerHTML = '';
+  for (let i = 0; i < sessionCount; i++) {
+    cards.insertAdjacentHTML('beforeend', multiSessionCardSkeletonHtml());
+  }
+}
+
+function paintScheduleMultiSkeleton(sessionCount = 2) {
+  const host = document.getElementById('skelMultiCards');
+  if (!host) return;
+  host.innerHTML = '';
+  for (let i = 0; i < sessionCount; i++) {
+    host.insertAdjacentHTML('beforeend', `
+      <div class="skel-multi-card">
+        <div class="skel-multi-card-row">
+          <span class="skeleton skel-multi-part"></span>
+          <span class="skeleton skel-multi-date"></span>
+        </div>
+        <span class="skeleton skel-multi-divider"></span>
+        <div class="skel-multi-card-row">
+          <span class="skeleton skel-multi-time"></span>
+          <span class="skeleton skel-multi-offset"></span>
+        </div>
+      </div>`);
+  }
+  const shell = document.getElementById('skelMultiShell');
+  if (shell) {
+    const rowH = sessionCount * 59 + Math.max(0, sessionCount - 1) * 8;
+    shell.style.minHeight = `${rowH + 16}px`;
+  }
+}
+
+function applyPopupFrameHeight(isMulti) {
+  const defaultH = '499px';
+  const h = isMulti
+    ? `${computeMultiFrameHeight(multiSessionState.plan?.sessionCount || 3)}px`
+    : defaultH;
+  document.documentElement.style.setProperty('--frame-h-active', h);
+  document.documentElement.classList.toggle('is-multi-session-frame', isMulti);
+  for (const sel of ['html', 'body', '.popup-container', '#popupWrapper']) {
+    const el = sel === 'html' ? document.documentElement : sel === 'body' ? document.body : document.querySelector(sel);
+    if (!el) continue;
+    el.style.height = h;
+    el.style.minHeight = h;
+  }
+}
+
+function setScheduleMode(mode) {
+  const single = document.getElementById('schedSingleHome');
+  const multi = document.getElementById('schedMultiHome');
+  if (!single || !multi) return;
+  const isMulti = mode === 'multi';
+  single.hidden = isMulti;
+  single.classList.toggle('hidden', isMulti);
+  multi.hidden = !isMulti;
+  multi.classList.toggle('hidden', !isMulti);
+  multi.setAttribute('aria-hidden', isMulti ? 'false' : 'true');
+  const sheetLabel = document.getElementById('schedSheetLabel');
+  if (sheetLabel) sheetLabel.textContent = isMulti ? 'Select Slot' : 'Select Time Slot';
+  document.getElementById('schedSheet')?.classList.toggle('is-multi-session', isMulti);
+  document.getElementById('scheduleScreen')?.classList.toggle('is-multi-session', isMulti);
+  applyPopupFrameHeight(isMulti);
+}
+
+function formatSessionCardDate(iso) {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const wd = d.toLocaleDateString('en-US', { weekday: 'short' });
+  return `${dd}/${mm}/${wd}`;
+}
+
+function formatSessionCardTime(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function paintMultiSessionUI() {
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+  const plan = multiSessionState.plan;
+  const assigned = multiSessionState.assigned || [];
+  const complete = multiSessionState.complete;
+
+  const bannerText = document.getElementById('multiSessionBannerText');
+  const eachLabel = document.getElementById('multiSessionEachLabel');
+  const partialNote = document.getElementById('multiSessionPartialNote');
+  const cards = document.getElementById('multiSessionCards');
+  const schedBtn = document.getElementById('scheduleMultiBtn');
+  const regenBtn = document.getElementById('regenerateSlotsBtn');
+  const blockedNote = document.getElementById('schedMultiBlockedNote');
+
+  if (!plan || !algo || !cards) return;
+
+  if (regenBtn) regenBtn.disabled = multiSessionState.loading;
+
+  if (bannerText) bannerText.textContent = algo.multiSessionBannerText(plan);
+  if (eachLabel) eachLabel.textContent = `${plan.sessionLengthMin} mins each`;
+
+  const found = assigned.length;
+  const total = plan.sessionCount;
+  if (partialNote) {
+    const showPartial = found > 0 && !complete;
+    partialNote.hidden = !showPartial;
+    partialNote.classList.toggle('hidden', !showPartial);
+    if (showPartial) {
+      partialNote.textContent =
+        `We found ${found} of ${total} sessions. Try Regenerate List or widen your day/time preferences.`;
+    }
+  }
+
+  if (multiSessionState.loading) {
+    paintMultiSessionCardsSkeleton(plan.sessionCount);
+    if (schedBtn) schedBtn.disabled = true;
+    if (document.getElementById('scheduleScreen')?.classList.contains('is-multi-session')) {
+      applyPopupFrameHeight(true);
+    }
+    return;
+  }
+
+  cards.innerHTML = '';
+  plan.sessions.forEach((sess, idx) => {
+    const row = assigned[idx];
+    const card = document.createElement('div');
+    card.className = 'multi-session-card';
+    const slot = row?.slot;
+    const dateStr = slot ? formatSessionCardDate(slot.start) : '—';
+    const timeStr = slot
+      ? `${formatSessionCardTime(slot.start)} - ${formatSessionCardTime(slot.end)}`
+      : 'No slot found';
+    const offsetStr = algo.formatVideoOffsetRange(sess.videoOffsetStartSec, sess.videoOffsetEndSec);
+    card.innerHTML = `
+      <div class="multi-session-card-row">
+        <span class="multi-session-card-part">Part ${sess.sessionIndex}/${sess.sessionCount}</span>
+        <span class="multi-session-card-date">${escapeHistoryHtml(dateStr)}</span>
+      </div>
+      <hr class="multi-session-card-divider" />
+      <div class="multi-session-card-row multi-session-card-row--time">
+        <span class="multi-session-card-clock">${escapeHistoryHtml(timeStr)}</span>
+        <span class="multi-session-card-offset">${escapeHistoryHtml(offsetStr)}</span>
+      </div>`;
+    cards.appendChild(card);
+  });
+
+  if (schedBtn) {
+    schedBtn.disabled = !complete || multiSessionState.loading;
+    schedBtn.title = complete ? '' : 'Complete all sessions first';
+  }
+  if (blockedNote) {
+    const showBlocked = !complete && found > 0;
+    blockedNote.hidden = !showBlocked;
+    blockedNote.classList.toggle('hidden', !showBlocked);
+  }
+
+  if (document.getElementById('scheduleScreen')?.classList.contains('is-multi-session')) {
+    applyPopupFrameHeight(true);
+  }
+}
+
+function paintMultiSessionWhySheet(plan) {
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+  const hero = document.getElementById('multiSessionWhyHero');
+  const title = document.getElementById('multiSessionWhyTitle');
+  if (!plan || !algo || !hero || !title) return;
+
+  const count = Math.min(5, Math.max(2, plan.sessionCount));
+  hero.src = `Icon/multi-session/why-${count}.png`;
+  const dur = algo.formatSessionLengthWhy(plan.sessionLengthMin);
+  title.innerHTML = `
+    <div class="multi-why-heading-row">
+      <span>Split into</span>
+      <span class="onb-chip multi-why-chip">${plan.sessionCount}</span>
+      <span>sessions</span>
+    </div>
+    <div class="multi-why-heading-row">
+      <span>of</span>
+      <span class="onb-chip multi-why-chip">${escapeHistoryHtml(dur)}</span>
+      <span>each, sized to fit</span>
+    </div>
+    <div class="multi-why-heading-row">
+      <span>your usual free time</span>
+    </div>`;
+}
+
+function openMultiSessionWhySheet() {
+  const plan = multiSessionState.plan;
+  if (!plan) return;
+  paintMultiSessionWhySheet(plan);
+  const overlay = mountOverlay('multiSessionWhyOverlay');
+  if (!overlay) return;
+  openOverlay(overlay);
+}
+
+function closeMultiSessionWhySheet() {
+  const overlay = document.getElementById('multiSessionWhyOverlay');
+  if (overlay) closeOverlay(overlay);
+}
+
+function wireMultiSessionUiOnce() {
+  if (wireMultiSessionUiOnce._done) return;
+  wireMultiSessionUiOnce._done = true;
+
+  document.getElementById('multiSessionWhyBtn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    openMultiSessionWhySheet();
+  });
+  document.getElementById('multiSessionWhyBackdrop')?.addEventListener('click', closeMultiSessionWhySheet);
+  document.getElementById('multiSessionWhyCloseBtn')?.addEventListener('click', closeMultiSessionWhySheet);
+
+  document.getElementById('regenerateSlotsBtn')?.addEventListener('click', () => {
+    void regenerateMultiSessionSlots();
+  });
+
+  document.getElementById('scheduleMultiBtn')?.addEventListener('click', () => {
+    void scheduleMultiSessionVideo();
+  });
+}
+
+function multiSessionSlotKey(row) {
+  const start = row?.slot?.start || row?.start;
+  if (!start) return null;
+  const date = row.date || String(start).slice(0, 10);
+  return `${date}|${start}`;
+}
+
+function shufflePreviewMultiSessions() {
+  const plan = multiSessionState.plan;
+  if (!plan) return false;
+  multiSessionState._regenSeed = (multiSessionState._regenSeed || 0) + 1;
+  const seed = multiSessionState._regenSeed;
+  const now = Date.now();
+  const assigned = plan.sessions.map((sess, i) => {
+    const start = new Date(now + (i + 1 + seed) * 24 * 60 * 60 * 1000);
+    start.setHours(9 + (seed % 4), (16 + seed * 7) % 60, 0, 0);
+    const end = new Date(start.getTime() + sess.durationMin * 60 * 1000);
+    return {
+      ...sess,
+      slot: { start: start.toISOString(), end: end.toISOString() },
+      date: start.toISOString().slice(0, 10),
+      start: start.toISOString(),
+    };
+  });
+  multiSessionState.assigned = assigned;
+  multiSessionState.complete = true;
+  return true;
+}
+
+async function regenerateMultiSessionSlots() {
+  if (!multiSessionState.plan || multiSessionState.loading) return;
+
+  const prevStarts = (multiSessionState.assigned || []).map(s => s.slot?.start).join('|');
+  multiSessionState.loading = true;
+  paintMultiSessionUI();
+
+  try {
+    if (window.__WL_PREVIEW__) {
+      if (shufflePreviewMultiSessions()) showToast('Sessions updated', 'success');
+      return;
+    }
+
+    const { google_access_token } = await new Promise(r =>
+      chrome.storage.local.get('google_access_token', r)
+    );
+    const userId = currentAuthUser?.id;
+    if (!userId || !google_access_token) {
+      showToast('Could not regenerate — sign in again', 'error');
+      return;
+    }
+
+    const excludeSlotKeys = new Set(
+      (multiSessionState.assigned || []).map(multiSessionSlotKey).filter(Boolean)
+    );
+    const result = await fetchMultiSessionSlots(
+      userId,
+      google_access_token,
+      multiSessionState.plan,
+      { excludeSlotKeys }
+    );
+    multiSessionState.assigned = result.sessions;
+    multiSessionState.complete = result.complete;
+
+    const nextStarts = result.sessions.map(s => s.slot?.start).join('|');
+    if (!result.sessions.length) {
+      showToast('No slots found — try Change Preferences', 'info');
+    } else if (prevStarts === nextStarts) {
+      showToast('No other slots found — try Change Preferences', 'info');
+    } else {
+      showToast('Sessions updated', 'success');
+    }
+  } catch (err) {
+    console.error('Regenerate multi-session slots failed:', err);
+    showToast('Could not regenerate sessions', 'error');
+  } finally {
+    multiSessionState.loading = false;
+    paintMultiSessionUI();
+  }
+}
+
+async function loadMultiSessionSchedule(userId, token, videoDurationMin) {
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+  if (!algo) return false;
+  const config = await loadSlotAlgoConfig();
+  const plan = algo.computeSessionPlan(videoDurationMin, config);
+  if (!plan) return false;
+
+  wireMultiSessionUiOnce();
+  setScheduleMode('multi');
+  multiSessionState = { plan, assigned: [], complete: false, loading: true };
+  paintMultiSessionUI();
+
+  try {
+    const result = await fetchMultiSessionSlots(userId, token, plan);
+    multiSessionState.assigned = result.sessions;
+    multiSessionState.complete = result.complete;
+  } catch (err) {
+    console.error('Multi-session slot fetch failed:', err);
+    showToast('Could not find session slots', 'error');
+  } finally {
+    multiSessionState.loading = false;
+    paintMultiSessionUI();
+  }
+  return true;
+}
+
 
 // YouTube thumbnail URLs (HD first). maxres often 200s a 120×90 placeholder — we detect that.
 function getYouTubeThumbnail(videoUrl) {
@@ -271,6 +622,99 @@ function setYouTubeThumbnail(targets, videoUrl) {
   tryNext();
 }
 
+/** Swap Figma 513:1176 vs 513:1167 SVG band — 1 line when it fits, else up to 2 lines. */
+function schedTitleInnerWidth(frame) {
+  if (!frame) return 0;
+  const cs = getComputedStyle(frame);
+  return frame.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+}
+
+function schedTitleFitsOneLine(text, innerWidth, titleCs) {
+  if (!text || innerWidth < 1) return false;
+  const probe = document.createElement('span');
+  probe.setAttribute('aria-hidden', 'true');
+  probe.style.cssText = [
+    'position:fixed',
+    'left:-9999px',
+    'top:0',
+    'visibility:hidden',
+    'pointer-events:none',
+    'white-space:nowrap',
+    'display:inline-block',
+    'font:' + titleCs.font,
+    'letter-spacing:' + titleCs.letterSpacing,
+    'font-feature-settings:' + titleCs.fontFeatureSettings
+  ].join(';');
+  probe.textContent = text;
+  document.body.appendChild(probe);
+  const fits = probe.scrollWidth <= innerWidth + 0.5;
+  probe.remove();
+  return fits;
+}
+
+/** CSS ellipsis paints the “…”; paint only picks 1- vs 2-line band height. */
+function schedTitleCanMeasure(frame) {
+  if (!frame) return false;
+  const rc = document.getElementById('realContent');
+  if (rc?.classList.contains('hidden')) return false;
+  const skel = document.getElementById('skeletonLayer');
+  if (skel && !skel.classList.contains('hidden')) return false;
+  return schedTitleInnerWidth(frame) >= 1;
+}
+
+function setSchedVideoTitle(text) {
+  const title = document.getElementById('videoTitle');
+  if (!title) return;
+  const full = String(text || '');
+  title.dataset.fullTitle = full;
+  title.textContent = full;
+  const frame = document.getElementById('schedTitleFrame');
+  if (schedTitleCanMeasure(frame)) schedulePaintSchedTitleFrame();
+}
+
+function paintSchedTitleFrame() {
+  const title = document.getElementById('videoTitle');
+  const frame = document.getElementById('schedTitleFrame');
+  if (!title || !frame) return;
+
+  if (!schedTitleCanMeasure(frame)) return;
+
+  const innerWidth = schedTitleInnerWidth(frame);
+
+  const fullText = title.dataset.fullTitle || title.textContent || '';
+  if (fullText && !title.dataset.fullTitle) title.dataset.fullTitle = fullText;
+  // Keep the full string — CSS text-overflow / line-clamp draws the ellipsis.
+  title.textContent = fullText;
+
+  const titleCs = getComputedStyle(title);
+  const bg1 = frame.querySelector('.sched-title-frame-bg-1');
+  const bg2 = frame.querySelector('.sched-title-frame-bg-2');
+  const oneLine = schedTitleFitsOneLine(fullText, innerWidth, titleCs);
+
+  frame.classList.toggle('is-one-line', oneLine);
+  frame.classList.toggle('is-two-line', !oneLine);
+  if (bg1) bg1.hidden = !oneLine;
+  if (bg2) bg2.hidden = oneLine;
+}
+
+function schedulePaintSchedTitleFrame() {
+  cancelAnimationFrame(schedulePaintSchedTitleFrame._raf);
+  schedulePaintSchedTitleFrame._raf = requestAnimationFrame(() => {
+    paintSchedTitleFrame();
+    if (document.fonts?.status === 'loading') {
+      document.fonts.ready.then(paintSchedTitleFrame);
+    }
+  });
+}
+
+function wireSchedTitleFrameOnce() {
+  if (wireSchedTitleFrameOnce._done) return;
+  wireSchedTitleFrameOnce._done = true;
+  const frame = document.getElementById('schedTitleFrame');
+  if (!frame || typeof ResizeObserver === 'undefined') return;
+  new ResizeObserver(() => schedulePaintSchedTitleFrame()).observe(frame);
+}
+
 async function handleRemove(item, row) {
   // 1) Delete the Calendar event if present
   const token = (await chrome.storage.local.get('google_access_token')).google_access_token;
@@ -281,7 +725,7 @@ async function handleRemove(item, row) {
     );
     if (!res.ok && ![404,410].includes(res.status)) {
       console.error('Calendar delete failed', await res.text());
-      return showToast('⚠️ Could not remove event');
+      return showToast('Could not remove event', 'error');
     }
   }
   // 2) Delete the row from Supabase
@@ -291,7 +735,7 @@ async function handleRemove(item, row) {
     .eq('id', item.id);
   if (error) {
     console.error('❌ Delete history row failed:', error);
-    return showToast('⚠️ Could not remove video from history');
+    return showToast('Could not remove video from history', 'error');
   }
   // 3) Persist hidden‐list so it never comes back
   chrome.storage.local.get('hiddenHistory', ({ hiddenHistory }) => {
@@ -301,9 +745,10 @@ async function handleRemove(item, row) {
       chrome.storage.local.set({ hiddenHistory: hidden });
     }
   });
-  // 4) Remove from UI
-  row.remove();
-  showToast('✅ Video Removed');
+  // 4) Remove from UI when a DOM row was passed
+  if (row && typeof row.remove === 'function' && row.nodeType === 1) row.remove();
+  else if (row?.remove) row.remove();
+  showToast('Video Removed', 'success');
 }
 
 
@@ -339,6 +784,38 @@ function getVideoTitle() {
         void chrome.runtime.lastError;
         resolve(results?.[0]?.result ?? null);
       });
+    });
+  });
+}
+
+/* ── Free EN localize — see lib/translate.js (WLTranslate) ── */
+function textNeedsTranslation(text) {
+  return (typeof WLTranslate !== 'undefined' ? WLTranslate : null)?.textNeedsTranslation(text) === true;
+}
+async function translateToEnglish(text) {
+  if (typeof WLTranslate === 'undefined') return String(text || '').trim();
+  return WLTranslate.translateToEnglish(text);
+}
+
+async function fetchCurrentYouTubeDescription() {
+  const tab = await getActiveInjectableTab().catch(() => null);
+  if (!tab) return '';
+  return new Promise(resolve => {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const meta = document.querySelector('meta[name="description"]')?.content?.trim();
+        if (meta) return meta.slice(0, 2000);
+        const short =
+          document.querySelector('#description-inline-expander #plain-snippet-text')?.textContent ||
+          document.querySelector('#description-inline-expander yt-attributed-string')?.textContent ||
+          document.querySelector('#description yt-formatted-string')?.textContent ||
+          '';
+        return String(short || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+      }
+    }, results => {
+      void chrome.runtime.lastError;
+      resolve(results?.[0]?.result || '');
     });
   });
 }
@@ -507,6 +984,7 @@ function scoreCalendarPrefs(busy, timeMin, timeMax, slotRanges = SLOT_RANGES) {
 }
 
  document.addEventListener('DOMContentLoaded', () => {
+   wireSchedTitleFrameOnce();
    // if the user has “dark” saved, apply it immediately
    if (localStorage.getItem('theme') === 'dark') {
      document.body.classList.add('dark-mode');
@@ -538,32 +1016,75 @@ function showSkeleton(kind = 'schedule') {
 
 function hideSkeleton() {
   document.getElementById('skeletonLayer')?.classList.add('hidden');
+  schedulePaintSchedTitleFrame();
 }
 
-function showToast(message) {
-  const toast = document.getElementById("toast");
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add("show");
+function bailInitPopupSkeleton() {
+  hideSkeleton();
+  document.getElementById('realContent')?.classList.remove('hidden');
+}
 
-  setTimeout(() => {
-    toast.classList.remove("show");
-  }, 2500);
+/** Toast · Figma 380:7845 — hold then slide out. type: 'success' | 'error' | 'info' */
+const TOAST_MS = 1500;
+const TOAST_SLIDE_MS = 280;
+
+function toastMountParent() {
+  if (document.body.classList.contains('onboarding-active')) {
+    return document.getElementById('onboarding') || document.body;
+  }
+  return document.querySelector('.popup-container') || document.body;
+}
+
+function showToast(message, type = 'info') {
+  const toast = document.getElementById('toast');
+  const msg = document.getElementById('toastMsg');
+  if (!toast || !msg) return;
+  const host = toastMountParent();
+  if (host && toast.parentElement !== host) host.appendChild(toast);
+  const kind = type === 'success' || type === 'error' ? type : 'info';
+  clearTimeout(toast._holdTimer);
+  clearTimeout(toast._hideTimer);
+  // Strip legacy emoji prefixes — icons come from the toast kind, not the copy.
+  msg.textContent = String(message || '')
+    .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F]+\s*/u, '')
+    .replace(/^[✅❌⚠️🔒📅🔄✔✖]\s*/u, '')
+    .trim();
+  toast.hidden = false;
+  toast.classList.remove('hidden', 'is-open', 'is-closing', 'is-success', 'is-error', 'is-info');
+  void toast.offsetWidth;
+  toast.classList.add('is-open', `is-${kind}`);
+  toast._holdTimer = setTimeout(() => {
+    toast.classList.add('is-closing');
+    toast._hideTimer = setTimeout(() => {
+      toast.classList.remove('is-open', 'is-closing', 'is-success', 'is-error', 'is-info');
+      toast.hidden = true;
+    }, TOAST_SLIDE_MS);
+  }, TOAST_MS);
 }
 
 /** Preview boot: logged-out onboarding; click through like the real extension.
  *  ?auth=connecting|cancelled|denied|interrupted|generic|permissions|analyzing|newwrongurl
  *  ?returning=1 → skip Pain (onboardingComplete) and open Connecting
+ *  ?schedule=1 → jump to schedule with a fresh random sample each load
+ *  ?schedule=1&success=1 → loop the success sheet over schedule
+ *  ?schedule=1&fail=1 → loop the fail sheet over schedule
  *  ?wrongurl=1 → first-time Wrong URL onboarding (Pain→…→wrongURLwrongURL)
  *  ?anim=fall → Wrong URL cards BG + hardcoded overlay/modal
  */
+function getPreviewParams() {
+  const hash = (location.hash || '').replace(/^#/, '');
+  const qs = [location.search || '', hash].filter(Boolean).join('&').replace(/^&/, '');
+  return new URLSearchParams(qs.startsWith('?') ? qs.slice(1) : qs);
+}
+
 function startPreviewMode() {
+  wireSchedTitleFrameOnce();
   document.body.classList.add('wl-preview');
   hideNetworkLostScreen();
   hideSkeleton();
   document.getElementById('realContent')?.classList.remove('hidden');
 
-  const params = new URLSearchParams(location.search || '');
+  const params = getPreviewParams();
   const authScreen = params.get('auth');
   const returning = params.get('returning') === '1';
   const forceWrongUrl = params.get('wrongurl') === '1';
@@ -583,22 +1104,21 @@ function startPreviewMode() {
           generic: 'authSomethingWrong'
         };
         if (authScreen === 'permissions') {
-          setTimeout(() => { if (onboardingGoTo) onboardingGoTo(2); }, 200);
+          setTimeout(async () => {
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
+          }, 200);
         } else if (authScreen === 'analyzing') {
           setTimeout(async () => {
-            await storageSet({
-              supabase_token: 'preview-token',
-              supabase_refresh: 'preview-refresh',
-              google_access_token: 'preview-google',
-              userId: 'preview-user',
-              [ONB_FLAG_COMPLETE]: true
-            });
-            await finishPostAuthScan('Preview');
+            const scanName = document.getElementById('scanName');
+            if (scanName) scanName.textContent = 'Girish,';
+            if (onboardingGoTo) await onboardingGoTo(3);
           }, 200);
         } else if (authScreen && authPanels[authScreen]) {
           setTimeout(async () => {
             wireAuthPanelsOnce();
-            if (onboardingGoTo) await onboardingGoTo(2);
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
             await prepareAuthBackdrop();
             showAuthPanel(authPanels[authScreen]);
           }, 200);
@@ -607,6 +1127,20 @@ function startPreviewMode() {
       }
       if (params.get('anim') === 'fall' || authScreen === 'fallanim') {
         showWrongUrlFallAnim();
+        return;
+      }
+      // ?schedule=1 → jump straight to schedule with a fresh random sample each load
+      if (params.get('schedule') === '1' || authScreen === 'schedule') {
+        await storageSet({
+          supabase_token: 'preview-token',
+          supabase_refresh: 'preview-refresh',
+          google_access_token: 'preview-google',
+          userId: 'preview-user',
+          [ONB_FLAG_COMPLETE]: true,
+          [ONB_FLAG_SCANNED]: true
+        });
+        hideOnboarding();
+        paintPreviewSchedule();
         return;
       }
       if (returning || authScreen === 'connecting' && params.get('kind') === 'returning') {
@@ -619,34 +1153,37 @@ function startPreviewMode() {
         showOnboarding();
         setTimeout(async () => {
           wireAuthPanelsOnce();
-          if (authScreen === 'permissions' && onboardingGoTo) await onboardingGoTo(2);
+          if (authScreen === 'permissions') {
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
+          } else if (authScreen === 'promise' && onboardingGoTo) await onboardingGoTo(1);
           else if (authScreen === 'analyzing') {
-            await storageSet({
-              supabase_token: 'preview-token',
-              supabase_refresh: 'preview-refresh',
-              google_access_token: 'preview-google',
-              userId: 'preview-user',
-              [ONB_FLAG_COMPLETE]: true
-            });
-            await finishPostAuthScan('Preview');
+            const scanName = document.getElementById('scanName');
+            if (scanName) scanName.textContent = 'Girish,';
+            if (onboardingGoTo) await onboardingGoTo(3);
           } else if (authScreen === 'connecting') {
-            if (onboardingGoTo) await onboardingGoTo(2);
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
             await prepareAuthBackdrop();
             showAuthPanel('authConnecting');
           } else if (authScreen === 'cancelled') {
-            if (onboardingGoTo) await onboardingGoTo(2);
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
             await prepareAuthBackdrop();
             showAuthPanel('authSignInCancelled');
           } else if (authScreen === 'denied') {
-            if (onboardingGoTo) await onboardingGoTo(2);
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
             await prepareAuthBackdrop();
             showAuthPanel('authCalendarDenied');
           } else if (authScreen === 'interrupted') {
-            if (onboardingGoTo) await onboardingGoTo(2);
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
             await prepareAuthBackdrop();
             showAuthPanel('authFlowInterrupted');
           } else if (authScreen === 'generic') {
-            if (onboardingGoTo) await onboardingGoTo(2);
+            if (onboardingGoTo) await onboardingGoTo(1);
+            openPromisePermsSheet();
             await prepareAuthBackdrop();
             showAuthPanel('authSomethingWrong');
           }
@@ -692,12 +1229,24 @@ function paintPreviewSchedule() {
       durationSec: 22 * 60 + 18
     }
   ];
-  const pick = samples[Math.floor(Math.random() * samples.length)];
+  const params = getPreviewParams();
+  let pick;
+  const sampleIdx = params.get('sample');
+  if (sampleIdx != null && samples[Number(sampleIdx)]) {
+    pick = samples[Number(sampleIdx)];
+  } else {
+    pick = samples[Math.floor(Math.random() * samples.length)];
+    if (samples.length > 1 && pick.src === paintPreviewSchedule._lastSrc) {
+      pick = samples[(samples.findIndex(s => s.src === pick.src) + 1 + Math.floor(Math.random() * (samples.length - 1))) % samples.length];
+    }
+  }
+  paintPreviewSchedule._lastSrc = pick.src;
+  const forceMulti = params.get('multi') === '1';
   const jitter = Math.round(pick.durationSec * (0.85 + Math.random() * 0.3));
-  const durationSec = Math.max(30, jitter);
+  const durationSec = forceMulti ? 3 * 3600 : Math.max(30, jitter);
 
   hideWrongUrlPanel();
-  document.getElementById('schedSheet')?.classList.remove('is-prefs');
+  closeSchedPrefs();
 
   const thumbEl = document.getElementById('videoThumb');
   const bgEl = document.getElementById('schedBgImg');
@@ -705,20 +1254,44 @@ function paintPreviewSchedule() {
   if (bgEl) bgEl.src = pick.src;
 
   const titleEl = document.getElementById('videoTitle');
-  if (titleEl) titleEl.textContent = pick.title;
+  if (titleEl) setSchedVideoTitle(pick.title);
 
   const durEl = document.getElementById('videoDuration');
   if (durEl) durEl.textContent = formatDurationLabel(durationSec);
 
-  const now = Date.now();
-  const slots = [0, 1, 2, 3].map(i => {
-    const start = new Date(now + (i + 1) * 60 * 60 * 1000);
-    start.setMinutes(0, 0, 0);
-    const end = new Date(start.getTime() + Math.ceil(durationSec / 60) * 60 * 1000);
-    return { start: start.toISOString(), end: end.toISOString() };
-  });
-  availableSlots = slots;
-  populateDropdown(slots);
+  const durationMin = Math.ceil(durationSec / 60);
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+  const plan = algo?.computeSessionPlan(durationMin, { LONG_VIDEO_THRESHOLD_MINUTES: 165 });
+
+  if (plan) {
+    wireMultiSessionUiOnce();
+    setScheduleMode('multi');
+    const now = Date.now();
+    const assigned = plan.sessions.map((sess, i) => {
+      const start = new Date(now + (i + 1) * 24 * 60 * 60 * 1000);
+      start.setHours(18, 16, 0, 0);
+      const end = new Date(start.getTime() + sess.durationMin * 60 * 1000);
+      return {
+        ...sess,
+        slot: { start: start.toISOString(), end: end.toISOString() },
+        date: start.toISOString().slice(0, 10),
+        start: start.toISOString(),
+      };
+    });
+    multiSessionState = { plan, assigned, complete: true, loading: false };
+    paintMultiSessionUI();
+  } else {
+    setScheduleMode('single');
+    const now = Date.now();
+    const slots = [0, 1, 2, 3].map(i => {
+      const start = new Date(now + (i + 1) * 60 * 60 * 1000);
+      start.setMinutes(0, 0, 0);
+      const end = new Date(start.getTime() + durationMin * 60 * 1000);
+      return { start: start.toISOString(), end: end.toISOString() };
+    });
+    availableSlots = slots;
+    populateDropdown(slots);
+  }
   cachedVideoTitle = pick.title;
   cachedVideoUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
   saveLastScheduleSnapshot().then(() => {
@@ -729,22 +1302,35 @@ function paintPreviewSchedule() {
         fixBtn.onclick = () => {
           chrome.tabs.update(1, { url: WRONG_URL_FIX });
           paintPreviewSchedule();
-          showToast('Preview — sample watch page loaded');
+          showToast('Preview — sample watch page loaded', 'info');
         };
       }
     });
   });
 
   const scheduleBtn = document.getElementById('scheduleBtn');
+  const scheduleMultiBtn = document.getElementById('scheduleMultiBtn');
   if (scheduleBtn) {
-    scheduleBtn.style.display = 'flex';
+    scheduleBtn.style.display = plan ? 'none' : 'flex';
     scheduleBtn.disabled = false;
-    scheduleBtn.onclick = () => {
-      const slot = availableSlots?.[0];
+    if (!plan) {
+      scheduleBtn.onclick = () => {
+        const slot = availableSlots?.[0];
+        showScheduleSuccessModal({
+          title: cachedVideoTitle || document.getElementById('videoTitle')?.textContent,
+          start: slot?.start || new Date().toISOString(),
+          end: slot?.end || new Date(Date.now() + 3600000).toISOString()
+        });
+      };
+    }
+  }
+  if (scheduleMultiBtn && plan) {
+    scheduleMultiBtn.onclick = () => {
+      const first = multiSessionState.assigned?.[0]?.slot;
       showScheduleSuccessModal({
-        title: cachedVideoTitle || document.getElementById('videoTitle')?.textContent,
-        start: slot?.start || new Date().toISOString(),
-        end: slot?.end || new Date(Date.now() + 3600000).toISOString()
+        title: cachedVideoTitle,
+        start: first?.start || new Date().toISOString(),
+        end: first?.end || new Date(Date.now() + 3600000).toISOString()
       });
     };
   }
@@ -752,24 +1338,52 @@ function paintPreviewSchedule() {
   if (!paintPreviewSchedule._wired) {
     paintPreviewSchedule._wired = true;
     document.getElementById('menuBtn')?.addEventListener('click', () => {
-      document.getElementById('profileMenu')?.classList.toggle('hidden');
+      openProfileMenu('preview-user');
     });
     document.getElementById('closePopup')?.addEventListener('click', () => {
-      showToast('Preview mode — close is a no-op here');
-    });
-    document.getElementById('logoutBtn')?.addEventListener('click', () => {
-      document.getElementById('profileMenu')?.classList.add('hidden');
-      chrome.storage.local.remove(
-        ['supabase_token', 'supabase_refresh', 'google_access_token', 'userId'],
-        () => startPreviewMode()
-      );
-    });
-    document.getElementById('viewHistory')?.addEventListener('click', () => {
-      document.getElementById('profileMenu')?.classList.add('hidden');
-      openHistoryModal('preview-user');
+      showToast('Preview mode — close is a no-op here', 'info');
     });
     wireSchedPrefs('preview-user');
   }
+
+  const outcome =
+    params.get('fail') === '1' || params.get('success') === '1';
+  if (outcome) setTimeout(() => startOutcomePreviewLoop(), 240);
+  else if (params.get('history') === '1') setTimeout(() => startHistoryPreviewLoop(), 240);
+  else if (params.get('profile') === '1') setTimeout(() => startProfilePreviewLoop(), 240);
+}
+
+async function completeLoginWithGoogleTokens(id_token, access_token) {
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage(
+      { action: 'completeLogin', id_token, access_token },
+      resp => {
+        void chrome.runtime.lastError;
+        resolve(resp || { success: false, code: 'generic', error: 'No response' });
+      }
+    );
+  });
+}
+
+/** Silent → background; interactive → popup (user gesture) then completeLogin. */
+async function runGoogleOAuthFlow({ silent = false } = {}) {
+  if (silent) {
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage({ action: 'login', silent: true }, resp => {
+        void chrome.runtime.lastError;
+        resolve(resp || { success: false, code: 'cancelled', error: 'No response' });
+      });
+    });
+  }
+  const google = await launchGoogleWebAuthFlow({ silent: false });
+  if (!google?.id_token || !google?.access_token) {
+    return {
+      success: false,
+      code: google?.error || 'cancelled',
+      error: google?.detail || 'Google auth failed or was cancelled'
+    };
+  }
+  return completeLoginWithGoogleTokens(google.id_token, google.access_token);
 }
 
 async function ensureValidGoogleToken() {
@@ -785,29 +1399,17 @@ async function ensureValidGoogleToken() {
     });
 
     if (res.status === 401) {
-      // Expected path — don't console.warn (Chrome lists warns as extension errors).
-      // Silent first: no consent screen if the user is still signed in to Google.
-      const silentOk = await new Promise(resolve =>
-        chrome.runtime.sendMessage({ action: 'login', silent: true }, resp => {
-          void chrome.runtime.lastError;
-          resolve(!!resp?.success);
-        })
-      );
-      if (silentOk) return true;
+      const silentOk = await runGoogleOAuthFlow({ silent: true });
+      if (silentOk?.success) return true;
 
-      showToast("🔄 Re-authenticating Google access...");
-      return new Promise(resolve => {
-        chrome.runtime.sendMessage({ action: 'login' }, resp => {
-          void chrome.runtime.lastError;
-          if (resp?.success) {
-            showToast("✅ Reconnected to Google!");
-            resolve(true);
-          } else {
-            showToast("❌ Google login failed.");
-            resolve(false);
-          }
-        });
-      });
+      showToast('Re-authenticating Google access...', 'info');
+      const interactive = await runGoogleOAuthFlow({ silent: false });
+      if (interactive?.success) {
+        showToast('Reconnected to Google!', 'success');
+        return true;
+      }
+      showToast('Google login failed.', 'error');
+      return false;
     }
 
     return true;
@@ -889,11 +1491,100 @@ function startOfflineFacts() {
   }, OFFLINE_FACT_MS);
 }
 
+/**
+ * Shared bottom-sheet open/close. All sheets slide up/down (--sheet-slide-ms).
+ * Closing keeps the node displayed until the slide-out finishes.
+ */
+const SHEET_SLIDE_MS = 420;
+const MODAL_ANIM_MS = SHEET_SLIDE_MS;
+function openOverlay(overlay) {
+  clearTimeout(overlay._hideTimer);
+  overlay.hidden = false;
+  overlay.classList.remove('hidden', 'is-closing');
+  void overlay.offsetWidth;
+  overlay.classList.add('is-open');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+function closeOverlay(overlay) {
+  overlay.setAttribute('aria-hidden', 'true');
+  if (overlay.hidden) return;
+  clearTimeout(overlay._hideTimer);
+  overlay.classList.add('is-closing');
+  overlay._hideTimer = setTimeout(() => {
+    overlay.classList.remove('is-open', 'is-closing');
+    overlay.classList.add('hidden');
+    overlay.hidden = true;
+  }, MODAL_ANIM_MS);
+}
+function closeOnbSheet(overlay) {
+  if (!overlay || overlay.hidden || !overlay.classList.contains('is-open')) return Promise.resolve();
+  if (overlay.id === 'onbPermsOverlay') resetPermsSheetEnter();
+  return new Promise(resolve => {
+    closeOverlay(overlay);
+    setTimeout(resolve, MODAL_ANIM_MS);
+  });
+}
+function openOnbSheet(overlay) {
+  if (!overlay) return;
+  openOverlay(overlay);
+}
+
+const PERMS_CARD_ENTER_MS = 450;
+const PERMS_CARD_STAGGER_MS = 140;
+
+function resetPermsSheetEnter() {
+  const sheet = document.getElementById('onbPermsSheet');
+  if (!sheet) return;
+  clearTimeout(sheet._permsEnterTimer);
+  sheet.classList.remove('is-perms-entering');
+}
+
+function playPermsSheetEnter() {
+  const sheet = document.getElementById('onbPermsSheet');
+  if (!sheet) return;
+  resetPermsSheetEnter();
+  if (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) return;
+  void sheet.offsetWidth;
+  sheet.classList.add('is-perms-entering');
+  const count = sheet.querySelectorAll('.onb-perm').length;
+  const holdMs = SHEET_SLIDE_MS + PERMS_CARD_STAGGER_MS * Math.max(0, count - 1) + PERMS_CARD_ENTER_MS + 40;
+  sheet._permsEnterTimer = setTimeout(() => sheet.classList.remove('is-perms-entering'), holdMs);
+}
+
+function openPromisePermsSheet() {
+  const overlay = document.getElementById('onbPermsOverlay');
+  if (!overlay || overlay.classList.contains('is-open')) return;
+  playPermsSheetEnter();
+  openOnbSheet(overlay);
+}
+
+/** Profile child sheets: freeze profile while open; only unstack after the child finishes sliding out. */
+function setProfileStackedUnder(stacked) {
+  const overlay = document.getElementById('profileOverlay');
+  if (!overlay) return;
+  clearTimeout(overlay._unstackTimer);
+  if (stacked) {
+    clearTimeout(overlay._contentTimer);
+    overlay.classList.remove('is-entering');
+    overlay.classList.add('is-stacked-under');
+    return;
+  }
+  overlay.classList.remove('is-stacked-under');
+}
+function releaseProfileStackAfterSlide() {
+  const overlay = document.getElementById('profileOverlay');
+  if (!overlay?.classList.contains('is-stacked-under')) return;
+  clearTimeout(overlay._unstackTimer);
+  overlay._unstackTimer = setTimeout(() => {
+    overlay.classList.remove('is-stacked-under');
+  }, SHEET_SLIDE_MS);
+}
+
 function offlineMountParent() {
   if (document.body.classList.contains('onboarding-active')) {
     return document.getElementById('onboarding');
   }
-  return document.getElementById('scheduleScreen') || document.getElementById('popupWrapper') || document.body;
+  return document.getElementById('popupWrapper') || document.getElementById('scheduleScreen') || document.body;
 }
 
 function showNetworkLostScreen() {
@@ -905,10 +1596,7 @@ function showNetworkLostScreen() {
   hideSkeleton();
   document.getElementById('realContent')?.classList.remove('hidden');
 
-  overlay.hidden = false;
-  overlay.classList.remove('hidden');
-  overlay.classList.add('is-open');
-  overlay.setAttribute('aria-hidden', 'false');
+  openOverlay(overlay);
   document.body.classList.add('is-offline');
   startOfflineFacts();
 }
@@ -918,10 +1606,7 @@ function hideNetworkLostScreen() {
   const overlay = document.getElementById('networkLostScreen');
   document.body.classList.remove('is-offline');
   if (!overlay) return;
-  overlay.classList.remove('is-open');
-  overlay.classList.add('hidden');
-  overlay.hidden = true;
-  overlay.setAttribute('aria-hidden', 'true');
+  closeOverlay(overlay);
 }
 
 // ── Onboarding (logged-out only; always restarts at screen 1) ──
@@ -931,15 +1616,17 @@ function recycleOnbCardOrder(ids) {
   return ids.slice(1).concat(ids[0]);
 }
 
-/** Carousel slot: 3 visible full-width; opacity only (no width morph). */
+/** Carousel slot: 3 visible full-width; the card leaving and the card arriving
+ *  also scale between 90% and 100% (no width morph). */
 function onb1CardSlot(index, phase) {
-  const show = { width: '100%', opacity: '1' };
-  const hide = { width: '100%', opacity: '0' };
+  const show = { width: '100%', opacity: '1', transform: 'scale(1)' };
+  const hide = { width: '100%', opacity: '0', transform: 'scale(0.9)' };
   if (phase === 'rest') {
     if (index <= 2) return show;
     return hide;
   }
-  // During scroll: top fades out; next fades in as bottom
+  // During scroll: top card shrinks + fades out, the 4th grows + fades in as the
+  // new bottom card. Cards 1–2 just ride the stack up untouched.
   if (index === 0) return hide;
   if (index <= 3) return show;
   return hide;
@@ -973,69 +1660,82 @@ function formatOnbWatchedAgo() {
   return days === 1 ? 'Watched 1 day ago' : `Watched ${days} days ago`;
 }
 
-/** Random day stamp for Pain cards (7–66). */
+/** Random day stamp fallback when catalog entry has no unwatchedDays. */
 function randomOnbDay() {
   return 7 + Math.floor(Math.random() * 60);
 }
 
-/** Local onboarding thumbs (9) — life / psychology themed cards. */
-const ONB_THUMBS = [
-  'Icon/onb/onb-thumb-01.png',
-  'Icon/onb/onb-thumb-02.png',
-  'Icon/onb/onb-thumb-03.png',
-  'Icon/onb/onb-thumb-04.png',
-  'Icon/onb/onb-thumb-05.png',
-  'Icon/onb/onb-thumb-06.png',
-  'Icon/onb/onb-thumb-07.png',
-  'Icon/onb/onb-thumb-08.png',
-  'Icon/onb/onb-thumb-09.png',
+/** Pain stamp from catalog entry. */
+function formatOnbPainLabel(meta) {
+  return formatOnbUnwatchedLabel(meta?.unwatchedDays ?? randomOnbDay());
+}
+
+/** Promise stamp from catalog entry. */
+function formatOnbPromiseLabel(meta) {
+  return meta?.watchedLabel || formatOnbWatchedAgo();
+}
+
+/** Curated onboarding videos — titles/durations from YouTube oEmbed + watch page (2026-08-27). */
+const ONB_YT_CATALOG = [
+  {
+    id: 'GatCEHiW7t4',
+    title: 'How Swiggy Builds 0-1 Products (ft. Swiggy Designer)',
+    thumb: 'Icon/onb/onb-yt-01.jpg',
+    durationSec: 4183,
+    unwatchedDays: 58,
+    watchedLabel: 'Watched few hrs ago',
+  },
+  {
+    id: '2ZCc4k_IV5w',
+    title: 'Config 2026 Keynote with Dylan Field (CEO & Co-founder, Figma)',
+    thumb: 'Icon/onb/onb-yt-02.jpg',
+    durationSec: 4325,
+    unwatchedDays: 32,
+    watchedLabel: 'Watched 8 hrs ago',
+  },
+  {
+    id: 'JWPrgCbUwC8',
+    title: 'Sanjiv Goenka On Billionaires, The Next Big Opportunities & Building Wealth | FO553 Raj Shamani',
+    thumb: 'Icon/onb/onb-yt-03.jpg',
+    durationSec: 7756,
+    unwatchedDays: 21,
+    watchedLabel: 'Watched 24 hrs ago',
+  },
+  {
+    id: 'hBMoPUAeLnY',
+    title: 'Joe Rogan Experience #2219 - Donald Trump',
+    thumb: 'Icon/onb/onb-yt-04.jpg',
+    durationSec: 10730,
+    unwatchedDays: 47,
+    watchedLabel: 'Watched 1 day ago',
+  },
+  {
+    id: 'XXpqejgnaB0',
+    title: 'How Money Actually Works',
+    thumb: 'Icon/onb/onb-yt-05.jpg',
+    durationSec: 10710,
+    unwatchedDays: 39,
+    watchedLabel: 'Watched 7 days ago',
+  },
+  {
+    id: 'C0gErQtnNFE',
+    title: 'The Hardest Problem AI Ever Solved, with Google DeepMind CEO',
+    thumb: 'Icon/onb/onb-yt-06.jpg',
+    durationSec: 3911,
+    unwatchedDays: 15,
+    watchedLabel: 'Watched few hrs ago',
+  },
 ];
 
-/** Multi-line life & psychology titles (no emojis; long enough to wrap). */
-const ONB_LIFE_TITLES = [
-  'The Psychology of Letting Go: Why Everything Passes and How to Find Peace in Uncertainty',
-  'Stop Chasing Productivity: The Mental Cost of Hustle Culture and What to Do Instead',
-  'Slow Down, You Are Doing Fine: Mindfulness Habits That Actually Calm an Overworked Mind',
-  'The Human Rush: How Modern Life Speeds Up Anxiety and How to Reclaim Your Pace',
-  'Dear Self, Look How Far You Have Come: A Letter on Growth, Grief, and Quiet Pride',
-  'Why We Bloom in Unexpected Seasons: The Psychology of Change, Rest, and Starting Over',
-  'A Day in My Life, Rewritten: Building Routines That Protect Your Mental Health',
-  'Serendipity Is Not a Coincidence: How Meaning, Chance, and Mindset Shape Happiness',
-  'Digital Detox for the Restless Brain: Finding Focus When Everything Feels Urgent',
-  'The Art of Soft Ambition: Succeeding Without Burning Out Your Nervous System',
-  'When Overthinking Steals the Present: Practical Ways to Quiet Rumination Fast',
-  'Attachment, Loneliness, and Belonging: Understanding the Relationships That Shape Us',
-];
-
-let onbCardDeck = null; // [{ id, title, thumb, duration, durationSec }]
+let onbCardDeck = null; // shuffled ONB_YT_CATALOG entries
 let onbCardCursor = 0;
-
-function randomOnbDurationSec() {
-  // ponytail: decorative stamp only; 2–55 min looks like real YT lengths
-  return 120 + Math.floor(Math.random() * (55 * 60 - 120));
-}
-
-function pickOnbLifeTitle(exclude = '') {
-  const pool = ONB_LIFE_TITLES.filter(t => t !== exclude);
-  const src = pool.length ? pool : ONB_LIFE_TITLES;
-  return src[Math.floor(Math.random() * src.length)];
-}
-
-function makeOnbCardMeta(thumbIndex, prevTitle = '') {
-  const durationSec = randomOnbDurationSec();
-  return {
-    id: `onb-${thumbIndex}`,
-    thumb: ONB_THUMBS[thumbIndex],
-    title: pickOnbLifeTitle(prevTitle),
-    durationSec,
-    duration: formatDurationLabel(durationSec),
-  };
-}
 
 function ensureOnbCardDeck() {
   if (onbCardDeck?.length) return onbCardDeck;
-  const order = shuffleCopy([...ONB_THUMBS.keys()]);
-  onbCardDeck = order.map(i => makeOnbCardMeta(i));
+  onbCardDeck = shuffleCopy([...ONB_YT_CATALOG]).map((entry) => ({
+    ...entry,
+    duration: formatDurationLabel(entry.durationSec),
+  }));
   onbCardCursor = 0;
   return onbCardDeck;
 }
@@ -1043,19 +1743,15 @@ function ensureOnbCardDeck() {
 function pickOnbCardMeta(excludeIds = []) {
   const deck = ensureOnbCardDeck();
   if (!deck.length) return null;
-  // Loop the 9 thumbs; re-roll title + duration each time for variety
-  let meta = null;
   for (let n = 0; n < deck.length; n++) {
     const i = (onbCardCursor + n) % deck.length;
     const candidate = deck[i];
     if (!excludeIds.includes(candidate.id)) {
       onbCardCursor = (i + 1) % deck.length;
-      meta = makeOnbCardMeta(Number(candidate.id.replace('onb-', '')), candidate.title);
-      deck[i] = meta;
-      break;
+      return candidate;
     }
   }
-  return meta || makeOnbCardMeta(0);
+  return deck[0];
 }
 
 function paintOnbCardContent(card, meta, formatLabel) {
@@ -1073,14 +1769,18 @@ function paintOnbCardContent(card, meta, formatLabel) {
     if (title) title.textContent = meta.title;
     if (dur) dur.textContent = meta.duration || formatDurationLabel(meta.durationSec);
   }
-  if (label) label.textContent = typeof formatLabel === 'function' ? formatLabel() : String(formatLabel || '');
+  if (label) {
+    label.textContent = typeof formatLabel === 'function'
+      ? formatLabel(meta)
+      : String(formatLabel || '');
+  }
 }
 
-/** Fill cards from the 9 local thumbs (shuffled order). */
-function seedOnbCardsFromYoutube(root, formatLabel) {
+/** Fill cards from ONB_YT_CATALOG. Pass fresh:true only on first Pain enter. */
+function seedOnbCardsFromYoutube(root, formatLabel, { fresh = false } = {}) {
   const cards = [...root.querySelectorAll('.onb-card')];
   if (!cards.length) return;
-  onbCardDeck = null; // fresh shuffle each enter
+  if (fresh) onbCardDeck = null;
   const deck = ensureOnbCardDeck();
   cards.forEach((card, i) => {
     paintOnbCardContent(card, deck[i % deck.length], formatLabel);
@@ -1122,6 +1822,7 @@ function stopOnbCardScroll() {
       c.style.transition = '';
       c.style.opacity = '';
       c.style.width = '';
+      c.style.transform = '';
     });
   });
 }
@@ -1129,7 +1830,7 @@ function stopOnbCardScroll() {
 function paintOnbCardSlots(stack, phase, durationMs) {
   const cards = [...stack.children];
   if (durationMs > 0) {
-    const ease = `opacity ${durationMs}ms cubic-bezier(0.34, 1.4, 0.64, 1)`;
+    const ease = `opacity ${durationMs}ms ease-in-out, transform ${durationMs}ms ease-in-out`;
     cards.forEach(c => { c.style.transition = ease; });
     void stack.offsetHeight;
   } else {
@@ -1139,20 +1840,21 @@ function paintOnbCardSlots(stack, phase, durationMs) {
     const s = onb1CardSlot(i, phase);
     c.style.width = s.width;
     c.style.opacity = s.opacity;
+    c.style.transform = s.transform;
   });
 }
 
-/** Slides 1–2: full-width cards; 1.5× faster bouncy ease-in-out scroll. */
+/** Slides 1–2: full-width cards; 1.5× faster ease-in-out scroll. */
 function startOnbCardScroll(screenSel, formatLabel) {
   stopOnbCardScroll();
   const stack = document.querySelector(`${screenSel} .onb-cards`);
   if (!stack) return;
   const state = { abort: false, stack };
   onbCardAnim = state;
-  // ponytail: 1.5× prior pace + bounce; upgrade via Figma motion tokens if they land
+  // ponytail: 1.5× prior pace; upgrade via Figma motion tokens if they land
   const DURATION_MS = Math.round(1600 / 1.5); // ~1067
   const PAUSE_MS = Math.round(900 / 1.5); // 600
-  const BOUNCE = 'cubic-bezier(0.34, 1.4, 0.64, 1)';
+  const EASE = 'ease-in-out';
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
   paintOnbCardSlots(stack, 'rest', 0);
@@ -1165,7 +1867,7 @@ function startOnbCardScroll(screenSel, formatLabel) {
       const step = second
         ? (second.offsetTop - first.offsetTop)
         : first.offsetHeight;
-      stack.style.transition = `transform ${DURATION_MS}ms ${BOUNCE}`;
+      stack.style.transition = `transform ${DURATION_MS}ms ${EASE}`;
       void stack.offsetHeight;
       paintOnbCardSlots(stack, 'end', DURATION_MS);
       stack.style.transform = `translateY(-${step}px)`;
@@ -1201,7 +1903,7 @@ async function enterOnbCardsThenPlay(screenSel, formatLabel, opts = {}) {
   }
   if (!opts.prepped) {
     stopOnbCardScroll();
-    await seedOnbCardsFromYoutube(stack, formatLabel);
+    await seedOnbCardsFromYoutube(stack, formatLabel, { fresh: opts.fresh });
     paintOnbCardSlots(stack, 'rest', 0);
     stack.style.transition = 'none';
     stack.style.transform = 'translateY(56%)';
@@ -1219,11 +1921,11 @@ async function enterOnbCardsThenPlay(screenSel, formatLabel, opts = {}) {
 }
 
 /** Park cards off-screen below before a Pain↔Promise crossfade. */
-async function prepOnbCardsEnter(screenSel, formatLabel) {
+async function prepOnbCardsEnter(screenSel, formatLabel, { fresh = false } = {}) {
   const stack = document.querySelector(`${screenSel} .onb-cards`);
   if (!stack) return;
   pauseOnbCardScroll();
-  await seedOnbCardsFromYoutube(stack, formatLabel);
+  await seedOnbCardsFromYoutube(stack, formatLabel, { fresh });
   paintOnbCardSlots(stack, 'rest', 0);
   stack.style.transition = 'none';
   stack.style.transform = 'translateY(56%)';
@@ -1231,10 +1933,100 @@ async function prepOnbCardsEnter(screenSel, formatLabel) {
   void stack.offsetHeight;
 }
 
-function setOnbTickerActive(screen, activeIndex) {
+/** Promise → Permissions: keep the carousel mid-scroll on the new stack. */
+function handoffOnbCardStack(fromSel, toSel, formatLabel) {
+  pauseOnbCardScroll();
+  const fromStack = document.querySelector(`${fromSel} .onb-cards`);
+  const toStack = document.querySelector(`${toSel} .onb-cards`);
+  if (!toStack) return;
+  seedOnbCardsFromYoutube(toStack, formatLabel);
+  paintOnbCardSlots(toStack, 'rest', 0);
+  if (fromStack) {
+    toStack.style.transition = 'none';
+    toStack.style.transform = fromStack.style.transform || '';
+    toStack.style.opacity = fromStack.style.opacity || '1';
+    void toStack.offsetHeight;
+  }
+}
+
+/** `instant` snaps without animating — each screen owns its own ticker, and the
+ *  incoming one is pre-set to its own step in the markup, so it has to be rewound
+ *  to the outgoing step before it can animate forward. */
+function setOnbTickerActive(screen, activeIndex, { instant = false } = {}) {
   const ticks = screen?.querySelectorAll('.onb-tick');
   if (!ticks?.length) return;
+  if (instant) ticks.forEach(t => { t.style.transition = 'none'; });
   ticks.forEach((t, i) => t.classList.toggle('active', i === activeIndex));
+  if (!instant) return;
+  void screen.offsetHeight;
+  ticks.forEach(t => { t.style.transition = ''; });
+}
+
+const ONB_COPY_SHIFT = 24; // px the heading travels sideways
+const ONB_MODAL_ENTER_MS = 650;
+const ONB_MODAL_STAGGER_MS = 200;
+
+function playOnbModalEnter(screen) {
+  if (!screen || (typeof prefersReducedMotion === 'function' && prefersReducedMotion())) return;
+  clearTimeout(screen._onbEnterTimer);
+  screen.classList.remove('is-modal-entering');
+  void screen.offsetWidth;
+  screen.classList.add('is-modal-entering');
+  const lineCount = screen.querySelectorAll('.onb-heading-line').length;
+  const holdMs = ONB_MODAL_ENTER_MS + ONB_MODAL_STAGGER_MS * lineCount + 80;
+  screen._onbEnterTimer = setTimeout(() => {
+    screen.classList.remove('is-modal-entering');
+  }, holdMs);
+}
+
+/** Pain↔Promise copy morph. Phases: `enter` (parked off to one side), `settle`
+ *  (in place), `exit` (pushed the other way), `rest` (inline styles cleared).
+ *  `forward` = moving to a later step, so copy leaves left and arrives from right.
+ *
+ *  Opacity is deliberately left to the section crossfade — fading the heading on
+ *  top of that makes it vanish long before it finishes travelling.
+ *
+ *  Both screens animate their buttons to the *same* geometry, which is why `exit`
+ *  and `enter` share one collapsed layout: the two Next buttons then occupy the
+ *  identical rect at every frame and composite into one button changing shape.
+ *  Morphing only the incoming one leaves the outgoing label visible beside it —
+ *  a doubled "Next" for the length of the crossfade.
+ */
+function paintOnbCopySlots(screen, phase, forward, durationMs = 0) {
+  if (!screen) return;
+  const head = screen.querySelector('.onb-heading');
+  const row = screen.querySelector('.onb-btn-row');
+  const back = row?.querySelector('.onb-btn-secondary');
+  const cta = screen.querySelector('.onb-modal-cta');
+  const ease = durationMs > 0 ? `${durationMs}ms ease-in-out` : null;
+  const shift = forward ? ONB_COPY_SHIFT : -ONB_COPY_SHIFT;
+
+  if (head) {
+    head.style.transition = ease ? `transform ${ease}` : 'none';
+    if (phase === 'enter') head.style.transform = `translateX(${shift}px)`;
+    else if (phase === 'exit') head.style.transform = `translateX(${-shift}px)`;
+    else if (phase === 'rest') head.style.transform = '';
+    else head.style.transform = 'translateX(0)';
+  }
+  if (cta) {
+    cta.style.transition = ease ? `transform ${ease}` : 'none';
+    if (phase === 'enter') cta.style.transform = `translateX(${shift}px)`;
+    else if (phase === 'exit') cta.style.transform = `translateX(${-shift}px)`;
+    else if (phase === 'rest') cta.style.transform = '';
+    else cta.style.transform = 'translateX(0)';
+  }
+  const collapsed = phase === 'enter' || phase === 'exit';
+  const halfW = 'calc(50% - var(--space-3) / 2)';
+  if (back && row) {
+    back.style.transition = ease ? `max-width ${ease}` : 'none';
+    row.style.transition = ease ? `column-gap ${ease}` : 'none';
+    back.style.maxWidth = phase === 'rest' ? '' : collapsed ? '0px' : halfW;
+    row.style.columnGap = phase === 'rest' ? '' : collapsed ? '0px' : 'var(--space-3)';
+  }
+  if (phase === 'rest') {
+    [head, row, back, cta].forEach(el => { if (el) el.style.transition = ''; });
+  }
+  if (!ease) void screen.offsetHeight;
 }
 
 const ONB3_YT_ID = 'Sy8V_YYUplg';
@@ -1314,14 +2106,19 @@ function resetOnb3SheetPanels() {
   perms?.classList.add('hidden');
 }
 
-/* ─── Onboarding 5: live calendar scan (Figma 96:1047 / 96:1099) ─── */
-const ONB_CAL_DAY = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+/* ─── Onboarding 5: live calendar scan (Figma 422:1593 / 422:1594 / 418:978) ─── */
+const ONB_CAL_DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const ONB_CAL_MON_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const ONB_CAL_MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const ONB_CAL_ROWS = 3;
-let onbCalScan = null; // { raf, abort, resolveDone }
-let onbCalScanPromise = null;
+const CAL_FADE_MS = 400; /* paired with --cal-fade-ms */
+const CAL_CELL_MS = 260; /* paired with --cal-cell-ms */
+const CAL_PAUSE_MS = 200;
+const CAL_TRACK_OFF = [-3, -2, -1, 0, 1, 2, 3];
+let onbCalScan = null; // { abort, timer, resolveDone }
 
-/** Mon–Fri week rows that touch `year`/`month` (0-indexed month). */
+/** Mon–Sun week rows that touch `year`/`month` (0-indexed month).
+ *  Out-of-month cells are empty chips — no overflow dates from adjacent months. */
 function onbCalWeekdayRows(year, month) {
   const first = new Date(year, month, 1);
   const dow = first.getDay();
@@ -1331,16 +2128,20 @@ function onbCalWeekdayRows(year, month) {
   for (let i = 0; i < 6; i++) {
     const row = [];
     let anyIn = false;
-    for (let c = 0; c < 5; c++) {
+    for (let c = 0; c < 7; c++) {
       const cell = new Date(cursor);
       cell.setDate(cursor.getDate() + c);
       const inMonth = cell.getMonth() === month && cell.getFullYear() === year;
-      if (inMonth) anyIn = true;
-      row.push({
-        day: ONB_CAL_DAY[cell.getDay()],
-        date: String(cell.getDate()).padStart(2, '0'),
-        inMonth,
-      });
+      if (inMonth) {
+        anyIn = true;
+        row.push({
+          day: ONB_CAL_DAY[cell.getDay()],
+          date: String(cell.getDate()).padStart(2, '0'),
+          inMonth: true,
+        });
+      } else {
+        row.push({ day: '', date: '', inMonth: false, empty: true });
+      }
     }
     if (anyIn) rows.push(row);
     else if (rows.length) break;
@@ -1356,34 +2157,29 @@ function onbCalMonthsAround(now = new Date()) {
   });
 }
 
-function paintOnbCalChunk(grid, rows, weekStart) {
+/** Split week rows into 3-row pages so every in-month day gets scanned. */
+function onbCalChunks(rows, size = ONB_CAL_ROWS) {
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += size) chunks.push(rows.slice(i, i + size));
+  return chunks.length ? chunks : [[]];
+}
+
+function paintOnbCalChunk(grid, rows) {
   grid.innerHTML = '';
-  let start = weekStart;
-  if (rows.length >= ONB_CAL_ROWS && start > rows.length - ONB_CAL_ROWS) {
-    start = Math.max(0, rows.length - ONB_CAL_ROWS);
-  }
-  const slice = rows.slice(start, start + ONB_CAL_ROWS);
+  const slice = rows.slice(0, ONB_CAL_ROWS);
   while (slice.length < ONB_CAL_ROWS) {
-    slice.push(Array.from({ length: 5 }, () => ({ day: '', date: '', inMonth: false, empty: true })));
+    slice.push(Array.from({ length: 7 }, () => ({ day: '', date: '', inMonth: false, empty: true })));
   }
-  slice.forEach((row, ri) => {
+  slice.forEach((row) => {
     const rowEl = document.createElement('div');
-    rowEl.className = 'onb-cal-row';
-    row.forEach((cell, ci) => {
+    rowEl.className = 'cal-week-row';
+    row.forEach((cell) => {
       const el = document.createElement('div');
-      el.className = 'onb-cal-cell is-pending';
-      el.dataset.row = String(ri);
-      el.dataset.col = String(ci);
-      if (cell.empty) {
-        el.innerHTML = '<span class="day">&nbsp;</span><span class="date">&nbsp;</span>';
-        el.classList.add('is-out');
+      el.className = 'cal-day-cell';
+      if (cell.empty || !cell.inMonth) {
+        el.classList.add('is-empty');
       } else {
-        el.innerHTML = `<span class="day">${cell.day}</span><span class="date">${cell.date}</span>`;
-        if (!cell.inMonth) el.classList.add('is-out');
-      }
-      if (ri === slice.length - 1 && !cell.empty) {
-        el.classList.remove('is-pending');
-        el.classList.add('is-peek');
+        el.innerHTML = `<span class="cal-day">${cell.day}</span><span class="cal-date">${cell.date}</span>`;
       }
       rowEl.appendChild(el);
     });
@@ -1394,180 +2190,157 @@ function paintOnbCalChunk(grid, rows, weekStart) {
 function stopOnbCalScan() {
   if (!onbCalScan) return;
   onbCalScan.abort = true;
-  if (onbCalScan.raf) cancelAnimationFrame(onbCalScan.raf);
+  if (onbCalScan.timer) clearTimeout(onbCalScan.timer);
   onbCalScan.resolveDone?.();
   onbCalScan = null;
 }
 
-/** Decorative scan: prev + current + next month, beam top↔bottom, reveal cells as it passes.
- *  Returns a Promise that resolves when all months are scanned (or aborted). */
+/** Decorative scan: current → previous → next month. One in-month cell highlights at a time
+ *  (left-to-right, top-to-bottom). Leftover weeks page in 3-row chunks. After a page (e.g. 1–20)
+ *  the outgoing chips scale down + fade while the next page scales in with a spring overshoot —
+ *  same tick as the month carousel. Loops until stopOnbCalScan(). */
 function startOnbCalScan() {
   stopOnbCalScan();
-  const cal = document.getElementById('onbCal');
   const grid = document.getElementById('onbCalGrid');
-  const label = document.getElementById('onbCalMonthLabel');
-  const veil = document.getElementById('onbScanVeil');
-  const pill = document.getElementById('onbScanPill');
-  const pctEl = document.getElementById('onbScanPct');
-  if (!cal || !grid || !veil || !pill || !pctEl) return Promise.resolve();
+  const stack = grid?.parentNode;
+  const track = document.getElementById('calMonthTrack');
+  if (!grid || !stack || !track) return;
 
   const months = onbCalMonthsAround();
-  const monthRows = months.map(m => onbCalWeekdayRows(m.year, m.month));
+  const monthChunks = months.map(m => onbCalChunks(onbCalWeekdayRows(m.year, m.month)));
   let resolveDone;
   const done = new Promise(r => { resolveDone = r; });
-  const state = { abort: false, raf: 0, resolveDone };
+  const state = { abort: false, timer: 0, resolveDone };
   onbCalScan = state;
 
-  // ponytail: fixed timings; upgrade if Figma ships motion tokens
-  const PASS_MS = 1600;       // one top→bottom (or bottom→top) sweep
-  const MONTH_PASSES = 2;     // down then up per chunk
-  const ROWS_VISIBLE = ONB_CAL_ROWS;
-
-  let monthIdx = 0;
-  let weekStart = 0;
-  let pass = 0; // 0 = down, 1 = up
-  let passT0 = performance.now();
-
-  const totalChunks = monthRows.reduce((n, rows) => {
-    return n + Math.max(1, Math.ceil(rows.length / ROWS_VISIBLE));
-  }, 0);
-  let chunkDone = 0;
-
-  const setPct = (local01) => {
-    const overall = (chunkDone + local01) / Math.max(totalChunks, 1);
-    const pct = Math.min(100, Math.round(overall * 100));
-    pctEl.textContent = `Scanned ${pct}%`;
+  const monthLabelAt = (year, month) => {
+    const d = new Date(year, month, 1);
+    return `${ONB_CAL_MON_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
   };
 
-  const loadChunk = () => {
-    const m = months[monthIdx];
-    const rows = monthRows[monthIdx];
-    if (label) label.textContent = `${ONB_CAL_MON[m.month]} ${m.year}`;
-    paintOnbCalChunk(grid, rows, weekStart);
-    pass = 0;
-    passT0 = performance.now();
-    veil.style.height = '0px';
-    pill.style.top = '0px';
+  const paintTrack = (year, month) => {
+    track.querySelectorAll('[data-cal-off]').forEach(el => {
+      const off = Number(el.dataset.calOff);
+      const inner = el.querySelector('.cal-month-label-inner');
+      if (inner) inner.textContent = monthLabelAt(year, month + off);
+    });
   };
 
-  loadChunk();
-
-  const revealAt = (scanY, goingDown) => {
-    const calTop = cal.getBoundingClientRect().top;
-    grid.querySelectorAll('.onb-cal-row').forEach(rowEl => {
-      const cells = [...rowEl.querySelectorAll('.onb-cal-cell')];
-      const rr = rowEl.getBoundingClientRect();
-      const rowTop = rr.top - calTop;
-      const rowBot = rr.bottom - calTop;
-      const rowH = Math.max(rowBot - rowTop, 1);
-
-      if (goingDown) {
-        // Beam descending: reveal MON→FRI as it crosses each cell
-        if (scanY < rowTop) {
-          cells.forEach(c => {
-            c.classList.remove('is-scanned', 'is-peek');
-            c.classList.add('is-pending');
-          });
-          return;
-        }
-        if (scanY >= rowBot) {
-          cells.forEach(c => {
-            c.classList.remove('is-pending', 'is-peek');
-            c.classList.add('is-scanned');
-          });
-          return;
-        }
-        const frac = (scanY - rowTop) / rowH;
-        const colsOn = Math.min(5, Math.ceil(frac * 5));
-        cells.forEach((c, i) => {
-          c.classList.remove('is-pending', 'is-peek', 'is-scanned');
-          if (i < colsOn) c.classList.add('is-scanned');
-          else if (i === colsOn) c.classList.add('is-peek');
-          else c.classList.add('is-pending');
-        });
-      } else {
-        // Beam ascending: fade days/dates back out as it passes them
-        if (scanY <= rowTop) {
-          cells.forEach(c => {
-            c.classList.remove('is-scanned', 'is-peek');
-            c.classList.add('is-pending');
-          });
-          return;
-        }
-        if (scanY >= rowBot) {
-          cells.forEach(c => {
-            c.classList.remove('is-pending', 'is-peek');
-            c.classList.add('is-scanned');
-          });
-          return;
-        }
-        // Still covering part of the row — FRI fades first as beam rises
-        const frac = (scanY - rowTop) / rowH;
-        const colsOn = Math.min(5, Math.floor(frac * 5));
-        cells.forEach((c, i) => {
-          c.classList.remove('is-pending', 'is-peek', 'is-scanned');
-          if (i < colsOn) c.classList.add('is-scanned');
-          else if (i === colsOn) c.classList.add('is-peek');
-          else c.classList.add('is-pending');
-        });
+  const buildTrack = () => {
+    track.innerHTML = '';
+    CAL_TRACK_OFF.forEach((off, i) => {
+      if (i) {
+        const div = document.createElement('span');
+        div.className = 'cal-month-divider';
+        track.appendChild(div);
       }
+      const lab = document.createElement('span');
+      lab.className = 'cal-month-label';
+      lab.dataset.calOff = String(off);
+      const inner = document.createElement('span');
+      inner.className = 'cal-month-label-inner';
+      lab.appendChild(inner);
+      track.appendChild(lab);
     });
   };
 
-  const advanceChunk = () => {
-    chunkDone += 1;
-    const rows = monthRows[monthIdx];
-    weekStart += ROWS_VISIBLE;
-    if (weekStart < rows.length) {
-      loadChunk();
-      return true;
-    }
-    monthIdx += 1;
-    weekStart = 0;
-    if (monthIdx < months.length) {
-      loadChunk();
-      return true;
-    }
-    // finished all months — park beam at bottom, 100%
-    const h = cal.clientHeight;
-    veil.style.height = `${h}px`;
-    pill.style.top = `${h}px`;
-    setPct(1);
-    grid.querySelectorAll('.onb-cal-cell').forEach(c => {
-      c.classList.remove('is-pending', 'is-peek');
-      c.classList.add('is-scanned');
-    });
-    state.resolveDone?.();
-    return false;
+  const delay = (ms) => new Promise(r => {
+    state.timer = setTimeout(r, ms);
+  });
+
+  let sliderYM = { year: months[1].year, month: months[1].month };
+  let pendingYM = null;
+
+  const startCarousel = (year, month) => {
+    const diff = (year - sliderYM.year) * 12 + (month - sliderYM.month);
+    if (!diff) return;
+    pendingYM = { year, month };
+    track.classList.remove('is-snap');
+    void track.offsetWidth;
+    track.style.setProperty('--cal-track-shift', String(diff));
   };
 
-  const frame = (now) => {
+  const finishCarousel = () => {
+    if (!pendingYM) return;
+    sliderYM = pendingYM;
+    pendingYM = null;
+    paintTrack(sliderYM.year, sliderYM.month);
+    track.classList.add('is-snap');
+    track.style.setProperty('--cal-track-shift', '0');
+    void track.offsetWidth;
+    track.classList.remove('is-snap');
+  };
+
+  const swapChunk = async (monthIdx, chunk, { withMonth, first }) => {
     if (state.abort) return;
-    const h = cal.clientHeight;
-    const elapsed = now - passT0;
-    let t = Math.min(1, elapsed / PASS_MS);
-    // ease-in-out
-    t = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    const goingDown = pass % 2 === 0;
-    const y = goingDown ? t * h : (1 - t) * h;
-    veil.style.height = `${Math.max(0, y)}px`;
-    pill.style.top = `${y}px`;
-    revealAt(y, goingDown);
-    // local progress within this chunk (2 passes)
-    const local = (pass + t) / MONTH_PASSES;
-    setPct(local);
-
-    if (elapsed >= PASS_MS) {
-      pass += 1;
-      passT0 = now;
-      if (pass >= MONTH_PASSES) {
-        if (!advanceChunk()) return; // done
-      }
+    const m = months[monthIdx];
+    if (!first) {
+      const outgoing = grid.cloneNode(true);
+      outgoing.removeAttribute('id');
+      outgoing.classList.add('cal-grid-outgoing', 'is-fading-out');
+      stack.appendChild(outgoing);
+      if (withMonth) startCarousel(m.year, m.month);
+      paintOnbCalChunk(grid, chunk);
+      grid.classList.add('is-fading-in');
+      await delay(CAL_FADE_MS);
+      outgoing.remove();
+      if (state.abort) return;
+      grid.classList.remove('is-fading-in');
+      finishCarousel();
+    } else {
+      sliderYM = { year: m.year, month: m.month };
+      paintTrack(m.year, m.month);
+      paintOnbCalChunk(grid, chunk);
+      grid.classList.add('is-fading-in');
+      await delay(CAL_FADE_MS);
+      if (state.abort) return;
+      grid.classList.remove('is-fading-in');
     }
-    state.raf = requestAnimationFrame(frame);
   };
 
-  state.raf = requestAnimationFrame(frame);
+  const scanChunk = async () => {
+    if (state.abort) return;
+    const cells = [...grid.querySelectorAll('.cal-day-cell')];
+    const scannable = cells.filter(c => !c.classList.contains('is-empty'));
+    for (let i = 0; i < scannable.length; i++) {
+      if (state.abort) return;
+      if (i > 0) scannable[i - 1].classList.remove('is-scanned');
+      scannable[i].classList.add('is-scanned');
+      await delay(CAL_CELL_MS);
+    }
+    if (state.abort) return;
+    if (scannable.length) {
+      await delay(CAL_CELL_MS);
+      scannable[scannable.length - 1].classList.remove('is-scanned');
+    }
+    await delay(CAL_PAUSE_MS);
+  };
+
+  const loop = async () => {
+    buildTrack();
+    if (typeof prefersReducedMotion === 'function' && prefersReducedMotion()) {
+      paintTrack(months[1].year, months[1].month);
+      paintOnbCalChunk(grid, monthChunks[1][0] || []);
+      return;
+    }
+    let first = true;
+    let prevMi = null;
+    const order = [1, 0, 2]; // current, previous, next
+    while (!state.abort) {
+      for (const mi of order) {
+        if (state.abort) return;
+        for (const chunk of monthChunks[mi]) {
+          if (state.abort) return;
+          await swapChunk(mi, chunk, { withMonth: first || mi !== prevMi, first });
+          first = false;
+          prevMi = mi;
+          await scanChunk();
+        }
+      }
+    }
+  };
+
+  loop().then(() => { resolveDone?.(); });
   return done;
 }
 
@@ -1594,7 +2367,7 @@ function bindOnb3PlayerControls() {
   if (closeBtn && !closeBtn.dataset.bound) {
     closeBtn.dataset.bound = '1';
     closeBtn.addEventListener('click', () => {
-      if (window.__WL_PREVIEW__) showToast('Preview mode — close is a no-op here');
+      if (window.__WL_PREVIEW__) showToast('Preview mode — close is a no-op here', 'info');
       else window.close();
     });
   }
@@ -1642,6 +2415,69 @@ function storageGet(keys) {
 function storageSet(obj) {
   return new Promise(res => chrome.storage.local.set(obj, res));
 }
+function storageRemove(keys) {
+  return new Promise(res => chrome.storage.local.remove(keys, res));
+}
+
+// Popup + background alarm must not rotate the same refresh token concurrently —
+// Supabase reuse-detection revokes the whole family ("Invalid Refresh Token: Already Used").
+const AUTH_REFRESH_LOCK_KEY = 'auth_refresh_lock';
+const AUTH_REFRESH_LOCK_TTL_MS = 12000;
+
+function isRefreshTokenReuseError(err) {
+  const msg = err?.message || String(err || '');
+  return /already used|invalid refresh token/i.test(msg);
+}
+
+async function acquireAuthRefreshLock() {
+  const owner = crypto.randomUUID();
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const now = Date.now();
+    const cur = await storageGet([AUTH_REFRESH_LOCK_KEY]);
+    const lock = cur[AUTH_REFRESH_LOCK_KEY];
+    if (!lock?.at || now - lock.at > AUTH_REFRESH_LOCK_TTL_MS) {
+      await storageSet({ [AUTH_REFRESH_LOCK_KEY]: { owner, at: now } });
+      const check = await storageGet([AUTH_REFRESH_LOCK_KEY]);
+      if (check[AUTH_REFRESH_LOCK_KEY]?.owner === owner) return owner;
+    }
+    await new Promise(r => setTimeout(r, 40 + (crypto.getRandomValues(new Uint8Array(1))[0] % 60)));
+  }
+  return owner;
+}
+
+async function releaseAuthRefreshLock(owner) {
+  const cur = await storageGet([AUTH_REFRESH_LOCK_KEY]);
+  if (cur[AUTH_REFRESH_LOCK_KEY]?.owner === owner) {
+    await storageRemove(AUTH_REFRESH_LOCK_KEY);
+  }
+}
+
+/** setSession under a lock; on reuse error, adopt tokens another party just wrote. */
+async function restoreSupabaseSession(accessToken, refreshToken) {
+  const owner = await acquireAuthRefreshLock();
+  try {
+    const fresh = await storageGet(['supabase_token', 'supabase_refresh']);
+    let at = fresh.supabase_token || accessToken;
+    let rt = fresh.supabase_refresh || refreshToken;
+    let { data, error } = await supabaseClient.auth.setSession({
+      access_token: at,
+      refresh_token: rt
+    });
+    if (error && isRefreshTokenReuseError(error)) {
+      const again = await storageGet(['supabase_token', 'supabase_refresh']);
+      if (again.supabase_refresh && again.supabase_refresh !== rt) {
+        ({ data, error } = await supabaseClient.auth.setSession({
+          access_token: again.supabase_token,
+          refresh_token: again.supabase_refresh
+        }));
+      }
+    }
+    if (!error && data?.session) await persistSupabaseSession(data.session);
+    return { data, error };
+  } finally {
+    await releaseAuthRefreshLock(owner);
+  }
+}
 
 /** Infer flags for installs that predate these keys. */
 async function migrateOnboardingFlags(userId) {
@@ -1670,6 +2506,7 @@ async function migrateOnboardingFlags(userId) {
 function classifyOAuthError(resp, meta = {}) {
   const err = String(resp?.error || meta.error || '').toLowerCase();
   const code = resp?.code || meta.code || '';
+  if (code === 'flow_busy' || /only one web auth flow/i.test(err)) return 'flow_busy';
   if (code === 'popup_blocked' || meta.popupBlocked) return 'popup_blocked';
   if (code === 'denied' || /access.?denied|scope|permission/.test(err)) return 'denied';
   if (code === 'interrupted' || /interrupt/.test(err)) return 'interrupted';
@@ -1680,9 +2517,21 @@ function classifyOAuthError(resp, meta = {}) {
   return 'generic';
 }
 
+// ponytail: only gates play() inside showAuthPanel — doesn't strip the HTML
+// `autoplay` attribute itself, so a panel's video could still autoplay muted
+// off-screen before its first showAuthPanel() call. Fine since the concern is
+// what the user perceives, not background decode; strip the attribute too if
+// that ever matters.
+function prefersReducedMotion() {
+  return typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function hideAuthFlow() {
   const host = document.getElementById('authFlowHost');
   if (!host) return;
+  clearTimeout(host._authHideTimer);
+  host.classList.remove('is-open', 'is-closing');
   host.classList.add('hidden');
   host.hidden = true;
   host.setAttribute('aria-hidden', 'true');
@@ -1702,13 +2551,31 @@ function hideAuthFlow() {
   if (fallBg) { fallBg.classList.add('hidden'); fallBg.setAttribute('aria-hidden', 'true'); }
 }
 
+function closeAuthFlowAnimated() {
+  const host = document.getElementById('authFlowHost');
+  if (!host || host.hidden || !host.classList.contains('is-open')) {
+    hideAuthFlow();
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    host.classList.add('is-closing');
+    clearTimeout(host._authHideTimer);
+    host._authHideTimer = setTimeout(() => {
+      hideAuthFlow();
+      resolve();
+    }, SHEET_SLIDE_MS);
+  });
+}
+
 function showAuthPanel(panelId) {
   const host = document.getElementById('authFlowHost');
   if (!host) return;
-  // Prefer visible host: permissions when open, else onboarding root, else popup frame
+  // Prefer visible host: Promise (perms modal) when open, else onboarding root
+  const promise = document.getElementById('onboardingPromise');
   const perms = document.getElementById('onboardingPermissions');
   const onb = document.getElementById('onboarding');
   const mount =
+    (promise && !promise.classList.contains('hidden') && promise) ||
     (perms && !perms.classList.contains('hidden') && perms) ||
     (onb && !onb.classList.contains('hidden') && onb) ||
     document.getElementById('popupWrapper') ||
@@ -1716,13 +2583,14 @@ function showAuthPanel(panelId) {
   if (host.parentElement !== mount) mount.appendChild(host);
 
   host.hidden = false;
-  host.classList.remove('hidden');
+  host.classList.remove('hidden', 'is-closing');
   host.setAttribute('aria-hidden', 'false');
+  void host.offsetWidth;
+  host.classList.add('is-open');
   document.body.classList.add('is-auth-flow');
   if (panelId === 'authConnecting') document.body.classList.add('is-auth-connecting');
   else document.body.classList.remove('is-auth-connecting');
-  // Figma Connecting/errors: schedule chrome under dim — hide permissions modal sheet
-  if (perms && !perms.classList.contains('hidden')) perms.classList.add('is-auth-covered');
+  // Permissions sheet closes before auth opens — cards stay visible under auth dim.
 
   host.querySelectorAll('.auth-panel').forEach(p => {
     const on = p.id === panelId;
@@ -1731,7 +2599,10 @@ function showAuthPanel(panelId) {
     const vid = p.querySelector('.auth-video');
     if (!vid) return;
     if (on) {
-      try { vid.currentTime = 0; vid.play().catch(() => {}); } catch (_) {}
+      // Decorative loop only — vestibular-motion users get the static first/poster
+      // frame instead, per prefers-reduced-motion.
+      try { vid.currentTime = 0; } catch (_) {}
+      if (!prefersReducedMotion()) { try { vid.play().catch(() => {}); } catch (_) {} }
     } else {
       try { vid.pause(); } catch (_) {}
     }
@@ -1794,7 +2665,9 @@ function wireAuthPanelsOnce() {
     btn.addEventListener('click', () => {
       hideAuthFlow();
       if (authFlowKind === 'new' || authFlowKind === 'new-wrong-url') {
-        if (typeof onboardingGoTo === 'function') onboardingGoTo(2);
+        if (typeof onboardingGoTo === 'function') {
+          void onboardingGoTo(1).then(() => openPromisePermsSheet());
+        } else openPromisePermsSheet();
       } else {
         window.close();
       }
@@ -1805,7 +2678,9 @@ function wireAuthPanelsOnce() {
   });
   document.getElementById('authWhyCalendar')?.addEventListener('click', () => {
     hideAuthFlow();
-    if (typeof onboardingGoTo === 'function') onboardingGoTo(2);
+    if (typeof onboardingGoTo === 'function') {
+      void onboardingGoTo(1).then(() => openPromisePermsSheet());
+    } else openPromisePermsSheet();
   });
 }
 
@@ -1851,9 +2726,10 @@ async function finishPostAuthScan(name) {
     return;
   }
 
-  hideAuthFlow();
+  await closeOnbSheet(document.getElementById('onbPermsOverlay'));
+  await closeAuthFlowAnimated();
   if (typeof onboardingGoTo === 'function') {
-    await onboardingGoTo(3);
+    await onboardingGoTo(3, { openAnalyzeSheet: true });
   } else {
     document.getElementById('onboarding')?.classList.remove('hidden');
     document.body.classList.add('onboarding-active');
@@ -1862,30 +2738,25 @@ async function finishPostAuthScan(name) {
     });
     const analyzing = document.getElementById('onboardingAnalyzing');
     analyzing?.classList.remove('hidden');
-    onbCalScanPromise = startOnbCalScan();
+    startOnbCalScan();
+    openOnbSheet(document.getElementById('onbAnalyzeOverlay'));
   }
 
   const statusEl = document.getElementById('onbAnalyzeStatus');
   const statusText = document.getElementById('onbAnalyzeStatusText');
-  const statusImg = document.getElementById('onbAnalyzeStatusImg');
   const retryBtn = document.getElementById('onbAnalyzeRetry');
+  const ANALYZE_BANNER_DEFAULT = 'We never check your events or their details.';
   const setAnalyzeBanner = (mode, msg) => {
-    if (!statusEl) return;
-    if (mode === 'png') {
+    if (!statusEl || !statusText) return;
+    if (mode === 'default') {
       statusEl.classList.remove('is-live');
-      if (statusImg) statusImg.classList.remove('hidden');
-      if (statusText) { statusText.classList.add('hidden'); statusText.hidden = true; }
+      statusText.textContent = ANALYZE_BANNER_DEFAULT;
     } else {
       statusEl.classList.add('is-live');
-      if (statusImg) statusImg.classList.add('hidden');
-      if (statusText) {
-        statusText.hidden = false;
-        statusText.classList.remove('hidden');
-        if (msg) statusText.textContent = msg;
-      }
+      statusText.textContent = msg || ANALYZE_BANNER_DEFAULT;
     }
   };
-  setAnalyzeBanner('png');
+  setAnalyzeBanner('default');
   if (retryBtn) { retryBtn.classList.add('hidden'); retryBtn.hidden = true; }
 
   const runAnalyze = async () => {
@@ -1902,12 +2773,10 @@ async function finishPostAuthScan(name) {
         analyzeOk = false;
       }
     })();
-    const scanP = onbCalScanPromise || Promise.resolve();
     const minP = new Promise(r => setTimeout(r, ANALYZE_MIN_MS));
     const maxP = new Promise(r => setTimeout(r, ANALYZE_MAX_MS));
-
     const outcome = await Promise.race([
-      Promise.all([analyzeP, scanP, minP]).then(() => 'ok'),
+      Promise.all([analyzeP, minP]).then(() => 'ok'),
       maxP.then(() => 'timeout')
     ]);
 
@@ -1922,7 +2791,7 @@ async function finishPostAuthScan(name) {
         retryBtn.classList.remove('hidden');
         retryBtn.onclick = () => {
           retryBtn.disabled = true;
-          setAnalyzeBanner('png');
+          setAnalyzeBanner('default');
           void runAnalyze().finally(() => { retryBtn.disabled = false; });
         };
       }
@@ -1931,12 +2800,13 @@ async function finishPostAuthScan(name) {
 
     await storageSet({ [ONB_FLAG_SCANNED]: true });
     if (authFlowKind === 'new-wrong-url') {
-      hideAuthFlow();
+      await closeOnbSheet(document.getElementById('onbAnalyzeOverlay'));
       stopOnbCalScan();
       document.getElementById('onboardingAnalyzing')?.classList.add('hidden');
       showWrongUrlFallAnim();
       return;
     }
+    await closeOnbSheet(document.getElementById('onbAnalyzeOverlay'));
     await initPopup();
     hideOnboarding();
     // Field-level resume: if scan failed and prefs empty → day prefs; else schedule
@@ -1969,25 +2839,13 @@ async function startConnectingAndLogin(opts = {}) {
   if (allowBtn) allowBtn.disabled = true;
 
   try {
-    const resp = await new Promise(resolve => {
-      try {
-        chrome.runtime.sendMessage({ action: 'login' }, r => {
-          const le = chrome.runtime.lastError;
-          if (le) {
-            const msg = String(le.message || '');
-            if (/could not be opened|blocked|user gesture|cancelled before/i.test(msg)) {
-              resolve({ success: false, code: 'popup_blocked', error: msg });
-            } else {
-              resolve({ success: false, code: 'cancelled', error: msg });
-            }
-            return;
-          }
-          resolve(r || { success: false, code: 'cancelled' });
-        });
-      } catch (e) {
-        resolve({ success: false, code: 'generic', error: String(e) });
-      }
-    });
+    let resp;
+    if (authFlowKind === 'returning') {
+      resp = await runGoogleOAuthFlow({ silent: true });
+      if (!resp?.success) resp = await runGoogleOAuthFlow({ silent: false });
+    } else {
+      resp = await runGoogleOAuthFlow({ silent: false });
+    }
 
     if (resp?.success) {
       authPopupBlockedCount = 0;
@@ -1996,6 +2854,10 @@ async function startConnectingAndLogin(opts = {}) {
     }
 
     const kind = classifyOAuthError(resp);
+    if (kind === 'flow_busy' && !opts._flowBusyRetry) {
+      await new Promise(r => setTimeout(r, 300));
+      return startConnectingAndLogin({ ...opts, _flowBusyRetry: true });
+    }
     if (kind === 'popup_blocked') {
       authPopupBlockedCount += 1;
       showAuthPanel('authConnecting');
@@ -2071,12 +2933,19 @@ function showOnboarding(opts = {}) {
   authPopupBlockedCount = 0;
   document.body.classList.toggle('is-onb-wrong-url', !!opts.wrongUrl);
 
-  const syncCardAnim = (i, { prepped = false } = {}) => {
+  const syncCardAnim = (i, { prepped = false, handoff = false } = {}) => {
     stopOnb3Video();
-    if (i === 0) return enterOnbCardsThenPlay('#onboardingPain', () => formatOnbUnwatchedLabel(randomOnbDay()), { prepped });
-    if (i === 1) return enterOnbCardsThenPlay('#onboardingPromise', formatOnbWatchedAgo, { prepped });
-    stopOnbCardScroll(); // Permissions + Analyzing = schedule shell
-    if (i === 3) onbCalScanPromise = startOnbCalScan();
+    if (i === 0) return enterOnbCardsThenPlay('#onboardingPain', formatOnbPainLabel, { prepped, fresh: !prepped });
+    if (i === 1) return enterOnbCardsThenPlay('#onboardingPromise', formatOnbPromiseLabel, { prepped });
+    if (i === 2) {
+      if (handoff) {
+        startOnbCardScroll('#onboardingPermissions', formatOnbPromiseLabel);
+        return Promise.resolve();
+      }
+      return enterOnbCardsThenPlay('#onboardingPermissions', formatOnbPromiseLabel, { prepped });
+    }
+    stopOnbCardScroll(); // Analyzing only
+    if (i === 3) startOnbCalScan();
     else stopOnbCalScan();
     return Promise.resolve();
   };
@@ -2087,28 +2956,54 @@ function showOnboarding(opts = {}) {
     el.style.opacity = '';
     el.style.transform = '';
     el.style.height = '';
+    el.querySelectorAll('.onb-heading, .onb-modal-cta, .onb-btn-row, .onb-btn-secondary').forEach(node => {
+      node.style.transition = '';
+      node.style.transform = '';
+      node.style.maxWidth = '';
+      node.style.width = '';
+      node.style.alignSelf = '';
+      node.style.columnGap = '';
+    });
   };
 
-  const goTo = async (i) => {
+  const goTo = async (i, opts = {}) => {
     if (transitioning || i === current || i < 0 || i >= screens.length) return;
     transitioning = true;
-    hideAuthFlow();
+    await closeAuthFlowAnimated();
+    if (current === 1) await closeOnbSheet(document.getElementById('onbPermsOverlay'));
+    if (current === 3) await closeOnbSheet(document.getElementById('onbAnalyzeOverlay'));
     const from = screens[current];
     const to = screens[i];
     const fadeEase = `opacity ${TRANS_MS}ms ease-in-out`;
-    const toPainOrPromise = i === 0 || i === 1;
-    const formatLabel = i === 0
-      ? () => formatOnbUnwatchedLabel(randomOnbDay())
-      : formatOnbWatchedAgo;
+    const toCardScreen = i === 0 || i === 1 || i === 2;
+    const formatLabel = i === 0 ? formatOnbPainLabel : formatOnbPromiseLabel;
+    const cardScreenSel = i === 0 ? '#onboardingPain' : i === 1 ? '#onboardingPromise' : '#onboardingPermissions';
+    let permsHandoff = false;
 
-    // Park destination cards below before fade so they slide in after Next/Back
-    if (toPainOrPromise) {
-      await prepOnbCardsEnter(i === 0 ? '#onboardingPain' : '#onboardingPromise', formatLabel);
+    if (toCardScreen) {
+      if (i === 2 && current === 1) {
+        handoffOnbCardStack('#onboardingPromise', '#onboardingPermissions', formatOnbPromiseLabel);
+        permsHandoff = true;
+      } else {
+        await prepOnbCardsEnter(cardScreenSel, formatLabel, { fresh: i === 0 && current !== 1 });
+      }
     } else {
       stopOnbCardScroll();
     }
 
     to.classList.remove('hidden');
+    // Copy/button morph only exists between Pain and Promise — the other screens
+    // are a different sheet entirely and just crossfade.
+    const morphCopy = (i === 0 || i === 1) && (current === 0 || current === 1);
+    const forward = i > current;
+    const promiseShellOnly = morphCopy && forward && i === 1;
+    if (i <= 1 && !morphCopy) playOnbModalEnter(to);
+    // Rewind the incoming ticker so both tickers animate the same step change
+    // together underneath the crossfade.
+    const tickIndex = Math.min(i, 1);
+    setOnbTickerActive(to, Math.min(current, 1), { instant: true });
+    if (promiseShellOnly) to.classList.add('is-modal-shell-only');
+    else if (morphCopy) paintOnbCopySlots(to, 'enter', forward);
     from.style.zIndex = '1';
     to.style.zIndex = '2';
     to.style.transition = 'none';
@@ -2118,15 +3013,30 @@ function showOnboarding(opts = {}) {
     from.style.transition = fadeEase;
     to.style.opacity = '1';
     from.style.opacity = '0';
+    if (morphCopy) {
+      paintOnbCopySlots(from, 'exit', forward, TRANS_MS);
+      if (!promiseShellOnly) paintOnbCopySlots(to, 'settle', forward, TRANS_MS);
+    }
+    setOnbTickerActive(to, tickIndex);
+    setOnbTickerActive(from, tickIndex);
     await wait(TRANS_MS);
     from.classList.add('hidden');
     from.style.zIndex = '';
     to.style.zIndex = '';
     clearEl(from);
     clearEl(to);
-    setOnbTickerActive(to, Math.min(i, 2));
-    await syncCardAnim(i, { prepped: toPainOrPromise });
+    paintOnbCopySlots(from, 'rest');
+    paintOnbCopySlots(to, 'rest');
+    if (promiseShellOnly) {
+      to.classList.remove('is-modal-shell-only');
+      void to.offsetWidth;
+    }
+    if (morphCopy && forward && i === 1) playOnbModalEnter(to);
+    await syncCardAnim(i, { prepped: toCardScreen && !permsHandoff, handoff: permsHandoff });
     current = i;
+    if (i === 3 && opts.openAnalyzeSheet !== false) {
+      openOnbSheet(document.getElementById('onbAnalyzeOverlay'));
+    }
     transitioning = false;
   };
 
@@ -2141,26 +3051,25 @@ function showOnboarding(opts = {}) {
     s.classList.toggle('hidden', j !== 0);
     s.style.zIndex = '';
     clearEl(s);
+    paintOnbCopySlots(s, 'rest');
   });
   setOnbTickerActive(screens[0], 0);
   syncCardAnim(0);
   current = 0;
+  playOnbModalEnter(screens[0]);
 
   const painNext = document.getElementById('onbPainNext');
-  const promiseBack = document.getElementById('onbPromiseBack');
   const promiseNext = document.getElementById('onbPromiseNext');
-  const permsClose = document.getElementById('onbPermsClose');
   const permsAllow = document.getElementById('onbPermsAllow');
 
   if (painNext) painNext.onclick = () => goTo(1);
-  if (promiseBack) promiseBack.onclick = () => goTo(0);
-  if (promiseNext) promiseNext.onclick = () => goTo(2);
-  if (permsClose) permsClose.onclick = () => window.close();
+  if (promiseNext) promiseNext.onclick = () => openPromisePermsSheet();
   if (permsAllow) {
-    permsAllow.onclick = () => {
+    permsAllow.onclick = async () => {
       // Preview can't OAuth — jump to Analyzing → wrongURLwrongURL (or Schedule).
       if (window.__WL_PREVIEW__) {
         void (async () => {
+          await closeOnbSheet(document.getElementById('onbPermsOverlay'));
           await storageSet({
             supabase_token: 'preview-token',
             supabase_refresh: 'preview-refresh',
@@ -2172,7 +3081,8 @@ function showOnboarding(opts = {}) {
         })();
         return;
       }
-      startConnectingAndLogin();
+      if (transitioning) return;
+      await startConnectingAndLogin();
     };
   }
 
@@ -2181,7 +3091,9 @@ function showOnboarding(opts = {}) {
     tick.dataset.bound = '1';
     const jump = () => {
       const target = Number(tick.getAttribute('data-onb-goto'));
-      if (Number.isFinite(target) && target <= 2) goTo(target);
+      if (!Number.isFinite(target)) return;
+      if (target === 2) openPromisePermsSheet();
+      else if (target <= 1) goTo(target);
     };
     tick.addEventListener('click', jump);
     tick.addEventListener('keydown', (e) => {
@@ -2226,15 +3138,38 @@ function bindThemeToggle() {
   });
 }
 
-    async function tryScheduleEventOnce(google_access_token, slot, title, authUser, videoUrl) {  
-    const channelInfo = await fetchCurrentYouTubeChannelInfo();   // returns { name, … } :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
-    const channelName = channelInfo?.name || 'Unknown Channel';
+    async function tryScheduleEventOnce(google_access_token, slot, title, authUser, videoUrl, partInfo = null) {
+    const channelInfo = await fetchCurrentYouTubeChannelInfo();
+    const rawChannel = channelInfo?.name || 'Unknown Channel';
+    const rawDesc = await fetchCurrentYouTubeDescription();
+    const [enTitle, channelName, about] = await Promise.all([
+      translateToEnglish(title),
+      translateToEnglish(rawChannel),
+      translateToEnglish(rawDesc),
+    ]);
+    const summary = partInfo
+      ? `Part ${partInfo.sessionIndex} of ${partInfo.sessionCount} — ${enTitle}`
+      : enTitle;
+    let videoLink = videoUrl;
+    try {
+      const u = new URL(videoUrl);
+      if (partInfo?.videoOffsetStartSec > 0) {
+        u.searchParams.set('t', String(partInfo.videoOffsetStartSec));
+      }
+      videoLink = u.href;
+    } catch { /* keep original */ }
+    const offsetLine = partInfo && typeof WLSlotAlgorithm !== 'undefined'
+      ? `Watch ${WLSlotAlgorithm.formatVideoOffsetRange(partInfo.videoOffsetStartSec, partInfo.videoOffsetEndSec)} of "${enTitle}" · Session ${partInfo.sessionIndex} of ${partInfo.sessionCount}`
+      : null;
+    let n = 1;
+    const lines = [`${n++}) Video Link : ${videoLink}`];
+    if (offsetLine) lines.push(`${n++}) ${offsetLine}`);
+    lines.push(`${n++}) YT Channel : ${channelName}`);
+    if (about) lines.push(`${n++}) About : ${about.slice(0, 800)}`);
+    lines.push(`<b> Scheduled with Watch Later Extension </b>`);
     const event = {
-    summary: title,
-    description:
-       `1) Video Link : ${videoUrl}` + `\n` +
-       `2) YT Channel : ${channelName}` + `\n` +
-       `<b> Scheduled with Watch Later Extension </b>`,
+    summary,
+    description: lines.join('\n'),
     start: { dateTime: slot.start },
     end: { dateTime: slot.end },
     colorId: '6'
@@ -2272,6 +3207,7 @@ function updateThemeIcon() {
 
 
 async function initPopup() {
+  closeMultiSessionWhySheet();
 
   // ——— Network status handlers (once) ———
   if (!initPopup._netWired) {
@@ -2286,7 +3222,7 @@ async function initPopup() {
         hideNetworkLostScreen();
         initPopup();
       } else {
-        showToast('Still offline… please check your connection');
+        showToast('Still offline… please check your connection', 'info');
       }
     });
   }
@@ -2341,13 +3277,13 @@ async function initPopup() {
 
     // 👍👎 in logged-out state prompt login
     document.getElementById('thumbUpBtn')?.addEventListener('click', () => {
-      showToast('🔒 Login first');
+      showToast('Login first', 'info');
     });
     document.getElementById('thumbDownBtn')?.addEventListener('click', () => {
-      showToast('🔒 Login first');
+      showToast('Login first', 'info');
     });
     document.querySelector('.theme-toggle')?.addEventListener('click', () => {
-     showToast('🔒 Login first');
+     showToast('Login first', 'info');
     });
 
     return;
@@ -2382,10 +3318,8 @@ async function initPopup() {
     surveyWrapper: document.getElementById('survey-container'),
     scheduleBtn: document.getElementById('scheduleBtn'),
     feedback: document.getElementById('feedback'),
-    profileIcon: document.getElementById('profileIcon'),
     overlay: document.getElementById('overlay'),
     footer: document.getElementById('footer'),
-    profileMenu: document.getElementById('profileMenu'),
     closePopup: document.getElementById('closePopup'),
     viewHistory: document.getElementById('viewHistory'),
     slotPreferences: document.getElementById('slotPreferences'),
@@ -2404,12 +3338,7 @@ el.closePopup?.addEventListener('click', () => window.close());
   wireSchedPrefs(window.currentUserId);
 
   document.getElementById('menuBtn')?.addEventListener('click', () => {
-    el.profileMenu?.classList.toggle('hidden');
-    el.overlay?.classList.toggle('hidden');
-  });
-  el.overlay?.addEventListener('click', () => {
-    el.profileMenu?.classList.add('hidden');
-    el.overlay?.classList.add('hidden');
+    openProfileMenu(window.currentUserId);
   });
 
 document.querySelector('.coffee-btn')?.addEventListener('click', () => {
@@ -2417,49 +3346,15 @@ document.querySelector('.coffee-btn')?.addEventListener('click', () => {
 });
 
 
-// ───  1) Insert a “Share on Twitter” entry into the profile menu  ───
-const shareItem = document.createElement('div');
-shareItem.id        = 'shareOnTwitterBtn';
-shareItem.className = 'profile-menu-item';
-shareItem.textContent = 'Share on Twitter';
-
-// Append it alongside your other dropdown items
-el.profileMenu?.appendChild(shareItem);
-
-// When clicked, open our new “share” modal and hide the menu
-shareItem.addEventListener('click', () => {
-  openShareModal();
-  el.profileMenu?.classList.add('hidden');
-  el.overlay?.classList.add('hidden');
-});
-
-document.getElementById('enterReferralBtn')
-        ?.addEventListener('click', openEnterReferralModal);
-
-
-
-  el.logoutBtn?.addEventListener('click', () => {
-  openLogoutModal();
-  // hide the profile menu and its overlay so they don’t stick around
-  el.profileMenu?.classList.add('hidden');
-  el.overlay?.classList.add('hidden');
-  });
-
-  // REFER A FRIEND handler ← add this:
-  const referBtn = document.getElementById('referFriendBtn');
-  referBtn?.addEventListener('click', () => {
-    openReferFriendModal();
-    el.profileMenu?.classList.add('hidden');
-    el.overlay?.classList.add('hidden');
-  });
-
   el.greeting?.classList.add('hidden');
   if (el.greeting) el.greeting.textContent = '';
-  if (el.videoTitle) el.videoTitle.textContent = '';
+  if (el.videoTitle) {
+    el.videoTitle.textContent = '';
+    delete el.videoTitle.dataset.fullTitle;
+  }
   el.feedback?.classList.add('hidden');
   el.footer?.classList.add('hidden');
   if (el.scheduleBtn) el.scheduleBtn.style.display = 'none';
-  if (el.profileIcon) el.profileIcon.style.display = 'none';
   el.streakProgress?.classList.add('hidden');       // ✅ hide progress bar
   el.slotSelectorRow?.classList.add('hidden'); 
   el.themeToggle = document.querySelector('.theme-toggle');
@@ -2494,72 +3389,53 @@ document.getElementById('enterReferralBtn')
   });
 
 
-    el.feedbackBtn = document.getElementById('feedbackBtn');
-    el.feedbackBtn?.addEventListener('click', () => {
-      if (window.currentUserId) openFeedbackModal(window.currentUserId);
-      el.profileMenu?.classList.add('hidden');
-      el.overlay?.classList.add('hidden');
-    });
-
-
-  if (!supabase_token || !supabase_refresh) return;
+  if (!supabase_token || !supabase_refresh) {
+    bailInitPopupSkeleton();
+    return;
+  }
 
   // setSession auto-refreshes when the access token is expired; if it does,
-  // the refresh token rotates, so ALWAYS persist what comes back.
-  const { data: sessData, error: sessErr } = await supabaseClient.auth.setSession({
-    access_token: supabase_token,
-    refresh_token: supabase_refresh
-  });
+  // the refresh token rotates, so ALWAYS persist what comes back (inside lock).
+  const { error: sessErr } = await restoreSupabaseSession(
+    supabase_token,
+    supabase_refresh
+  );
   if (sessErr) {
     console.error('Session restore failed, trying silent Google re-login', sessErr);
     // Refresh-token chain is broken (rotation race / revocation). Before making the
     // user click login, try a silent OAuth round-trip — no UI if they're still
     // signed in to Google.
-    const recovered = await new Promise(res =>
-      chrome.runtime.sendMessage({ action: 'login', silent: true }, r => res(r?.success))
-    );
-    if (recovered) return initPopup();
+    const recovered = await runGoogleOAuthFlow({ silent: true });
+    if (recovered?.success) return initPopup();
 
-    // hide shimmer, show logged-out UI
+    // Session expired / revoked — clear tokens and reconnect (not full onboarding).
+    // Logout is the path that clears onboardingComplete and starts Pain/Promise.
+    await storageRemove([
+      'supabase_token',
+      'supabase_refresh',
+      'google_access_token',
+      'userId',
+      ONB_FLAG_SCANNED
+    ]);
     hideSkeleton();
-    document.getElementById('realContent').classList.remove('hidden');
+    document.getElementById('realContent')?.classList.remove('hidden');
     bindThemeToggle();
     document.getElementById('scheduleBtn').style.display = 'none';
     document.getElementById('streakProgress')?.classList.add('hidden');
+    await showReturningConnecting();
     return;
   }
-  await persistSupabaseSession(sessData?.session);
 
   const { data: { user: authUser }, error: userErr } = await supabaseClient.auth.getUser();
 
   // ── 1) Only proceed if login actually succeeded ──
   if (userErr || !authUser) {
-    // (optional) render your logged-out UI here…
+    bailInitPopupSkeleton();
     return;
   }
 
+  currentAuthUser = authUser;
   window.currentUserId = authUser.id;
-
-  // ── 2) Now safe to run the “show once” popup logic ──
-  {
-    const { data: profile, error: profileErr } = await supabaseClient
-      .from('users')
-      .select('referral_popup_shown')
-      .eq('id', authUser.id)
-      .single();
-
-    if (!profileErr && profile && !profile.referral_popup_shown) {
-      openEnterReferralModal();
-      const { error: updErr } = await supabaseClient
-        .from('users')
-        .update({ referral_popup_shown: true })
-        .eq('id', authUser.id);
-      if (updErr) console.error('Could not set popup flag:', updErr);
-    }
-  }
-  document.getElementById('viewHistory')?.addEventListener('click', () =>
-   openHistoryModal(window.currentUserId)
-  );
 
   let { data: userRow } = await supabaseClient
     .from('users').select('name').eq('id', authUser.id).maybeSingle();
@@ -2578,36 +3454,22 @@ document.getElementById('enterReferralBtn')
     });
   }
 
-  el.greeting.classList.add('hidden');
+  el.greeting?.classList.add('hidden');
   // footer / streak aren't part of the v2 schedule screen
   el.footer?.classList.add('hidden');
-  el.feedback.classList.remove('hidden');
+  el.feedback?.classList.remove('hidden');
 
   initStreak(authUser.id);
-  el.scheduleBtn.style.display = 'flex'; // onb-btn uses flex
+  if (el.scheduleBtn) el.scheduleBtn.style.display = 'flex'; // onb-btn uses flex
   // streak + old slot row stay hidden — not in the v2 schedule screen
   el.streakProgress?.classList.add('hidden');
   el.slotSelectorRow?.classList.add('hidden');
   el.themeToggle = document.querySelector('.theme-toggle');
 
-  // Avatar lives in the profile menu path only; header uses the hamburger.
-  // Keep #profileIcon in the DOM (hidden) so other code that queries it stays safe.
-  const profileUrl = authUser.user_metadata?.avatar_url;
-  if (profileUrl && el.profileIcon) {
-    el.profileIcon.src = profileUrl;
-    el.profileIcon.alt = 'Profile';
-  }
+  // Google photo comes straight off the ID token — no extra fetch, no DB read.
+  setUserAvatar(authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture);
+  profileState.name = userRow?.name || authUser.user_metadata?.name || '';
 
-  el.slotPreferences?.addEventListener('click', () => {
-    openSchedPrefs('time');
-    el.profileMenu?.classList.add('hidden');
-    el.overlay?.classList.add('hidden');
-  });
-  document.getElementById('dayPreferences')?.addEventListener('click', () => {
-    openSchedPrefs('day');
-    el.profileMenu?.classList.add('hidden');
-    el.overlay?.classList.add('hidden');
-  });
   wireSchedPrefs(authUser.id);
 
   // 0) Make sure our token is still valid (and re-auth if needed)
@@ -2620,17 +3482,19 @@ document.getElementById('enterReferralBtn')
     chrome.storage.local.get("google_access_token", res)
   );
 
-if (el.videoTitle) el.videoTitle.textContent = 'Loading video…';
+if (el.videoTitle) {
+  el.videoTitle.textContent = 'Loading video…';
+  delete el.videoTitle.dataset.fullTitle;
+}
 
   const activeTab = await getActiveInjectableTab().catch(() => null);
   cachedVideoUrl = activeTab?.url || '';
   const onWatch = isYouTubeWatchUrl(cachedVideoUrl);
   if (!onWatch) {
-    // Logged-in + wrong URL → restore last watch snapshot + Wrong URL overlay
+    // Logged-in + wrong URL → Figma 444:7885 (grid + browser mock + modal), not schedule snapshot
     hideSkeleton();
     document.getElementById('realContent')?.classList.remove('hidden');
-    if (el.scheduleBtn) el.scheduleBtn.style.display = 'flex';
-    await showWrongUrlPanel({ restore: true });
+    showWrongUrlFallAnim();
     return;
   }
   if (!(await ensureWatchUrlGate({ intent: 'schedule' }))) {
@@ -2640,14 +3504,28 @@ if (el.videoTitle) el.videoTitle.textContent = 'Loading video…';
   }
 
   const videoDuration = await getVideoDurationInMinutes() || 10;
-  const originalSlots = await fetchAvailableCalendarSlots(
-    authUser.id,
-    google_access_token,
-    videoDuration
-  );
+  const config = await loadSlotAlgoConfig();
+  const isMulti = typeof WLSlotAlgorithm !== 'undefined' &&
+    WLSlotAlgorithm.computeSessionPlan(videoDuration, config);
 
-  availableSlots = originalSlots;
-  populateDropdown(availableSlots);
+  if (isMulti) {
+    paintScheduleMultiSkeleton(isMulti.sessionCount);
+    showSkeleton('schedule-multi');
+    setScheduleMode('multi');
+    await loadMultiSessionSchedule(authUser.id, google_access_token, videoDuration);
+    availableSlots = [];
+    selectedSlotData = null;
+  } else {
+    setScheduleMode('single');
+    multiSessionState = { plan: null, assigned: [], complete: false, loading: false };
+    const originalSlots = await fetchAvailableCalendarSlots(
+      authUser.id,
+      google_access_token,
+      videoDuration
+    );
+    availableSlots = originalSlots;
+    populateDropdown(availableSlots);
+  }
 
   const thumbEl = document.getElementById('videoThumb');
   const bgEl = document.getElementById('schedBgImg');
@@ -2661,20 +3539,13 @@ if (el.videoTitle) el.videoTitle.textContent = 'Loading video…';
   if (durEl) durEl.textContent = formatDurationLabel(durationSec);
 
   const title = await getVideoTitle();
-  cachedVideoTitle = title?.replace(/^\(\d+\)\s*/, '') || 'Untitled';
+  cachedVideoTitle = await translateToEnglish(title?.replace(/^\(\d+\)\s*/, '') || 'Untitled');
 
   const duration = Math.ceil((durationSec || 0) / 60);
-  if (duration > 180) {
-    el.videoTitle.textContent =
-      `This video is ${duration} minutes long (over 3 hours) and cannot be scheduled.`;
-    populateDropdown([]);
-    el.scheduleBtn.disabled = true;
-  } else {
-    el.videoTitle.textContent = cachedVideoTitle;
-    el.scheduleBtn.disabled = false;
-    hideWrongUrlPanel();
-    saveLastScheduleSnapshot();
-  }
+  setSchedVideoTitle(cachedVideoTitle);
+  if (!isMulti) el.scheduleBtn.disabled = false;
+  hideWrongUrlPanel();
+  saveLastScheduleSnapshot();
 
 el.scheduleBtn.onclick = async () => {
   recordButtonClick('Schedule to Google Calendar');
@@ -2686,7 +3557,7 @@ el.scheduleBtn.onclick = async () => {
   // 2) Get the active tab ID once — skip chrome:// / edge://
   const activeTab = await getActiveInjectableTab();
   if (!activeTab) {
-    showToast('Open a YouTube video to schedule.');
+    showToast('Open a YouTube video to schedule.', 'info');
     el.scheduleBtn.disabled = false;
     setScheduleBtnLabel('Schedule to Google Calendar');
     return;
@@ -2703,7 +3574,7 @@ el.scheduleBtn.onclick = async () => {
 
   if (adCheck?.result) {
     // 4) If an ad is playing, show an error and reset
-    showToast("Please wait until the ad finishes before scheduling.");
+    showToast('Please wait until the ad finishes before scheduling.', 'info');
     el.scheduleBtn.disabled   = false;
     setScheduleBtnLabel('Schedule to Google Calendar');
     return;
@@ -2719,13 +3590,6 @@ el.scheduleBtn.onclick = async () => {
 
   // 7) Fetch the real YouTube URL from the active tab
   const videoUrl = activeTab.url;   // ← THIS is your YouTube link
-
-  const middleEls = [
-    document.getElementById('scheduleScreen'),
-    el.greeting,
-    el.slotSelectorRow,
-    el.surveyWrapper
-  ];
 
   // Condition 3: Network Lost
   if (!navigator.onLine) {
@@ -2753,7 +3617,7 @@ el.scheduleBtn.onclick = async () => {
     .limit(1)
     .maybeSingle();
   if (dup) {
-    showToast('📅 This video is already scheduled');
+    showToast('This video is already scheduled', 'info');
     el.scheduleBtn.disabled = false;
     setScheduleBtnLabel('Schedule to Google Calendar');
     return;
@@ -2775,7 +3639,7 @@ el.scheduleBtn.onclick = async () => {
   if (!result.success && result.error?.error?.code === 401) {
     const reauth = await ensureValidGoogleToken();
     if (!reauth) {
-      showFeedback('❌ Failed to re-authenticate with Google.', 'error');
+      showFeedback('Failed to re-authenticate with Google.', 'error');
     } else {
       google_access_token = (await new Promise(res =>
         chrome.storage.local.get("google_access_token", res)
@@ -2822,28 +3686,11 @@ if (result.success) {
   } else {
     // Condition 2: Failure
     console.error('❌ Scheduling failed:', result.error);
-
-    middleEls.forEach(x => x?.classList.add('hidden'));
-    document.querySelector('.navbar').classList.add('disabled');
-    document.getElementById('footer').classList.add('disabled');
-
-    document.getElementById('failedMessage').textContent =
-      'Failed to schedule event';
-    document.getElementById('failureScreen').classList.remove('hidden');
-
-    document.getElementById('retryLink').onclick = () => {
-      document.getElementById('failureScreen').classList.add('hidden');
-      middleEls.forEach(x => x?.classList.remove('hidden'));
-      document.querySelector('.navbar').classList.remove('disabled');
-      document.getElementById('footer').classList.remove('disabled');
-    };
-
-    setTimeout(() => {
-      document.getElementById('failureScreen').classList.add('hidden');
-      middleEls.forEach(x => x?.classList.remove('hidden'));
-      document.querySelector('.navbar').classList.remove('disabled');
-      document.getElementById('footer').classList.remove('disabled');
-    }, 5000);
+    showScheduleFailModal({
+      title: cachedVideoTitle,
+      start: selectedSlotData.start,
+      end: selectedSlotData.end
+    });
   }
 
   // Re-enable button
@@ -2853,7 +3700,7 @@ if (result.success) {
 
  el.thumbUp?.addEventListener("click", async () => {
    if (!cachedVideoUrl) {
-     return showToast("❌ Could not record feedback (no video URL)");
+     return showToast('Could not record feedback (no video URL)', 'error');
    }
    // 1) disable the footer UI
    el.footer.style.pointerEvents = 'none';
@@ -2863,10 +3710,10 @@ if (result.success) {
      // 2) submit feedback
      await supabaseClient.from("feedback")
        .insert([{ user_id: authUser.id, type: "like", video_url: cachedVideoUrl }]);
-     showToast("✅ Thanks for your feedback!");
+     showToast('Thanks for your feedback!', 'success');
    } catch (err) {
      console.error("Feedback error:", err);
-     showToast("⚠️ Could not send feedback");
+     showToast('Could not send feedback', 'error');
    } finally {
      // 3) re-enable the footer UI
      el.footer.style.pointerEvents = '';
@@ -2876,7 +3723,7 @@ if (result.success) {
 
  el.thumbDown?.addEventListener("click", async () => {
    if (!cachedVideoUrl) {
-     return showToast("❌ Could not record feedback (no video URL)");
+     return showToast('Could not record feedback (no video URL)', 'error');
    }
    el.footer.style.pointerEvents = 'none';
    el.footer.style.opacity      = '0.6';
@@ -2884,10 +3731,10 @@ if (result.success) {
    try {
      await supabaseClient.from("feedback")
        .insert([{ user_id: authUser.id, type: "hate", video_url: cachedVideoUrl }]);
-     showToast("✅ Thanks for your feedback!");
+     showToast('Thanks for your feedback!', 'success');
    } catch (err) {
      console.error("Feedback error:", err);
-     showToast("⚠️ Could not send feedback");
+     showToast('Could not send feedback', 'error');
    } finally {
      el.footer.style.pointerEvents = '';
      el.footer.style.opacity      = '';
@@ -2919,17 +3766,18 @@ function ordinalDay(n) {
   }
 }
 
-/** Figma 58:6710 — `06:16 PM - 7:17 PM / Sunday / 23rd Mar` */
+/** Figma 541:15067 — `06:16 PM - 07:17 PM • Friday • 22/07` */
 function formatSuccessSlotLabel(startIso, endIso) {
   const s = new Date(startIso);
   const e = new Date(endIso);
   if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return '';
   const tf = { hour: '2-digit', minute: '2-digit', hour12: true };
   const startT = s.toLocaleTimeString('en-US', tf);
-  const endT = e.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const endT = e.toLocaleTimeString('en-US', tf);
   const weekday = s.toLocaleDateString('en-US', { weekday: 'long' });
-  const mon = s.toLocaleDateString('en-US', { month: 'short' });
-  return `${startT} - ${endT} / ${weekday} / ${ordinalDay(s.getDate())} ${mon}`;
+  const dd = String(s.getDate()).padStart(2, '0');
+  const mm = String(s.getMonth() + 1).padStart(2, '0');
+  return `${startT} - ${endT} • ${weekday} • ${dd}/${mm}`;
 }
 
 function formatSuccessGhostTime(startIso, endIso) {
@@ -2942,7 +3790,7 @@ function formatSuccessGhostTime(startIso, endIso) {
 }
 
 function successMountParent() {
-  return document.getElementById('scheduleScreen') || document.getElementById('popupWrapper');
+  return document.getElementById('popupWrapper') || document.getElementById('scheduleScreen');
 }
 
 function mountSuccessOverlay() {
@@ -2953,15 +3801,27 @@ function mountSuccessOverlay() {
   return overlay;
 }
 
+/** Must match --success-enter-ms (outcome sheet slide; slower than shared --sheet-slide-ms). */
+const SUCCESS_ENTER_MS = 550;
+const SUCCESS_SLIDE_MS = SUCCESS_ENTER_MS;
+/** Must match --success-copy-ms / --success-copy-stagger / --success-card-ms / --success-star-ms. */
+const SUCCESS_COPY_MS = 550;
+const SUCCESS_COPY_STAGGER_MS = 200;
+const SUCCESS_CARD_MS = 650;
+const SUCCESS_CARD_TEXT_MS = 450;
+const SUCCESS_STAR_MS = 650;
+
 function closeScheduleSuccessModal() {
   const overlay = document.getElementById('successOverlay');
-  document.getElementById('scheduleScreen')?.classList.remove('is-success-open');
-  document.body.classList.remove('is-success-open');
-  if (!overlay) return;
-  overlay.classList.remove('is-open');
-  overlay.classList.add('hidden');
-  overlay.hidden = true;
+  if (!overlay || overlay.hidden) return;
   overlay.setAttribute('aria-hidden', 'true');
+  clearTimeout(overlay._hideTimer);
+  overlay.classList.add('is-closing');
+  overlay._hideTimer = setTimeout(() => {
+    overlay.classList.remove('is-open', 'is-closing');
+    overlay.classList.add('hidden');
+    overlay.hidden = true;
+  }, SUCCESS_SLIDE_MS);
 }
 
 function wireSuccessOverlayOnce() {
@@ -2972,18 +3832,34 @@ function wireSuccessOverlayOnce() {
   });
   document.getElementById('successViewPlaylistBtn')?.addEventListener('click', () => {
     closeScheduleSuccessModal();
-    openHistoryModal(window.currentUserId || historyState.userId || 'preview-user');
+    setTimeout(
+      () => openHistoryModal(window.currentUserId || historyState.userId || 'preview-user'),
+      SUCCESS_SLIDE_MS
+    );
   });
   document.getElementById('successBackdrop')?.addEventListener('click', () => {
     closeScheduleSuccessModal();
   });
 }
 
-/** Figma 58:6710 — show after a successful Calendar schedule. */
+function openOutcomeOverlay(overlay) {
+  clearTimeout(overlay._hideTimer);
+  overlay.hidden = false;
+  overlay.classList.remove('hidden', 'is-closing', 'is-open');
+  void overlay.offsetWidth;
+  overlay.classList.add('is-open');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+
+/**
+ * Figma 541:15067 — after a successful Calendar schedule.
+ * Sheet slides up; cards rotate 0→±2° while copy/stars cascade in.
+ */
 function showScheduleSuccessModal({ title, start, end } = {}) {
   wireSuccessOverlayOnce();
   const overlay = mountSuccessOverlay();
-  if (!overlay) return;
+  const panel = document.getElementById('successPanel');
+  if (!overlay || !panel) return;
 
   const t = String(title || cachedVideoTitle || 'Video').trim() || 'Video';
   const frontTime = formatSuccessSlotLabel(start, end);
@@ -2998,30 +3874,118 @@ function showScheduleSuccessModal({ title, start, end } = {}) {
   setText('successCardTime', frontTime);
   setText('successGhostTime', ghostTime);
 
-  document.getElementById('scheduleScreen')?.classList.add('is-success-open');
-  document.body.classList.add('is-success-open');
-  overlay.hidden = false;
-  overlay.classList.remove('hidden');
-  overlay.classList.add('is-open');
-  overlay.setAttribute('aria-hidden', 'false');
+  openOutcomeOverlay(overlay);
+}
+
+function mountFailOverlay() {
+  const overlay = document.getElementById('failOverlay');
+  const host = successMountParent();
+  if (!overlay || !host) return overlay;
+  if (overlay.parentElement !== host) host.appendChild(overlay);
+  return overlay;
+}
+
+function closeScheduleFailModal() {
+  const overlay = document.getElementById('failOverlay');
+  if (!overlay || overlay.hidden) return;
+  overlay.setAttribute('aria-hidden', 'true');
+  clearTimeout(overlay._hideTimer);
+  overlay.classList.add('is-closing');
+  overlay._hideTimer = setTimeout(() => {
+    overlay.classList.remove('is-open', 'is-closing');
+    overlay.classList.add('hidden');
+    overlay.hidden = true;
+  }, SUCCESS_SLIDE_MS);
+}
+
+function wireFailOverlayOnce() {
+  if (wireFailOverlayOnce._wired) return;
+  wireFailOverlayOnce._wired = true;
+  document.getElementById('failBackBtn')?.addEventListener('click', () => {
+    closeScheduleFailModal();
+  });
+  document.getElementById('failRetryBtn')?.addEventListener('click', () => {
+    closeScheduleFailModal();
+    // re-run the same click handler that got us here (ads check, token, dup guard, etc.)
+    setTimeout(() => document.getElementById('scheduleBtn')?.click(), SUCCESS_SLIDE_MS);
+  });
+  document.getElementById('failBackdrop')?.addEventListener('click', () => {
+    closeScheduleFailModal();
+  });
 }
 
 /**
- * Opens the View history playlist overlay (Figma 102:1204).
+ * Figma 541:15659 — same enter sequence as success (slide + card rotate + copy cascade).
  */
-const HISTORY_PAGE_SIZE = 4;
+function showScheduleFailModal({ title, start, end } = {}) {
+  wireFailOverlayOnce();
+  const overlay = mountFailOverlay();
+  const panel = document.getElementById('failPanel');
+  if (!overlay || !panel) return;
+
+  const t = String(title || cachedVideoTitle || 'Video').trim() || 'Video';
+  const ghostTime = formatSuccessGhostTime(start, end);
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  setText('failCardTitle', t);
+  setText('failGhostTitle', t);
+  setText('failGhostTime', ghostTime);
+
+  openOutcomeOverlay(overlay);
+}
+
+function stopOutcomePreviewLoop() {
+  clearTimeout(stopOutcomePreviewLoop._close);
+  clearTimeout(stopOutcomePreviewLoop._open);
+  stopOutcomePreviewLoop._close = null;
+  stopOutcomePreviewLoop._open = null;
+}
+
+/** Preview `#preview=1&schedule=1&success=1` (or `&fail=1`) — success then fail on a loop. */
+function startOutcomePreviewLoop() {
+  stopOutcomePreviewLoop();
+  const slot = availableSlots?.[0];
+  const payload = {
+    title: cachedVideoTitle,
+    start: slot?.start || new Date().toISOString(),
+    end: slot?.end || new Date(Date.now() + 3600000).toISOString()
+  };
+  const holdMs =
+    SUCCESS_ENTER_MS + SUCCESS_CARD_MS + SUCCESS_CARD_TEXT_MS + SUCCESS_COPY_STAGGER_MS * 2 + SUCCESS_COPY_MS + 1200;
+  let next = 'success';
+  const play = () => {
+    const kind = next;
+    next = kind === 'success' ? 'fail' : 'success';
+    if (kind === 'fail') showScheduleFailModal(payload);
+    else showScheduleSuccessModal(payload);
+    stopOutcomePreviewLoop._close = setTimeout(() => {
+      if (kind === 'fail') closeScheduleFailModal();
+      else closeScheduleSuccessModal();
+      stopOutcomePreviewLoop._open = setTimeout(play, SUCCESS_ENTER_MS + 320);
+    }, holdMs);
+  };
+  play();
+}
+
+/**
+ * Opens the View history playlist overlay (Figma 533:7243).
+ */
+const HISTORY_PAGE_SIZE = 5;
 const historyState = {
   userId: null,
   filter: 'scheduled',
   page: 1,
-  query: '',
   items: null,
   counts: { scheduled: 0, watched: 0, forced: 0 },
   wired: false
 };
 
 function historyMountParent() {
-  return document.getElementById('scheduleScreen') || document.getElementById('popupWrapper');
+  // popupWrapper is the fixed 340×486 frame. scheduleScreen can grow with
+  // content; mounting there put bottom:8px below the visible overflow clip.
+  return document.getElementById('popupWrapper') || document.getElementById('scheduleScreen');
 }
 
 function mountHistoryOverlay() {
@@ -3036,24 +4000,9 @@ function closeHistoryModal() {
   const overlay = document.getElementById('historyOverlay');
   document.getElementById('scheduleScreen')?.classList.remove('is-history-open');
   document.body.classList.remove('is-history-open');
-  closeHistoryFilterMenu();
   if (!overlay) return;
-  overlay.classList.remove('is-open');
-  overlay.classList.add('hidden');
-  overlay.hidden = true;
-  overlay.setAttribute('aria-hidden', 'true');
-}
-
-function closeHistoryFilterMenu() {
-  const menu = document.getElementById('historyFilterMenu');
-  const wrap = document.getElementById('historyFilter');
-  const btn = document.getElementById('historyFilterBtn');
-  if (menu) {
-    menu.classList.add('hidden');
-    menu.hidden = true;
-  }
-  wrap?.classList.remove('is-open');
-  if (btn) btn.setAttribute('aria-expanded', 'false');
+  closeOverlay(overlay);
+  releaseProfileStackAfterSlide();
 }
 
 function wireHistoryOverlayOnce() {
@@ -3064,71 +4013,32 @@ function wireHistoryOverlayOnce() {
   document.getElementById('historyCloseBtn')?.addEventListener('click', () => closeHistoryModal());
   document.getElementById('historyBackdrop')?.addEventListener('click', () => closeHistoryModal());
 
-  document.getElementById('historyFilterBtn')?.addEventListener('click', e => {
-    e.stopPropagation();
-    const menu = document.getElementById('historyFilterMenu');
-    const wrap = document.getElementById('historyFilter');
-    const btn = document.getElementById('historyFilterBtn');
-    const open = menu && !menu.hidden;
-    if (open) return closeHistoryFilterMenu();
-    if (menu) {
-      menu.hidden = false;
-      menu.classList.remove('hidden');
-    }
-    wrap?.classList.add('is-open');
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-  });
-
-  document.getElementById('historyFilterMenu')?.addEventListener('click', e => {
-    const opt = e.target.closest('[data-filter]');
-    if (!opt) return;
-    historyState.filter = opt.dataset.filter;
+  document.getElementById('historyTabs')?.addEventListener('click', e => {
+    const tab = e.target.closest('[data-filter]');
+    if (!tab) return;
+    const next = tab.dataset.filter;
+    if (!next || next === historyState.filter) return;
+    historyState.filter = next;
     historyState.page = 1;
-    closeHistoryFilterMenu();
-    paintHistoryPage();
-  });
-
-  document.addEventListener('click', e => {
-    const wrap = document.getElementById('historyFilter');
-    if (wrap && !wrap.contains(e.target)) closeHistoryFilterMenu();
-  });
-
-  const search = document.getElementById('historySearchInput');
-  const clearBtn = document.getElementById('historySearchClear');
-  search?.addEventListener('input', () => {
-    historyState.query = search.value || '';
-    historyState.page = 1;
-    const has = !!historyState.query.trim();
-    if (clearBtn) {
-      clearBtn.hidden = !has;
-      clearBtn.classList.toggle('hidden', !has);
-    }
-    paintHistoryPage();
-  });
-  clearBtn?.addEventListener('click', () => {
-    if (search) search.value = '';
-    historyState.query = '';
-    historyState.page = 1;
-    clearBtn.hidden = true;
-    clearBtn.classList.add('hidden');
-    paintHistoryPage();
+    repaintHistoryPageFaded();
   });
 
   document.getElementById('historyPrevBtn')?.addEventListener('click', () => {
     if (historyState.page <= 1) return;
     historyState.page -= 1;
-    paintHistoryPage();
+    repaintHistoryPageFaded();
   });
   document.getElementById('historyNextBtn')?.addEventListener('click', () => {
     historyState.page += 1;
-    paintHistoryPage();
+    repaintHistoryPageFaded();
   });
 }
 
 function paintHistorySkeleton() {
   const container = document.getElementById('historyList');
   if (!container) return;
-  const widths = [86, 72, 90, 64];
+  const widths = [86, 72, 90, 64, 78];
+  container.classList.remove('is-empty');
   container.setAttribute('aria-busy', 'true');
   container.innerHTML = widths.map((w, i) => `
     <div class="history-row-wrap" aria-hidden="true">
@@ -3142,10 +4052,6 @@ function paintHistorySkeleton() {
     </div>
   `).join('');
 
-  const filterLabel = document.getElementById('historyFilterLabel');
-  if (filterLabel) {
-    filterLabel.innerHTML = '<span class="skeleton history-skel-filter"></span>';
-  }
   const pager = document.getElementById('historyPagerLabel');
   if (pager) {
     pager.innerHTML = '<span class="skeleton history-skel-pager"></span>';
@@ -3157,22 +4063,12 @@ function paintHistorySkeleton() {
 }
 
 function openHistoryModal(userId) {
-  document.getElementById('profileMenu')?.classList.add('hidden');
   if (typeof closeSchedPrefs === 'function') closeSchedPrefs();
 
   historyState.userId = userId;
   historyState.filter = 'scheduled';
   historyState.page = 1;
-  historyState.query = '';
   historyState.items = null;
-
-  const search = document.getElementById('historySearchInput');
-  const clearBtn = document.getElementById('historySearchClear');
-  if (search) search.value = '';
-  if (clearBtn) {
-    clearBtn.hidden = true;
-    clearBtn.classList.add('hidden');
-  }
 
   wireHistoryOverlayOnce();
   const overlay = mountHistoryOverlay();
@@ -3180,10 +4076,8 @@ function openHistoryModal(userId) {
 
   document.getElementById('scheduleScreen')?.classList.add('is-history-open');
   document.body.classList.add('is-history-open');
-  overlay.hidden = false;
-  overlay.classList.remove('hidden');
-  overlay.classList.add('is-open');
-  overlay.setAttribute('aria-hidden', 'false');
+  setProfileStackedUnder(true);
+  openOverlay(overlay);
 
   const isPreview = !userId || userId === 'preview-user';
   if (!isPreview) paintHistorySkeleton();
@@ -3194,10 +4088,82 @@ function openHistoryModal(userId) {
   });
 }
 
+function aggregateHistoryGroup(sessions) {
+  const sorted = [...sessions].sort((a, b) => (a.session_index || 0) - (b.session_index || 0));
+  const primary = sorted[0];
+  const sessionCount = primary.session_count || sorted.length;
+  const watchedCount = sorted.filter(s => s.watched).length;
+  const allWatched = watchedCount >= sessionCount && sessionCount > 0;
+  const anyForced = sorted.some(s => s.forced);
+  const anyRemoved = sorted.some(s => s.removed);
+  const nextUnwatched = sorted.find(s => !s.watched);
+  return {
+    ...primary,
+    id: primary.session_group_id || primary.id,
+    _sessions: sorted,
+    _groupId: primary.session_group_id || primary.id,
+    session_count: sessionCount,
+    watched_count: watchedCount,
+    watched: allWatched,
+    forced: anyForced,
+    removed: anyRemoved,
+    start_time: nextUnwatched?.start_time || sorted[sorted.length - 1].start_time,
+    end_time: nextUnwatched?.end_time || sorted[sorted.length - 1].end_time,
+  };
+}
+
+function groupHistoryForDisplay(items) {
+  const singles = [];
+  const groups = new Map();
+  for (const item of items || []) {
+    if (!item.session_group_id) {
+      singles.push({
+        ...item,
+        _sessions: [item],
+        _groupId: item.id,
+        session_count: 1,
+        watched_count: item.watched ? 1 : 0,
+      });
+      continue;
+    }
+    if (!groups.has(item.session_group_id)) groups.set(item.session_group_id, []);
+    groups.get(item.session_group_id).push(item);
+  }
+  const out = [...singles];
+  for (const sessions of groups.values()) out.push(aggregateHistoryGroup(sessions));
+  return out;
+}
+
+async function markGroupForced(sessionGroupId) {
+  if (!sessionGroupId || historyState.userId === 'preview-user') return;
+  await supabaseClient.from('videohistory').update({ forced: true }).eq('session_group_id', sessionGroupId);
+}
+
+async function recomputeAllSessionsWatched(sessionGroupId) {
+  if (!sessionGroupId || historyState.userId === 'preview-user') return;
+  const { data } = await supabaseClient
+    .from('videohistory')
+    .select('watched_at')
+    .eq('session_group_id', sessionGroupId);
+  const allDone = data?.length && data.every(r => r.watched_at);
+  await supabaseClient
+    .from('videohistory')
+    .update({ all_sessions_watched: !!allDone, watched: !!allDone })
+    .eq('session_group_id', sessionGroupId);
+}
+
+function formatHistorySessionProgress(item) {
+  const total = item.session_count || 1;
+  const watched = item.watched_count ?? 0;
+  if (total <= 1) return null;
+  return `${watched} of ${total} sessions watched`;
+}
+
 function splitHistoryLists(items) {
-  const scheduled = items.filter(i => !i.watched && !i.forced);
-  const watched = items.filter(i => i.watched && !i.forced);
-  const forced = items.filter(i => i.forced);
+  const grouped = groupHistoryForDisplay(items);
+  const scheduled = grouped.filter(i => !i.watched && !i.forced);
+  const watched = grouped.filter(i => i.watched && !i.forced);
+  const forced = grouped.filter(i => i.forced);
   return { scheduled, watched, forced };
 }
 
@@ -3236,13 +4202,13 @@ async function loadHistoryItems(userId) {
 
   const { data, error } = await supabaseClient
     .from('videohistory')
-    .select('id,title,video_url,start_time,end_time,watched,watched_at,created_at,google_event_id,forced,removed')
+    .select('id,title,video_url,start_time,end_time,watched,watched_at,created_at,google_event_id,forced,removed,session_group_id,session_index,session_count,video_offset_start_sec,video_offset_end_sec,all_sessions_watched')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Failed to load history:', error.message, error.details);
-    showToast(`❌ Could not load history: ${error.message}`);
+    showToast(`Could not load history: ${error.message}`, 'error');
     historyState.items = [];
     historyState.counts = { scheduled: 0, watched: 0, forced: 0 };
     return;
@@ -3266,10 +4232,12 @@ async function loadHistoryItems(userId) {
         if (storedStartIso !== actual.start || storedEndIso !== actual.end) {
           await supabaseClient.from('videohistory').update({ forced: true }).eq('id', item.id);
           item.forced = true;
+          if (item.session_group_id) await markGroupForced(item.session_group_id);
         }
       } catch {
         await supabaseClient.from('videohistory').update({ forced: true }).eq('id', item.id);
         item.forced = true;
+        if (item.session_group_id) await markGroupForced(item.session_group_id);
       }
     })
   );
@@ -3282,6 +4250,24 @@ async function loadHistoryItems(userId) {
           `https://www.youtube.com/oembed?url=${encodeURIComponent(item.video_url)}&format=json`
         );
         if (!r.ok) throw new Error();
+        // Video is still up but the channel renamed it — surface as forced (drift bucket),
+        // same as a calendar time change, rather than a separate "renamed" state. A JSON
+        // parse hiccup here must not fall through to the removed/forced catch below.
+        if (!item.forced) {
+          try {
+            const meta = await r.json();
+            if (meta && typeof meta.title === 'string') {
+              // Compare English forms so HI/MR titles stored as EN don't false-flag as renamed.
+              const liveEn = await translateToEnglish(meta.title);
+              const storedEn = await translateToEnglish(item.title);
+              if (liveEn !== storedEn) {
+                await supabaseClient.from('videohistory').update({ forced: true }).eq('id', item.id);
+                item.forced = true;
+                if (item.session_group_id) await markGroupForced(item.session_group_id);
+              }
+            }
+          } catch {}
+        }
       } catch {
         await supabaseClient
           .from('videohistory')
@@ -3289,11 +4275,18 @@ async function loadHistoryItems(userId) {
           .eq('id', item.id);
         item.removed = true;
         item.forced = true;
+        if (item.session_group_id) await markGroupForced(item.session_group_id);
       }
     })
   );
 
   historyState.items = visibleItems;
+  const forcedGroups = new Set(
+    visibleItems.filter(i => i.forced && i.session_group_id).map(i => i.session_group_id)
+  );
+  for (const item of visibleItems) {
+    if (item.session_group_id && forcedGroups.has(item.session_group_id)) item.forced = true;
+  }
   const lists = splitHistoryLists(visibleItems);
   historyState.counts = {
     scheduled: lists.scheduled.length,
@@ -3311,8 +4304,10 @@ function getPreviewHistoryItems() {
     { id: 'p2', title: 'Oceanic Dreams: Deep Sea Exploration | 4K Video | Relaxing', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(2 * 3600000), end_time: h(3 * 3600000), created_at: h(-2000), watched: false, forced: false, removed: false },
     { id: 'p3', title: 'Ancient Ruins: Mysteries of the Past | 6K Video | Educational', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-2 * 86400000), end_time: h(-2 * 86400000 + 3600000), created_at: h(-3000), watched: false, forced: true, removed: true },
     { id: 'p4', title: 'Deep Sea Exploration: Uncharted Waters | 4K Documentary', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(5 * 86400000), end_time: h(5 * 86400000 + 3600000), created_at: h(-4000), watched: false, forced: false, removed: false },
-    { id: 'p5', title: 'Wildlife Wonders: Secrets of the Jungle | 6K Nature', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-12 * 86400000), end_time: h(-12 * 86400000 + 3600000), created_at: h(-5000), watched: false, forced: false, removed: false },
-    { id: 'p6', title: 'Mountain Light: Alpine Sunrise Timelapse', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-40 * 86400000), end_time: h(-40 * 86400000 + 3600000), created_at: h(-6000), watched: true, watched_at: h(-45 * 86400000), forced: false, removed: false },
+    // p5/p6 sit in the previous 30-day window so the profile menu trend banner
+    // has something to compare against in preview.
+    { id: 'p5', title: 'Wildlife Wonders: Secrets of the Jungle | 6K Nature', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-12 * 86400000), end_time: h(-12 * 86400000 + 3600000), created_at: h(-45 * 86400000), watched: false, forced: false, removed: false },
+    { id: 'p6', title: 'Mountain Light: Alpine Sunrise Timelapse', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-40 * 86400000), end_time: h(-40 * 86400000 + 3600000), created_at: h(-50 * 86400000), watched: true, watched_at: h(-45 * 86400000), forced: false, removed: false },
     { id: 'p7', title: 'City Rain: Night Streets Ambience', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-3 * 86400000), end_time: h(-3 * 86400000 + 3600000), created_at: h(-7000), watched: true, watched_at: h(-120000), forced: false, removed: false },
     { id: 'p8', title: 'Calendar Drift Demo Video', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(86400000), end_time: h(86400000 + 3600000), created_at: h(-8000), watched: false, forced: true, removed: false, google_event_id: 'preview' },
     { id: 'p9', title: 'Forest Canopy: Soft Wind Ambience 4K', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(7 * 86400000), end_time: h(7 * 86400000 + 3600000), created_at: h(-9000), watched: false, forced: false, removed: false },
@@ -3320,35 +4315,54 @@ function getPreviewHistoryItems() {
   ];
 }
 
-function updateHistoryFilterLabels() {
+function updateHistoryTabLabels() {
   const { scheduled, watched, forced } = historyState.counts;
   const labels = {
     scheduled: `Scheduled (${scheduled})`,
     watched: `Watched (${watched})`,
     forced: `Forced (${forced})`
   };
-  const main = document.getElementById('historyFilterLabel');
-  if (main) main.textContent = labels[historyState.filter] || labels.scheduled;
-  document.querySelectorAll('#historyFilterMenu [data-filter]').forEach(btn => {
+  document.querySelectorAll('#historyTabs [data-filter]').forEach(btn => {
     const key = btn.dataset.filter;
     btn.textContent = labels[key] || btn.textContent;
-    btn.setAttribute('aria-selected', key === historyState.filter ? 'true' : 'false');
+    const active = key === historyState.filter;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
   });
 }
 
-function paintHistoryPage() {
+/**
+ * Repaint the list behind a cross-fade, for swaps the user asked for (page
+ * turn, tab change) rather than ones they type. Must match the
+ * `.history-list` opacity transition in style.css.
+ */
+const HISTORY_SWAP_MS = 160;
+function repaintHistoryPageFaded() {
+  const container = document.getElementById('historyList');
+  if (!container) return paintHistoryPage();
+  container.classList.add('is-swapping');
+  setTimeout(() => {
+    paintHistoryPage();
+    container.classList.remove('is-swapping');
+  }, HISTORY_SWAP_MS);
+}
+
+async function paintHistoryPage() {
   const container = document.getElementById('historyList');
   if (!container) return;
 
-  updateHistoryFilterLabels();
+  updateHistoryTabLabels();
 
-  const filtered = filterHistoryByTitle(activeHistoryList(), historyState.query);
+  const filtered = activeHistoryList();
   const page = paginateList(filtered, historyState.page, HISTORY_PAGE_SIZE);
   historyState.page = page.page;
 
+  const pagerRow = document.querySelector('.history-pager');
+  if (pagerRow) pagerRow.hidden = !page.total; // nothing to page through on an empty tab
   const pager = document.getElementById('historyPagerLabel');
   if (pager) {
-    pager.textContent = `${page.start}-${page.end} of ${page.total} rows`;
+    pager.textContent =
+      `${page.start}-${page.end} of ${page.total} rows | Page ${page.page} of ${page.pages}`;
   }
   const prev = document.getElementById('historyPrevBtn');
   const next = document.getElementById('historyNextBtn');
@@ -3356,21 +4370,44 @@ function paintHistoryPage() {
   if (next) next.disabled = page.page >= page.pages;
 
   if (!page.total) {
-    const msgs = {
-      scheduled: 'No YouTube video scheduled yet',
-      watched: "You haven't marked any video as Watched",
-      forced: 'No forced items'
-    };
-    container.innerHTML = `<div class="history-empty">${msgs[historyState.filter] || 'No videos'}</div>`;
+    container.classList.add('is-empty');
+    const copy = {
+      scheduled: { heading: 'No scheduled videos here', sub: 'Schedule your first video to view it here' },
+      watched: { heading: 'No videos marked as watched', sub: 'Videos marked as watched are moved here' },
+      forced: {
+        heading: 'No forced videos here',
+        sub: 'Videos whose calendar time changed, were renamed, or were removed, land here'
+      }
+    }[historyState.filter] || { heading: 'No videos', sub: '' };
+    container.innerHTML = `
+      <div class="history-empty">
+        <div class="history-empty-art" aria-hidden="true">
+          <div class="history-empty-thumb"></div>
+          <div class="history-empty-lines">
+            <div class="history-empty-line"></div>
+            <div class="history-empty-line"></div>
+            <div class="history-empty-line history-empty-line--short"></div>
+          </div>
+        </div>
+        <div class="history-empty-copy">
+          <p class="history-empty-heading">${escapeHistoryHtml(copy.heading)}</p>
+          <p class="history-empty-sub">${escapeHistoryHtml(copy.sub)}</p>
+        </div>
+      </div>`;
     return;
   }
 
+  container.classList.remove('is-empty');
   container.innerHTML = '';
   const now = new Date();
+  const displayTitles = await Promise.all(
+    page.items.map(item => translateToEnglish(item.title || ''))
+  );
   page.items.forEach((item, idx) => {
     const wrap = document.createElement('div');
     wrap.className = 'history-row-wrap';
-    wrap.appendChild(buildHistoryRow(item, historyState.filter, now));
+    const localized = { ...item, title: displayTitles[idx] || item.title };
+    wrap.appendChild(buildHistoryRow(localized, historyState.filter, now));
     if (idx < page.items.length - 1) {
       const hr = document.createElement('hr');
       hr.className = 'history-divider';
@@ -3388,6 +4425,17 @@ function escapeHistoryHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+// Escaping stops an href breaking out of its attribute but not a javascript:
+// or data: payload firing on click, and the popup is a privileged page.
+function safeExternalUrl(url) {
+  try {
+    const u = new URL(String(url ?? ''));
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : '#';
+  } catch {
+    return '#';
+  }
+}
+
 function buildHistoryRow(item, filter, now) {
   const row = document.createElement('div');
   row.className = 'history-row' + (item.removed ? ' is-removed' : '');
@@ -3400,39 +4448,50 @@ function buildHistoryRow(item, filter, now) {
   } else if (filter === 'watched') {
     subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(formatHistoryMovedToWatched(item.watched_at || item.start_time, now))}</div>`;
   } else if (filter === 'forced') {
-    subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(formatHistoryScheduledFor(item.start_time, now))}</div>`;
+    const progress = formatHistorySessionProgress(item);
+    const base = formatHistoryScheduledFor(item.start_time, now);
+    subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(progress ? `${progress} · ${base}` : base)}</div>`;
   } else {
+    const progress = formatHistorySessionProgress(item);
     const missed = formatHistoryMissedLabel(item.end_time, now);
     const upcoming = !missed && formatHistoryUpcomingLabel(item.start_time, now);
     const scheduled = formatHistoryScheduledFor(item.start_time, now);
     if (missed) {
-      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(missed)}</div>`;
+      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(progress ? `${progress} · ${missed}` : missed)}</div>`;
     } else if (upcoming) {
+      const line1 = progress ? `${progress} · ${scheduled}` : scheduled;
       subtitleHtml = `
         <div class="history-row-sub history-row-sub--swap" aria-label="${escapeHistoryHtml(upcoming)}">
           <div class="history-sub-track">
-            <div class="history-sub-line">${escapeHistoryHtml(scheduled)}</div>
+            <div class="history-sub-line">${escapeHistoryHtml(line1)}</div>
             <div class="history-sub-line">${escapeHistoryHtml(upcoming)}</div>
           </div>
         </div>`;
     } else {
-      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(scheduled)}</div>`;
+      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(progress ? `${progress} · ${scheduled}` : scheduled)}</div>`;
     }
   }
 
   const showWatch = filter === 'scheduled' && !item.removed;
-  const href = item.removed ? '#' : escapeHistoryHtml(item.video_url || '#');
+  const showReschedule = filter === 'forced' && !item.removed;
+  const href = item.removed ? '#' : escapeHistoryHtml(safeExternalUrl(item.video_url));
   const actions = `
     <div class="history-row-actions">
-      ${showWatch ? `
-        <button type="button" class="history-action history-action--watch" data-action="watch" title="Mark as Watched" aria-label="Mark as Watched">
-          <span class="history-action-inner">
-            <img class="history-icon" src="Icon/history-icon-check.svg" width="18" height="18" alt="" />
+      ${showReschedule ? `
+        <button type="button" class="onb-btn onb-btn-secondary icon-only history-row-action" data-action="reschedule" title="Reschedule" aria-label="Reschedule">
+          <span class="onb-btn-inner">
+            <img src="Icon/menu-icon-clock.svg" width="18" height="18" alt="" />
           </span>
         </button>` : ''}
-      <button type="button" class="history-action history-action--delete" data-action="delete" title="Delete" aria-label="Delete">
-        <span class="history-action-inner">
-          <img class="history-icon" src="Icon/history-icon-trash.svg" width="18" height="18" alt="" />
+      ${showWatch ? `
+        <button type="button" class="onb-btn icon-only history-row-action" data-action="watch" title="Mark as Watched" aria-label="Mark as Watched">
+          <span class="onb-btn-inner">
+            <img src="Icon/history-icon-check.svg" width="18" height="18" alt="" />
+          </span>
+        </button>` : ''}
+      <button type="button" class="onb-btn onb-btn-secondary icon-only history-row-action" data-action="delete" title="Delete" aria-label="Delete">
+        <span class="onb-btn-inner">
+          <img src="Icon/history-icon-trash.svg" width="18" height="18" alt="" />
         </span>
       </button>
     </div>`;
@@ -3453,6 +4512,11 @@ function buildHistoryRow(item, filter, now) {
     e.preventDefault();
     e.stopPropagation();
     await markHistoryWatched(item, row);
+  });
+  row.querySelector('[data-action="reschedule"]')?.addEventListener('click', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    await rescheduleHistoryGroup(item);
   });
   row.querySelector('[data-action="delete"]')?.addEventListener('click', async e => {
     e.preventDefault();
@@ -3491,512 +4555,936 @@ function refreshHistoryCounts() {
   };
 }
 
-async function markHistoryWatched(item, row) {
+function syncGroupItemFromSessions(item, sessions) {
+  const sessionCount = item.session_count || sessions.length;
+  const watchedCount = sessions.filter(s => s.watched).length;
+  item.watched_count = watchedCount;
+  item.watched = watchedCount >= sessionCount && sessionCount > 0;
+  item._sessions = sessions;
+}
+
+async function markOneSessionWatched(sessionRow, groupItem) {
+  const watched_at = new Date().toISOString();
   if (historyState.userId === 'preview-user') {
-    item.watched = true;
-    item.watched_at = new Date().toISOString();
-    item.forced = false;
+    sessionRow.watched = true;
+    sessionRow.watched_at = watched_at;
   } else {
-    const watched_at = new Date().toISOString();
     const { error } = await supabaseClient
       .from('videohistory')
       .update({ watched: true, watched_at })
-      .eq('id', item.id);
-    if (error) {
-      console.error(error);
-      return showToast('⚠️ Could not mark as watched');
-    }
-    item.watched = true;
-    item.watched_at = watched_at;
+      .eq('id', sessionRow.id);
+    if (error) throw error;
+    sessionRow.watched = true;
+    sessionRow.watched_at = watched_at;
+    if (groupItem.session_group_id) await recomputeAllSessionsWatched(groupItem.session_group_id);
   }
+}
+
+const markWatchedState = { pending: null, wired: false };
+
+function closeMarkWatchedConfirm() {
+  markWatchedState.pending = null;
+  const overlay = document.getElementById('markWatchedConfirmOverlay');
+  if (overlay) closeOverlay(overlay);
+}
+
+function wireMarkWatchedConfirmOnce() {
+  if (markWatchedState.wired) return;
+  markWatchedState.wired = true;
+  document.getElementById('markWatchedCancelBtn')?.addEventListener('click', closeMarkWatchedConfirm);
+  document.getElementById('markWatchedBackdrop')?.addEventListener('click', closeMarkWatchedConfirm);
+  document.getElementById('markWatchedConfirmBtn')?.addEventListener('click', async () => {
+    const pending = markWatchedState.pending;
+    closeMarkWatchedConfirm();
+    if (pending) await confirmMarkAllSessionsWatched(pending.item, pending.row);
+  });
+}
+
+function openMarkWatchedConfirm(item, row) {
+  const overlay = mountOverlay('markWatchedConfirmOverlay');
+  if (!overlay) return confirmMarkAllSessionsWatched(item, row);
+  markWatchedState.pending = { item, row };
+  const title = document.getElementById('markWatchedVideoTitle');
+  const chip = document.getElementById('markWatchedPartChip');
+  if (title) title.textContent = item.title || 'This video';
+  if (chip) chip.textContent = `${item.session_count || 1} parts`;
+  wireMarkWatchedConfirmOnce();
+  openOverlay(overlay);
+}
+
+async function confirmMarkAllSessionsWatched(item, row) {
+  const sessions = item._sessions || [item];
+  const unwatched = sessions.filter(s => !s.watched);
+  try {
+    for (const s of unwatched) await markOneSessionWatched(s, item);
+  } catch (e) {
+    console.error(e);
+    return showToast('Could not mark as watched', 'error');
+  }
+  syncGroupItemFromSessions(item, sessions);
   if (row) await animateHistoryRowOut(row);
   refreshHistoryCounts();
-  showToast('✅ Moved to Watched');
+  showToast('Moved to Watched', 'success');
   paintHistoryPage();
 }
 
-async function deleteHistoryItem(item, row) {
+async function markHistoryWatched(item, row) {
+  const sessions = item._sessions || [item];
+  const unwatched = sessions.filter(s => !s.watched);
+  if (!unwatched.length) return;
+
+  const sessionCount = item.session_count || 1;
+  if (sessionCount > 1) {
+    return openMarkWatchedConfirm(item, row);
+  }
+
+  try {
+    await markOneSessionWatched(unwatched[0], item);
+  } catch (e) {
+    console.error(e);
+    return showToast('Could not mark as watched', 'error');
+  }
+
+  syncGroupItemFromSessions(item, sessions);
+  refreshHistoryCounts();
+  if (item.watched) {
+    if (row) await animateHistoryRowOut(row);
+    showToast('Moved to Watched', 'success');
+  } else {
+    showToast(`Session ${unwatched[0].session_index || 1} marked as watched`, 'success');
+  }
+  paintHistoryPage();
+}
+
+async function rescheduleHistoryGroup(item) {
+  const sessions = item._sessions || [item];
+  const unwatched = sessions.filter(s => !s.watched);
+  if (!unwatched.length) return;
+
+  if (historyState.userId === 'preview-user') {
+    showToast('Rescheduled sessions (preview)', 'success');
+    return paintHistoryPage();
+  }
+
+  const valid = await ensureValidGoogleToken();
+  if (!valid) return;
+
+  const totalVideoMin = Math.ceil(
+    Math.max(...sessions.map(s => Number(s.video_offset_end_sec) || 0)) / 60
+  );
+  const config = await loadSlotAlgoConfig();
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+  if (!algo) return;
+
+  const fullPlan = algo.computeSessionPlan(totalVideoMin, config);
+  if (!fullPlan) return showToast('Could not build session plan', 'error');
+
+  const watchedIndexes = new Set(sessions.filter(s => s.watched).map(s => s.session_index));
+  const partialPlan = {
+    ...fullPlan,
+    sessions: fullPlan.sessions.filter(s => !watchedIndexes.has(s.sessionIndex)),
+  };
+
+  const { google_access_token } = await new Promise(r =>
+    chrome.storage.local.get('google_access_token', r)
+  );
+
+  let result;
+  try {
+    result = await fetchMultiSessionSlots(
+      historyState.userId,
+      google_access_token,
+      partialPlan
+    );
+  } catch (err) {
+    console.error('Reschedule slot fetch failed:', err);
+    return showToast('Could not find new session slots', 'error');
+  }
+
+  if (!result.complete) {
+    return showToast(
+      `We found ${result.sessions.length} of ${partialPlan.sessions.length} sessions. Widen preferences or try again.`,
+      'info'
+    );
+  }
+
+  for (const entry of result.sessions) {
+    const dbRow = unwatched.find(u => u.session_index === entry.sessionIndex);
+    if (!dbRow) continue;
+
+    if (dbRow.google_event_id) {
+      const token = (await chrome.storage.local.get('google_access_token')).google_access_token;
+      await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(dbRow.google_event_id)}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+      );
+    }
+
+    const partInfo = {
+      sessionIndex: entry.sessionIndex,
+      sessionCount: entry.sessionCount,
+      videoOffsetStartSec: entry.videoOffsetStartSec,
+      videoOffsetEndSec: entry.videoOffsetEndSec,
+    };
+    let scheduleResult = await tryScheduleEventOnce(
+      google_access_token,
+      entry.slot,
+      dbRow.title,
+      { id: historyState.userId },
+      dbRow.video_url,
+      partInfo
+    );
+    if (!scheduleResult.success) {
+      return showToast('Could not reschedule calendar events', 'error');
+    }
+
+    await supabaseClient.from('videohistory').update({
+      start_time: entry.slot.start,
+      end_time: entry.slot.end,
+      google_event_id: scheduleResult.eventId,
+      forced: false,
+    }).eq('id', dbRow.id);
+
+    dbRow.start_time = entry.slot.start;
+    dbRow.end_time = entry.slot.end;
+    dbRow.google_event_id = scheduleResult.eventId;
+    dbRow.forced = false;
+  }
+
+  if (item.session_group_id) {
+    await supabaseClient
+      .from('videohistory')
+      .update({ forced: false })
+      .eq('session_group_id', item.session_group_id);
+    sessions.forEach(s => { s.forced = false; });
+  }
+
+  item.forced = false;
+  refreshHistoryCounts();
+  showToast('Sessions rescheduled', 'success');
+  paintHistoryPage();
+}
+
+/* ─── Delete confirm · 116:5060 ───────────────────────────────────────────── */
+
+const deleteState = { pending: null, wired: false };
+
+function closeDeleteConfirm() {
+  deleteState.pending = null;
+  const overlay = document.getElementById('deleteConfirmOverlay');
+  if (overlay) closeOverlay(overlay);
+}
+
+function wireDeleteConfirmOnce() {
+  if (deleteState.wired) return;
+  deleteState.wired = true;
+  document.getElementById('deleteCancelBtn')?.addEventListener('click', closeDeleteConfirm);
+  document.getElementById('deleteBackdrop')?.addEventListener('click', closeDeleteConfirm);
+  document.getElementById('deleteConfirmBtn')?.addEventListener('click', () => {
+    const pending = deleteState.pending;
+    closeDeleteConfirm();
+    if (pending) performHistoryDelete(pending.item, pending.row);
+  });
+}
+
+/** Every trash button in the playlist routes through here first. */
+function deleteHistoryItem(item, row) {
+  const overlay = mountOverlay('deleteConfirmOverlay');
+  if (!overlay) return performHistoryDelete(item, row);
+  deleteState.pending = { item, row };
+  const n = item.session_count || (item._sessions?.length) || 1;
+  const isMulti = n > 1;
+  const title = document.getElementById('deleteVideoTitle');
+  if (title) title.textContent = item.title || 'This video';
+  const singleHeading = document.getElementById('deleteSingleHeading');
+  const multiHeading = document.getElementById('deleteMultiHeading');
+  const chip = document.getElementById('deletePartChip');
+  const body = document.getElementById('deleteBody');
+  if (singleHeading) {
+    singleHeading.hidden = isMulti;
+    singleHeading.setAttribute('aria-hidden', isMulti ? 'true' : 'false');
+  }
+  if (multiHeading) {
+    multiHeading.hidden = !isMulti;
+    multiHeading.setAttribute('aria-hidden', isMulti ? 'false' : 'true');
+  }
+  if (chip) chip.textContent = `${n} parts`;
+  if (body) {
+    body.hidden = isMulti;
+    if (!isMulti) {
+      body.textContent = "This can't be undone — it'll be removed from your calendar and playlist.";
+    }
+  }
+  const panel = overlay.querySelector('.delete-panel');
+  if (panel) panel.setAttribute('aria-labelledby', isMulti ? 'deleteMultiHeading' : 'deleteDialogLabel');
+  if (panel) panel.setAttribute('aria-describedby', isMulti ? '' : 'deleteBody');
+  wireDeleteConfirmOnce();
+  openOverlay(overlay);
+}
+
+async function performHistoryDelete(item, row) {
+  const sessions = item._sessions || [item];
+  const removeIds = new Set(sessions.map(s => s.id));
+
   if (historyState.userId === 'preview-user') {
     if (row) await animateHistoryRowOut(row);
-    historyState.items = (historyState.items || []).filter(i => i.id !== item.id);
-    showToast('✅ Video Removed');
+    historyState.items = (historyState.items || []).filter(i => !removeIds.has(i.id));
+    showToast('Video Removed', 'success');
   } else {
-    let removed = false;
-    await handleRemove(item, { remove() { removed = true; } });
-    if (!removed) return;
+    for (const s of sessions) {
+      let removed = false;
+      await handleRemove(s, { remove() { removed = true; } });
+      if (!removed) return;
+    }
     if (row) await animateHistoryRowOut(row);
-    historyState.items = (historyState.items || []).filter(i => i.id !== item.id);
+    historyState.items = (historyState.items || []).filter(i => !removeIds.has(i.id));
+    showToast('Video Removed', 'success');
   }
   refreshHistoryCounts();
   paintHistoryPage();
 }
 
 
-function openFeedbackModal(userId) {
-  const overlay = document.createElement('div');
-  overlay.id = 'feedbackOverlay';
-  overlay.className = 'modal-overlay';
+/* ─── Profile menu · 218:1834 (new user) / 116:4508 (returning) ───────────── */
 
-  const modal = document.createElement('div');
-  modal.className = 'favourite-modal';
+/**
+ * Badge copy keyed by each SLOT_RANGES bucket's START HOUR, not its label —
+ * the labels carry en dashes, so a hand-typed copy of them silently misses.
+ */
+const SLOT_PERSONAS = {
+  6: 'Early Bird',
+  9: 'Day Starter',
+  12: 'Lunch Breaker',
+  15: 'Tea Timer',
+  18: 'Sundowner',
+  21: 'Prime Timer',
+  0: 'Night Owl',
+};
+const TREND_WINDOW_DAYS = 7; // rolling week vs the week before, not a month
+const profileState = { name: '', wired: false };
 
-modal.innerHTML = `
-  <div class="modal-header">
-    <h2 class="modal-title">Feedback</h2>
-    <button class="close-modal">
-      <img src="Icon/close.svg" alt="Close" width="16" height="16" />
-    </button>
-  </div>
-  <p class="modal-subheading">Your feedback matters to us</p>
-  <textarea id="feedbackInput" rows="4" placeholder="Share your thoughts..." class="feedback-textarea"></textarea>
-  <div class="feedback-actions">
-    <button id="submitFeedback" class="confirm-btn small-btn" disabled>Send</button>
-  </div>
-`;
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  modal.querySelector('.close-modal').onclick = () => overlay.remove();
-
-  const textarea = document.getElementById('feedbackInput');
-  const sendBtn = document.getElementById('submitFeedback');
-
-  textarea.addEventListener('input', () => {
-    const hasText = textarea.value.trim().length > 0;
-    sendBtn.disabled = !hasText;
-    sendBtn.style.opacity = hasText ? '1' : '0.6';
+function slotBucketStart(hour) {
+  const key = Object.keys(SLOT_RANGES).find(name => {
+    const [start, end] = SLOT_RANGES[name];
+    return hour >= start && hour < end;
   });
-
-  sendBtn.onclick = async () => {
-    recordButtonClick('Send');
-    const feedbackText = textarea.value.trim();
-    if (!feedbackText) return;
-
-    const { error } = await supabaseClient.from('feedback').insert([{
-    user_id: userId,
-    message: feedbackText,
-    video_url: cachedVideoUrl    
-  }]);
-
-  if (error) {
-    console.error("❌ Feedback insert failed:", error);
-    showToast("Failed to send feedback.");
-  } else {
-    showToast("✅ Thanks for your feedback!");
-    overlay.remove();
-  }
-  };
+  return key ? SLOT_RANGES[key][0] : null;
 }
 
-// ─── Referral helper ──────────────────────────────────────────────────────────
-// Utility: generate a random 6-char alphanumeric code
-function generateSixCharCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+/** Bucket most of their videos land in; saved time prefs cover a fresh account. */
+function personaFor(rows, selectedTimes) {
+  const tally = {};
+  (rows || []).forEach(row => {
+    const start = row.start_time && slotBucketStart(new Date(row.start_time).getHours());
+    if (start !== null && start !== undefined && start !== false) {
+      tally[start] = (tally[start] || 0) + 1;
+    }
+  });
+  const best = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0]
+    ?? (selectedTimes || []).map(time => SLOT_RANGES[time]?.[0]).find(h => h != null);
+  return best == null ? '' : SLOT_PERSONAS[best] || '';
 }
 
-// Main: create & show the “Refer a Friend” modal
-async function openReferFriendModal() {
-  document.getElementById('profileMenu')?.classList.add('hidden');
-
-  // 1) auth check
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) { alert('Please log in to get your referral code.'); return; }
-
-  // 2) fetch or insert code
-  let { data: rc, error } = await supabaseClient
-    .from('referral_codes').select('id,code').eq('user_id', user.id).single();
-
-  if (error && error.code === 'PGRST116') {
-    const newCode = generateSixCharCode();
-    ({ data: rc, error } = await supabaseClient
-      .from('referral_codes').insert({ user_id: user.id, code: newCode })
-      .select('id,code').single());
-    if (error) { console.error(error); alert('Could not generate code.'); return; }
-  } else if (error) {
-    console.error(error); alert('Could not fetch code.'); return;
-  }
-
-  // 3) count redemptions
-  const { count } = await supabaseClient
-    .from('referral_redemptions').select('id', { head: true, count: 'exact' })
-    .eq('referral_code_id', rc.id);
-
-  // 4) build & show modal
-  const overlay = document.createElement('div');
-  overlay.id = 'referOverlay';
-  overlay.className = 'modal-overlay';
-  const modal = document.createElement('div');
-  modal.className = 'favourite-modal';
-  modal.innerHTML = `
-    <div class="modal-header">
-      <h2 class="modal-title">Refer a friend</h2>
-      <button class="close-modal" id="closeReferModal">
-        <img src="Icon/close.svg" alt="Close" width="16" height="16"/>
-      </button>
-    </div>
-<p class="modal-subheading"> Free YT premium for a month.
-  <a 
-    href="https://www.youtube.com/" 
-    target="_blank" 
-    rel="noopener noreferrer"
-    class="modal-link"
-  >
-    How?
-  </a>
-</p>
-
-    <div class="refer-banner">
-    <img src="Icon/refer-banner.png" alt="Refer & Earn!" />
-    </div>
-  <div class="referral-section">
-    <input type="text" id="referralInput" readonly value="${rc.code}" />
-    <div class="button-group" style="display: flex; gap: 8px; margin-top: 12px;">
-      <!-- both buttons share the same “confirm-btn” class -->
-      <button id="copyReferralBtn"  class="confirm-btn">Copy</button>
-      <button id="claimGiftBtn" class="confirm-btn" disabled>Claim Gift</button>
-    </div>
-  </div>
-    <p id="referralCount" class="referral-count">
-      You’ve referred ${count || 0}/10 friend${count === 1 ? '' : 's'} so far.
-      <newline>
-        <a 
-        href="https://chat.whatsapp.com/BzDVcfdmh4iLEbRipHuxwZ" 
-        target="_blank" 
-        rel="noopener noreferrer"
-        class="modal-link"
-        >
-        Leaderboard View
-        </a>
-    </p>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  const claimBtn = modal.querySelector('#claimGiftBtn');
-  if (claimBtn) {
-    if ((count || 0) >= 10) claimBtn.disabled = false;
-    claimBtn.addEventListener("click", () => {
-      recordButtonClick("Claim Gift");
-      const message = "Hey, I have completed 10 referrals";
-      const waUrl = `https://wa.me/9373869224?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, "_blank");
+/**
+ * Completion rate (watched ÷ scheduled) over the last 7 days vs the 7 before.
+ * Null unless BOTH windows have videos — a first week otherwise reads as a
+ * 100% swing off one video. Zero delta is hidden (no "0% increase").
+ */
+function completionTrend(rows, now = Date.now()) {
+  const day = 86400000;
+  const rateBetween = (from, to) => {
+    const window = (rows || []).filter(row => {
+      const at = new Date(row.created_at).getTime();
+      return at >= from && at < to;
     });
-  }
+    return window.length ? window.filter(row => row.watched).length / window.length : null;
+  };
+  const recent = rateBetween(now - TREND_WINDOW_DAYS * day, now);
+  const prior = rateBetween(now - 2 * TREND_WINDOW_DAYS * day, now - TREND_WINDOW_DAYS * day);
+  if (recent === null || prior === null) return null;
+  const delta = Math.round((recent - prior) * 100);
+  return delta === 0 ? null : { delta: Math.abs(delta), up: delta > 0 };
+}
 
-  // 5) wiring: close
-  modal.querySelector('#closeReferModal')?.addEventListener('click', () => overlay.remove());
-  // 6) wiring: copy
-  const copyBtn = modal.querySelector('#copyReferralBtn');
-  copyBtn?.addEventListener('click', async () => {
-    recordButtonClick('Copy');
+function mountOverlay(id) {
+  const overlay = document.getElementById(id);
+  const host = historyMountParent();
+  if (overlay && host && overlay.parentElement !== host) host.appendChild(overlay);
+  return overlay;
+}
 
-    const code = rc.code;  // your 6-char code
-    const textToCopy = 
-      `Hey, sign in to Watch Later Extension using my referral code "${code}" and get free YouTube Premium for a month.\n\n` +
-      `For more, visit: https://watchlaterextension.in \n` + 
-      'Download the extension from: https://chromewebstore.google.com/detail/watch-later-extension-for/hknbikdihdbodldlkfjoipipmgfafbol';
-
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      copyBtn.textContent = 'Copied!';
-      copyBtn.disabled   = true;
-      setTimeout(() => {
-        copyBtn.textContent = 'Copy';
-        copyBtn.disabled   = false;
-      }, 3000);
-    } catch (err) {
-      console.error('Clipboard write failed', err);
-      alert('Could not copy automatically. Please copy manually.');
-    }
+function setUserAvatar(url) {
+  if (!url) return;
+  ['navAvatar', 'profileAvatar'].forEach(id => {
+    const img = document.getElementById(id);
+    if (!img) return;
+    // A dead Google photo URL would otherwise leave a broken-image button.
+    img.onerror = () => { img.onerror = null; img.src = 'Icon/avatar-fallback-koala.png'; };
+    img.src = url;
   });
 }
 
-// ─── “Enter referral code” modal ─────────────────────────────────────────
-async function openEnterReferralModal() {
-  document.getElementById('profileMenu')?.classList.add('hidden');
+async function fetchProfileRows(userId) {
+  if (!userId || userId === 'preview-user') {
+    return (getPreviewHistoryItems() || []).map(item => ({
+      start_time: item.start_time,
+      created_at: item.created_at,
+      watched: !!item.watched
+    }));
+  }
+  const { data, error } = await supabaseClient
+    .from('videohistory')
+    .select('start_time,created_at,watched')
+    .eq('user_id', userId);
+  if (error) {
+    console.error('Profile stats load failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
 
-  // Build overlay + modal
-  const overlay = document.createElement('div');
-  overlay.id = 'enterReferralOverlay';
-  overlay.className = 'modal-overlay';
+async function paintProfileMenu(userId) {
+  const panel = document.getElementById('profilePanel');
+  if (!panel) return;
 
-  const modal = document.createElement('div');
-  modal.className = 'favourite-modal';
-  modal.innerHTML = `
-    <div class="modal-header">
-      <h2 class="modal-title">Enter referral code</h2>
-      <button class="close-modal" id="closeEnterReferral">
-        <img src="Icon/close.svg" alt="Close" width="16" height="16"/>
-      </button>
-    </div>
-    <p class="modal-subheading">
-      Enter the 6-digit referral code from your friend.
-        <a 
-        href="https://www.youtube.com/" 
-        target="_blank" 
-        rel="noopener noreferrer"
-        class="modal-link"
-        >
-        How it works?
-        </a>
-    </p>
-    <input type="text" id="enterReferralInput" maxlength="6" class="referral-input" placeholder="ABC123" />
-    <p id="enterReferralError" class="error-message"></p>
-    <button id="checkReferralBtn" class="confirm-btn">Check</button>
-    <p id="enterReferralResult" class="referral-result"></p>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  const version = chrome.runtime?.getManifest?.()?.version;
+  const versionEl = document.getElementById('profileVersion');
+  if (versionEl) {
+    versionEl.textContent = version ? `V ${version}` : '';
+    versionEl.hidden = !version;
+  }
 
-  // Close handler
-  modal.querySelector('#closeEnterReferral').onclick = () => overlay.remove();
+  const firstName = (profileState.name || '').trim().split(/\s+/)[0];
+  const nameEl = document.getElementById('profileName');
+  if (nameEl) nameEl.textContent = firstName ? `Hey ${firstName},` : 'Hey there,';
 
-  // Wire up “Check”
-  const input    = modal.querySelector('#enterReferralInput');
-  const errorEl  = modal.querySelector('#enterReferralError');
-  const resultEl = modal.querySelector('#enterReferralResult');
-  const btn      = modal.querySelector('#checkReferralBtn');
+  const rows = await fetchProfileRows(userId);
+  const watched = rows.filter(row => row.watched).length;
+  const isNewUser = rows.length === 0;
+  panel.classList.toggle('is-new-user', isNewUser);
 
-    // ——— If the user has already redeemed, show that state ———
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  const { data: redemption } = await supabaseClient
-    .from('referral_redemptions')
-    .select('referral_code_id')
-    .eq('redeemed_user_id', user.id)
+  const plural = n => `${n} Video${n === 1 ? '' : 's'}`;
+  const scheduledEl = document.getElementById('profileScheduled');
+  const watchedEl = document.getElementById('profileWatched');
+  animateProfileStatCount(scheduledEl, rows.length);
+  animateProfileStatCount(watchedEl, watched);
+
+  const subEl = document.getElementById('profileSub');
+  if (subEl) {
+    subEl.textContent = isNewUser
+      ? 'Schedule your first video and track your journey here'
+      : 'This is your journey with us so far!';
+  }
+
+  const persona = personaFor(rows, await loadSelectedTimes(userId));
+  const personaEl = document.getElementById('profilePersona');
+  if (personaEl) {
+    personaEl.textContent = persona;
+    personaEl.hidden = !persona;
+  }
+
+  const trend = isNewUser ? null : completionTrend(rows);
+  const trendShell = document.getElementById('profileTrendShell');
+  const trendEl = document.getElementById('profileTrend');
+  const trendText = document.getElementById('profileTrendText');
+  if (trendShell && trendEl && trendText) {
+    trendShell.hidden = !trend;
+    trendEl.classList.toggle('is-down', !!trend && !trend.up);
+    if (trend) {
+      trendText.textContent =
+        `${trend.delta}% ${trend.up ? 'increase' : 'decrease'} in the completion rate since last week`;
+    }
+  }
+}
+
+async function loadSelectedTimes(userId) {
+  if (!userId || userId === 'preview-user') return [];
+  const { data } = await supabaseClient
+    .from('user_slot_preferences')
+    .select('selected_times')
+    .eq('user_id', userId)
     .maybeSingle();
+  return data?.selected_times || [];
+}
 
-  if (redemption?.referral_code_id) {
-    // fetch their code + the friend who gave it
-    const { data: rc } = await supabaseClient
-      .from('referral_codes')
-      .select('code, user_id')
-      .eq('id', redemption.referral_code_id)
-      .single();
-
-    const { data: friend } = await supabaseClient
-      .from('users')
-      .select('name')
-      .eq('id', rc.user_id)
-      .single();
-
-    // display and lock the UI
-    input.value        = rc.code;
-    input.disabled     = true;
-    btn.disabled       = true;
-    resultEl.textContent = `Referred from ${friend.name}`;
-    resultEl.classList.add('referred');   // mark for orange styling
-
-    // skip wiring up the click handler
-    return;
-  }
-  // — end “already redeemed” logic —
-
-
-  btn.addEventListener('click', async () => {
-    recordButtonClick('Check');
-    // reset messages
-    errorEl.textContent = '';
-    resultEl.textContent = '';
-
-    // 1) immediately switch text
-    btn.textContent = 'Checking…';
-    
-      // 0️⃣ Check connectivity
-  if (!navigator.onLine) {
-    alert('🚫 You appear to be offline. Please check your internet connection and try again.');
-    btn.textContent = 'Check';
-    return;
-  }
-
-  // trim and normalize the input code
-  const code = input.value.trim().toUpperCase();
-  if (code.length !== 6) {
-    errorEl.textContent = 'Please enter a 6-character code.';
-    btn.textContent = 'Check';
-    return;
-  }
-
-    btn.disabled = true;
-
-    // 1) Lookup the code
-    const { data: rc, error: rcErr } = await supabaseClient
-      .from('referral_codes')
-      .select('id, user_id')
-      .eq('code', code)
-      .single();
-
-    if (rcErr || !rc) {
-      errorEl.textContent = 'That code is not valid.';
-      btn.disabled = false;
-      btn.textContent = 'Check';
-      return;
-    }
-
-    // 2) Ensure logged in
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-     errorEl.textContent = 'Please log in to redeem a code.';
-     btn.disabled = false;
-     btn.textContent = 'Check'      
-     return;
-    }
-
-    // 3) No self-referral
-    if (user.id === rc.user_id) {
-      errorEl.textContent = 'You cannot enter your own code.';
-      btn.disabled = false;
-      btn.textContent = 'Check';
-      return;
-    }
-
-    // 4) One-time only
-    const { data: used } = await supabaseClient
-      .from('referral_redemptions')
-      .select('id')
-      .eq('redeemed_user_id', user.id)
-      .maybeSingle();
-    if (used) {
-      errorEl.textContent = 'You have already used a referral code.';
-      btn.textContent = 'Check';
-      return;
-    }
-
-    // 5) Fetch friend’s name
-    const { data: friend, error: fErr } = await supabaseClient
-      .from('users')      
-      .select('name')
-      .eq('id', rc.user_id)
-      .maybeSingle();   // <-- returns `friend = null`, no error
-
-    if (fErr || !friend) {
-      errorEl.textContent = 'This code is invalid, the user does not exist.';
-      btn.disabled = false;
-      return;
-    }
-
-    // 6) Record redemption
-    const { error: insErr } = await supabaseClient
-      .from('referral_redemptions')
-      .insert({ referral_code_id: rc.id, redeemed_user_id: user.id });
-
-    if (insErr) {
-      console.error(insErr);
-      errorEl.textContent = 'Something went wrong. Try again.';
-      btn.textContent = 'Check';
-      btn.disabled = false;
-      return;
-    }
-
-    // 6a) Notify via Resend edge-function
-    const { error: notifyErr } = await supabaseClient.functions.invoke(
-      'sendreferralnotification',
-      {
-        body: {
-          referrerId:   rc.user_id,
-          friendName:   friend.name,
-          referralCode: code
-        }
-      }
-    );
-    if (notifyErr) {
-      console.error('Notification failed', notifyErr.message);
-    }
-
-    // 7) Success!
-    resultEl.innerHTML = `Referred from <span class="referrer-name">${friend.name}</span>`;
-    resultEl.classList.add('referral-success')    
-    btn.disabled = true;
-    btn.textContent = 'Check';        // ← reset the label immediately
-    input.disabled  = true;
+function wireProfileMenuOnce() {
+  if (profileState.wired) return;
+  profileState.wired = true;
+  document.getElementById('profileCloseBtn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    closeProfileMenu();
+  });
+  document.getElementById('profileGiftBtn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    showToast('Referrals coming soon!', 'info');
+  });
+  document.getElementById('profileBackdrop')?.addEventListener('click', closeProfileMenu);
+  document.getElementById('viewHistory')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openHistoryModal(window.currentUserId || 'preview-user');
+  });
+  document.getElementById('slotPreferences')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openSchedPrefs('day');
+  });
+  document.getElementById('logoutBtn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openLogoutModal();
+  });
+  document.getElementById('feedbackBtn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openFeedbackModal(window.currentUserId || 'preview-user');
   });
 }
 
+/** Must match --profile-enter-ms (same medium timing as success sheets). */
+const PROFILE_ENTER_MS = SUCCESS_ENTER_MS;
+const PROFILE_SLIDE_MS = PROFILE_ENTER_MS;
+/** Must match --profile-count-ms / --profile-star-ms — 0→N ease-in-out after sheet lands. */
+const PROFILE_COUNT_MS = SUCCESS_STAR_MS;
+/* Sheet land + numbers/stars. */
+const PROFILE_CASCADE_MS = PROFILE_ENTER_MS + PROFILE_COUNT_MS + 80;
+
+function formatProfileVideoCount(n) {
+  const v = Math.max(0, Math.round(Number(n) || 0));
+  return `${v} Video${v === 1 ? '' : 's'}`;
+}
+
+/** Ease-in-out count from 0 → target (starts after sheet lands). */
+function animateProfileStatCount(el, target) {
+  if (!el) return;
+  cancelAnimationFrame(el._countRaf);
+  clearTimeout(el._countDelay);
+  el._countRaf = 0;
+  el._countDelay = 0;
+  const end = Math.max(0, Math.round(Number(target) || 0));
+  if (prefersReducedMotion() || end === 0) {
+    el.textContent = formatProfileVideoCount(end);
+    return;
+  }
+  el.textContent = formatProfileVideoCount(0);
+  const easeInOut = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  el._countDelay = setTimeout(() => {
+    const t0 = performance.now();
+    const tick = now => {
+      const t = Math.min(1, (now - t0) / PROFILE_COUNT_MS);
+      el.textContent = formatProfileVideoCount(easeInOut(t) * end);
+      if (t < 1) el._countRaf = requestAnimationFrame(tick);
+    };
+    el._countRaf = requestAnimationFrame(tick);
+  }, PROFILE_ENTER_MS);
+}
+
+function stopProfileStatCounts() {
+  ['profileScheduled', 'profileWatched'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    cancelAnimationFrame(el._countRaf);
+    clearTimeout(el._countDelay);
+    el._countRaf = 0;
+    el._countDelay = 0;
+  });
+}
+
+function openProfileMenu(userId, opts = {}) {
+  const overlay = mountOverlay('profileOverlay');
+  if (!overlay) return;
+  wireProfileMenuOnce();
+  clearTimeout(overlay._hideTimer);
+  clearTimeout(overlay._contentTimer);
+  stopProfileStatCounts();
+  overlay.hidden = false;
+  overlay.classList.remove('hidden', 'is-closing', 'is-stacked-under', 'is-open', 'is-entering');
+  void overlay.offsetWidth;
+  overlay.classList.add('is-entering', 'is-open');
+  overlay.setAttribute('aria-hidden', 'false');
+  overlay._contentTimer = setTimeout(
+    () => overlay.classList.remove('is-entering'),
+    PROFILE_CASCADE_MS
+  );
+  if (opts.previewState) paintProfilePreviewState(opts.previewState);
+  else paintProfileMenu(userId);
+}
+
+function closeProfileMenu() {
+  const overlay = document.getElementById('profileOverlay');
+  if (!overlay || overlay.hidden) return;
+  stopProfileStatCounts();
+  overlay.setAttribute('aria-hidden', 'true');
+  clearTimeout(overlay._hideTimer);
+  clearTimeout(overlay._contentTimer);
+  clearTimeout(overlay._unstackTimer);
+  overlay.classList.remove('is-entering', 'is-stacked-under');
+  overlay.classList.add('is-closing');
+  overlay._hideTimer = setTimeout(() => {
+    overlay.classList.remove('is-open', 'is-closing');
+    overlay.classList.add('hidden');
+    overlay.hidden = true;
+  }, PROFILE_SLIDE_MS);
+}
+
+/** Preview `#preview=1&schedule=1&profile=1` — cycle first / trend-up / trend-down. */
+function paintProfilePreviewState(kind) {
+  const panel = document.getElementById('profilePanel');
+  if (!panel) return;
+  profileState.name = 'Girish';
+  const nameEl = document.getElementById('profileName');
+  if (nameEl) nameEl.textContent = 'Hey Girish,';
+  const personaEl = document.getElementById('profilePersona');
+  if (personaEl) {
+    personaEl.textContent = 'Night Owl';
+    personaEl.hidden = false;
+  }
+  const versionEl = document.getElementById('profileVersion');
+  if (versionEl) {
+    versionEl.textContent = 'V 1.1.6';
+    versionEl.hidden = false;
+  }
+  const isFirst = kind === 'first';
+  panel.classList.toggle('is-new-user', isFirst);
+  const scheduledEl = document.getElementById('profileScheduled');
+  const watchedEl = document.getElementById('profileWatched');
+  animateProfileStatCount(scheduledEl, isFirst ? 0 : 12);
+  animateProfileStatCount(watchedEl, isFirst ? 0 : 9);
+  const subEl = document.getElementById('profileSub');
+  if (subEl) {
+    subEl.textContent = isFirst
+      ? 'Schedule your first video and track your journey here'
+      : 'This is your journey with us so far!';
+  }
+  const trendShell = document.getElementById('profileTrendShell');
+  const trendEl = document.getElementById('profileTrend');
+  const trendText = document.getElementById('profileTrendText');
+  if (trendShell && trendEl && trendText) {
+    const show = kind === 'up' || kind === 'down';
+    trendShell.hidden = !show;
+    trendEl.classList.toggle('is-down', kind === 'down');
+    if (show) {
+      trendText.textContent =
+        kind === 'up'
+          ? '12% increase in the completion rate since last week'
+          : '8% decrease in the completion rate since last week';
+    }
+  }
+}
+
+function stopProfilePreviewLoop() {
+  clearTimeout(stopProfilePreviewLoop._close);
+  clearTimeout(stopProfilePreviewLoop._open);
+  stopProfilePreviewLoop._close = null;
+  stopProfilePreviewLoop._open = null;
+}
+
+function stopHistoryPreviewLoop() {
+  ['_t1', '_t2', '_t3', '_t4', '_t5', '_t6'].forEach(k => {
+    clearTimeout(stopHistoryPreviewLoop[k]);
+    stopHistoryPreviewLoop[k] = null;
+  });
+  closeHistoryConfirmPreview();
+}
+
+/** Preview helper — open delete / mark-watched confirms over the playlist. */
+function openHistoryConfirmPreview(kind) {
+  const base = {
+    title: 'Celestial Skies: A Journey Through the Stars',
+    video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+  };
+  if (kind === 'single-delete') {
+    deleteHistoryItem({ ...base, id: 'preview-del-1', session_count: 1 }, null);
+  } else if (kind === 'multi-delete') {
+    deleteHistoryItem({
+      ...base,
+      id: 'preview-del-m',
+      session_count: 4,
+      _sessions: [{ id: 'ps1' }, { id: 'ps2' }, { id: 'ps3' }, { id: 'ps4' }]
+    }, null);
+  } else if (kind === 'mark-watched') {
+    openMarkWatchedConfirm({
+      ...base,
+      id: 'preview-mark',
+      session_count: 3,
+      _sessions: [{ id: 'pm1' }, { id: 'pm2' }, { id: 'pm3' }]
+    }, null);
+  }
+}
+
+function closeHistoryConfirmPreview() {
+  closeDeleteConfirm();
+  closeMarkWatchedConfirm();
+}
+
+/** Preview `#preview=1&schedule=1&history=1` — profile → playlist → confirm sheets → back. */
+function startHistoryPreviewLoop() {
+  stopHistoryPreviewLoop();
+  stopProfilePreviewLoop();
+  stopOutcomePreviewLoop();
+  const emptyFilters = ['scheduled', 'watched', 'forced'];
+  const confirmKinds = ['single-delete', 'multi-delete', 'mark-watched'];
+  let i = 0;
+  const play = () => {
+    const mode = i % 4;
+    const empty = mode === 1;
+    const confirm = mode >= 2;
+    const filter = emptyFilters[Math.floor(i / 4) % emptyFilters.length];
+    const confirmKind = confirmKinds[(Math.floor(i / 4)) % confirmKinds.length];
+    i += 1;
+    openProfileMenu('preview-user', { previewState: 'up' });
+    stopHistoryPreviewLoop._t1 = setTimeout(() => {
+      openHistoryModal('preview-user');
+      if (empty) {
+        stopHistoryPreviewLoop._t2 = setTimeout(() => {
+          historyState.counts = { scheduled: 0, watched: 0, forced: 0 };
+          historyState.items = [];
+          historyState.filter = filter;
+          historyState.page = 1;
+          paintHistoryPage();
+        }, 80);
+      }
+      const holdMs = empty ? 2200 : (confirm ? PROFILE_CASCADE_MS + 900 : PROFILE_CASCADE_MS + 1800);
+      stopHistoryPreviewLoop._t3 = setTimeout(() => {
+        if (confirm) {
+          openHistoryConfirmPreview(confirmKind);
+          stopHistoryPreviewLoop._t5 = setTimeout(() => {
+            closeHistoryConfirmPreview();
+            stopHistoryPreviewLoop._t6 = setTimeout(() => {
+              closeHistoryModal();
+              stopHistoryPreviewLoop._t4 = setTimeout(() => {
+                closeProfileMenu();
+                setTimeout(play, PROFILE_SLIDE_MS + 400);
+              }, SHEET_SLIDE_MS + 320);
+            }, SHEET_SLIDE_MS + 1400);
+          }, 400);
+        } else {
+          closeHistoryModal();
+          stopHistoryPreviewLoop._t4 = setTimeout(() => {
+            closeProfileMenu();
+            setTimeout(play, PROFILE_SLIDE_MS + 400);
+          }, SHEET_SLIDE_MS + 320);
+        }
+      }, holdMs);
+    }, PROFILE_CASCADE_MS + 600);
+  };
+  play();
+}
+
+function startProfilePreviewLoop() {
+  stopProfilePreviewLoop();
+  stopHistoryPreviewLoop();
+  stopOutcomePreviewLoop();
+  const states = ['first', 'up', 'down'];
+  let i = 0;
+  const holdMs = PROFILE_CASCADE_MS + 1400;
+  const play = () => {
+    const kind = states[i % states.length];
+    i += 1;
+    openProfileMenu('preview-user', { previewState: kind });
+    stopProfilePreviewLoop._close = setTimeout(() => {
+      closeProfileMenu();
+      stopProfilePreviewLoop._open = setTimeout(play, PROFILE_SLIDE_MS + 320);
+    }, holdMs);
+  };
+  play();
+}
+
+/* ─── Feedback · Help us improve (118:1358) ─────────────────────────────────
+   Own open/close path (not shared openOverlay). Profile is frozen under a
+   second blur layer for the whole transition; only feedback animates. */
+const feedbackState = { userId: null, wired: false, overLimitToasted: false };
+const logoutState = { wired: false };
+const FEEDBACK_MAX = 250;
+const FEEDBACK_TOAST_MAX = `Max ${FEEDBACK_MAX} characters`;
+
+function paintFeedbackCount() {
+  const input = document.getElementById('feedbackInput');
+  const count = document.getElementById('feedbackCount');
+  const send = document.getElementById('feedbackSendBtn');
+  const length = input ? input.value.length : 0;
+  const over = length > FEEDBACK_MAX;
+  if (count) {
+    count.textContent = `${length}/${FEEDBACK_MAX} characters`;
+    count.classList.toggle('is-over', over);
+  }
+  if (send) send.disabled = !(input && input.value.trim() && !over);
+}
+
+function wireFeedbackOnce() {
+  if (feedbackState.wired) return;
+  feedbackState.wired = true;
+
+  const input = document.getElementById('feedbackInput');
+  input?.addEventListener('input', () => {
+    if (!input) return;
+    const len = input.value.length;
+    if (len > FEEDBACK_MAX) {
+      if (!feedbackState.overLimitToasted) {
+        feedbackState.overLimitToasted = true;
+        showToast(FEEDBACK_TOAST_MAX, 'info');
+      }
+    } else {
+      feedbackState.overLimitToasted = false;
+    }
+    paintFeedbackCount();
+  });
+
+  document.getElementById('feedbackCloseBtn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    closeFeedbackModal();
+  });
+  document.getElementById('feedbackBackdrop')?.addEventListener('click', closeFeedbackModal);
+  document.getElementById('feedbackSendBtn')?.addEventListener('click', async () => {
+    const message = (input?.value || '').trim();
+    if (!message || message.length > FEEDBACK_MAX) return;
+    recordButtonClick('Send');
+
+    if (document.body.classList.contains('wl-preview') || feedbackState.userId === 'preview-user') {
+      finishFeedbackSend('Feedback sent', 'success');
+      return;
+    }
+
+    const { data: { user }, error: authErr } = await supabaseClient.auth.getUser();
+    if (authErr || !user) {
+      console.error('Feedback auth failed:', authErr?.message || 'no user');
+      return showToast('Failed to send feedback.', 'error');
+    }
+    const { error } = await supabaseClient.from('feedback').insert([{
+      user_id: user.id,
+      type: 'text',
+      message,
+      video_url: cachedVideoUrl || null
+    }]);
+    if (error) {
+      console.error('Feedback insert failed:', error.message);
+      return showToast('Failed to send feedback.', 'error');
+    }
+    finishFeedbackSend('Feedback sent', 'success');
+  });
+}
+
+function openFeedbackModal(userId) {
+  const overlay = mountOverlay('feedbackOverlay');
+  if (!overlay) return;
+
+  feedbackState.userId = userId;
+  feedbackState.overLimitToasted = false;
+  wireFeedbackOnce();
+
+  const input = document.getElementById('feedbackInput');
+  if (input) input.value = '';
+  paintFeedbackCount();
+
+  // Freeze profile first so none of its entry/cascade rules can restart.
+  setProfileStackedUnder(true);
+
+  clearTimeout(overlay._hideTimer);
+  clearTimeout(overlay._focusTimer);
+  overlay.hidden = false;
+  overlay.classList.remove('hidden', 'is-closing');
+  void overlay.offsetWidth;
+  overlay.classList.add('is-open');
+  overlay.setAttribute('aria-hidden', 'false');
+
+  // Focus after the sheet lands — focusing mid-slide shifts the profile behind.
+  overlay._focusTimer = setTimeout(() => input?.focus(), SHEET_SLIDE_MS);
+}
+
+function closeFeedbackModal(onClosed) {
+  const overlay = document.getElementById('feedbackOverlay');
+  if (!overlay || overlay.hidden) {
+    onClosed?.();
+    return;
+  }
+
+  clearTimeout(overlay._focusTimer);
+  document.getElementById('feedbackInput')?.blur();
+
+  overlay.setAttribute('aria-hidden', 'true');
+  clearTimeout(overlay._hideTimer);
+  overlay.classList.add('is-closing');
+  overlay._hideTimer = setTimeout(() => {
+    overlay.classList.remove('is-open', 'is-closing');
+    overlay.classList.add('hidden');
+    overlay.hidden = true;
+    onClosed?.();
+  }, SHEET_SLIDE_MS);
+
+  // Keep profile frozen until feedback has fully slid out.
+  releaseProfileStackAfterSlide();
+}
+
+function finishFeedbackSend(toastMsg, toastType = 'success') {
+  closeFeedbackModal(() => showToast(toastMsg, toastType));
+}
+
+
+function wireLogoutOnce() {
+  if (logoutState.wired) return;
+  logoutState.wired = true;
+  document.getElementById('logoutBackdrop')?.addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutBackBtn')?.addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutConfirmBtn')?.addEventListener('click', () => performLogout());
+}
 
 function openLogoutModal() {
-  const overlay = document.createElement('div');
-  overlay.id = 'logoutOverlay';
-  overlay.className = 'modal-overlay';
+  const overlay = mountOverlay('logoutOverlay');
+  if (!overlay) return;
+  wireLogoutOnce();
+  setProfileStackedUnder(true);
+  openOverlay(overlay);
+}
 
-  const modal = document.createElement('div');
-  modal.className = 'favourite-modal'; // reuse existing modal styling
+function closeLogoutModal() {
+  const overlay = document.getElementById('logoutOverlay');
+  if (overlay) closeOverlay(overlay);
+  releaseProfileStackAfterSlide();
+}
 
-  modal.innerHTML = `
-    <div class="modal-header">
-      <h2 class="modal-title">Are you sure?</h2>
-      <button class="close-modal">
-        <img src="Icon/close.svg" alt="Close" width="16" height="16" />
-      </button>
-    </div>
-    <p class="modal-subheading">
-      Do you want us to remember your details or erase it completely.
-    </p>
-    <label style="font-size: 14px; display: flex; align-items: center; gap: 8px; margin: 15px 0;">
-      <input type="checkbox" id="rememberInfo" checked />
-      Remember my information
-    </label>
-    <p id="deleteWarning" style="display: none; color: #d32f2f; font-size: 14px; margin-top: -10px; margin-bottom: 15px;">
-      ⚠️ Your information will be deleted permanently from our database.
-    </p>
-    <button id="confirmLogout" class="confirm-btn" style="margin-top: 10px;">Log Out</button>
-  `;
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  const checkbox = document.getElementById('rememberInfo');
-  const warning = document.getElementById('deleteWarning');
-
-checkbox?.addEventListener('change', () => {
-  if (warning) warning.style.display = checkbox.checked ? 'none' : 'block';
-});
-
-
-  modal.querySelector('.close-modal')?.addEventListener('click', () => overlay.remove());
-
-modal.querySelector('#confirmLogout')?.addEventListener('click', async () => {
+async function performLogout() {
   recordButtonClick('Log Out');
-  const remember = document.getElementById('rememberInfo').checked;
+
+  if (document.body.classList.contains('wl-preview')) {
+    await new Promise(r => chrome.storage.local.remove(
+      ['supabase_token', 'supabase_refresh', 'google_access_token', 'userId'],
+      r
+    ));
+    await storageSet({ [ONB_FLAG_COMPLETE]: false });
+    closeLogoutModal();
+    closeProfileMenu();
+    document.getElementById('scheduleScreen')?.classList.add('hidden');
+    showOnboarding({ wrongUrl: true });
+    return;
+  }
+
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
 
-  if (!remember) {
-    await wipeUserRemoteData(user.id);
-    chrome.storage.local.clear(() => {
-      // Logout ≠ first install: keep product onboarding done, wipe scan for next account.
-      chrome.storage.local.set({ [ONB_FLAG_COMPLETE]: true }, () => {
-        console.log('🗑️ All local and remote data erased (onboardingComplete kept).');
-      });
-    });
-  } else {
-    // ✅ Keep minimal metadata in Supabase
-    const { data: userData } = await supabaseClient.auth.getUser();
+  // Soft logout: keep remote prefs/history, but restart the onboarding UI flow.
+  await supabaseClient.from('users').upsert({
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata?.name,
+    avatar_url: user.user_metadata?.picture
+  });
 
-    await supabaseClient.from('users').upsert({
-      id: userData.user.id,
-      email: userData.user.email,
-      name: userData.user.user_metadata.name,
-      avatar_url: userData.user.user_metadata.picture
-    });
-
-    chrome.storage.local.remove([
-      'supabase_token',
-      'supabase_refresh',
-      'google_access_token',
-      ONB_FLAG_SCANNED
-    ]);
-  }
+  await storageRemove([
+    'supabase_token',
+    'supabase_refresh',
+    'google_access_token',
+    'userId',
+    ONB_FLAG_SCANNED
+  ]);
+  await storageSet({ [ONB_FLAG_COMPLETE]: false });
 
   await supabaseClient.auth.signOut();
-  overlay.remove();
-  location.reload();
-});
+  currentAuthUser = null;
+  window.currentUserId = null;
+  closeLogoutModal();
+  closeProfileMenu();
 
+  const tab = await getActiveInjectableTab().catch(() => null);
+  document.getElementById('scheduleScreen')?.classList.add('hidden');
+  document.getElementById('scheduleBtn').style.display = 'none';
+  document.getElementById('streakProgress')?.classList.add('hidden');
+  showOnboarding({ wrongUrl: !isYouTubeWatchUrl(tab?.url) });
 }
 
 
@@ -4386,7 +5874,16 @@ async function analyzeAndSavePrefs(userId, accessToken, { force = false, trigger
   return { days: existing.days, slots: existing.slots, dayHints, slotHints };
 }
 
-async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin = 10) {
+async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin = 10, options = {}) {
+  const {
+    windowDays = 7,
+    excludeDates = null,
+    notBefore = null,
+    limit = 4,
+    excludeSlotKeys = null,
+  } = options;
+  const exclude = excludeDates instanceof Set ? excludeDates : new Set();
+  const excludeKeys = excludeSlotKeys instanceof Set ? excludeSlotKeys : new Set();
   const bufferMin = 15;
   const totalDuration = videoDurationMin + bufferMin;
 
@@ -4403,9 +5900,10 @@ async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin
     const preferredDays = (prefs.days?.length ? prefs.days : PREFS_DOW).map(d => d.toLowerCase());
 
     const now = new Date();
+    const minStart = notBefore ? new Date(notBefore) : now;
     const slotTimes = [];
 
-    for (let day = 0; day < 7; day++) {
+    for (let day = 0; day < windowDays; day++) {
       const date = new Date(now);
       date.setDate(now.getDate() + day);
       const dayKey = PREFS_DOW[date.getDay()];
@@ -4415,6 +5913,7 @@ async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin
       const m = String(date.getMonth() + 1).padStart(2, '0');
       const d = String(date.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${d}`;
+      if (exclude.has(dateStr)) continue;
 
       for (const slot of rawSlots) {
         const [startHour, endHour] = SLOT_RANGES[slot] || [];
@@ -4428,11 +5927,12 @@ async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin
           start <= new Date(endTime.getTime() - totalDuration * 60 * 1000);
           start = new Date(start.getTime() + totalDuration * 60 * 1000)
         ) {
-          if (day === 0 && start < now) continue;
+          if (start < minStart) continue;
           const end = new Date(start.getTime() + videoDurationMin * 60 * 1000);
           slotTimes.push({
             start: start.toISOString(),
             end: end.toISOString(),
+            date: dateStr,
             label: `${slot} – ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} to ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
           });
         }
@@ -4447,7 +5947,7 @@ async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin
       },
       body: JSON.stringify({
         timeMin: new Date().toISOString(),
-        timeMax: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        timeMax: new Date(Date.now() + windowDays * 24 * 60 * 60 * 1000).toISOString(),
         items: [{ id: 'primary' }],
       }),
     });
@@ -4455,20 +5955,224 @@ async function fetchAvailableCalendarSlots(userId, accessToken, videoDurationMin
     const json = await res.json();
     const busy = json?.calendars?.primary?.busy || [];
 
-    const free = slotTimes.filter(slot =>
-      !busy.some(b =>
+    const free = slotTimes.filter(slot => {
+      const key = `${slot.date}|${slot.start}`;
+      if (excludeKeys.has(key)) return false;
+      return !busy.some(b =>
         new Date(b.start) < new Date(slot.end) &&
         new Date(b.end) > new Date(slot.start)
-      )
-    );
+      );
+    });
 
-    return free.slice(0, 4);
+    return free.slice(0, limit);
   } catch (err) {
     console.error('❌ Slot fetch failed:', err);
     return [];
   }
 }
 
+async function fetchMultiSessionSlots(userId, accessToken, sessionPlan, { skipSessions = [], excludeSlotKeys = null } = {}) {
+  const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
+  if (!algo || !sessionPlan?.sessions?.length) {
+    return { sessions: [], complete: false };
+  }
+
+  const assignedSlots = [];
+  const usedDates = new Set();
+  let searchWindowDays = 7;
+  const skipSet = new Set(skipSessions);
+  const excludeKeys = excludeSlotKeys instanceof Set ? excludeSlotKeys : new Set();
+  const candidateLimit = excludeKeys.size ? 12 : 1;
+
+  for (const session of sessionPlan.sessions) {
+    if (skipSet.has(session.sessionIndex)) continue;
+
+    let candidates = [];
+    let windowDays = searchWindowDays;
+    const notBefore = assignedSlots.length
+      ? new Date(assignedSlots[assignedSlots.length - 1].slot.end)
+      : new Date();
+
+    while (!candidates.length && windowDays <= algo.MULTI_SESSION_MAX_WINDOW_DAYS) {
+      candidates = await fetchAvailableCalendarSlots(
+        userId,
+        accessToken,
+        session.durationMin,
+        {
+          windowDays,
+          excludeDates: usedDates,
+          notBefore,
+          limit: candidateLimit,
+          excludeSlotKeys: excludeKeys,
+        }
+      );
+      if (!candidates.length) {
+        if (windowDays >= algo.MULTI_SESSION_MAX_WINDOW_DAYS) break;
+        windowDays *= 2;
+        searchWindowDays = windowDays;
+      }
+    }
+
+    if (!candidates.length) continue;
+
+    const chosen = candidates[0];
+    const dateKey = chosen.date || String(chosen.start).slice(0, 10);
+    assignedSlots.push({ ...session, slot: chosen, date: dateKey, start: chosen.start });
+    usedDates.add(dateKey);
+  }
+
+  algo.validateSessionPlan(assignedSlots);
+  const expected = sessionPlan.sessions.filter(s => !skipSet.has(s.sessionIndex)).length;
+  return {
+    sessions: assignedSlots,
+    complete: assignedSlots.length === expected,
+  };
+}
+
+async function scheduleMultiSessionVideo() {
+  const authUser = currentAuthUser;
+  const plan = multiSessionState.plan;
+  const assigned = multiSessionState.assigned || [];
+  if (!authUser || !plan || !multiSessionState.complete || !assigned.length) return;
+
+  const schedBtn = document.getElementById('scheduleMultiBtn');
+  if (schedBtn) schedBtn.disabled = true;
+
+  const activeTab = await getActiveInjectableTab();
+  if (!activeTab) {
+    showToast('Open a YouTube video to schedule.', 'info');
+    if (schedBtn) schedBtn.disabled = false;
+    return;
+  }
+
+  const [adCheck] = await chrome.scripting.executeScript({
+    target: { tabId: activeTab.id },
+    func: () => {
+      const player = document.querySelector('.html5-video-player');
+      return player?.classList.contains('ad-showing') ?? false;
+    }
+  }).catch(() => [null]);
+
+  if (adCheck?.result) {
+    showToast('Please wait until the ad finishes before scheduling.', 'info');
+    if (schedBtn) schedBtn.disabled = false;
+    return;
+  }
+
+  if (!navigator.onLine) {
+    showNetworkLostScreen();
+    if (schedBtn) schedBtn.disabled = false;
+    return;
+  }
+
+  const valid = await ensureValidGoogleToken();
+  if (!valid) {
+    if (schedBtn) schedBtn.disabled = false;
+    return;
+  }
+
+  const videoUrl = activeTab.url;
+
+  const { data: dup } = await supabaseClient
+    .from('videohistory')
+    .select('id')
+    .eq('user_id', authUser.id)
+    .eq('video_url', videoUrl)
+    .eq('watched', false)
+    .limit(1)
+    .maybeSingle();
+  if (dup) {
+    showToast('This video is already scheduled', 'info');
+    if (schedBtn) schedBtn.disabled = false;
+    return;
+  }
+
+  let { google_access_token } = await new Promise(res =>
+    chrome.storage.local.get('google_access_token', res)
+  );
+
+  const groupId = crypto.randomUUID();
+  const thumbnailUrl = getYouTubeThumbnail(videoUrl);
+  const rows = [];
+  let firstSlot = null;
+
+  for (const entry of assigned) {
+    const partInfo = {
+      sessionIndex: entry.sessionIndex,
+      sessionCount: entry.sessionCount,
+      videoOffsetStartSec: entry.videoOffsetStartSec,
+      videoOffsetEndSec: entry.videoOffsetEndSec,
+    };
+    let result = await tryScheduleEventOnce(
+      google_access_token,
+      entry.slot,
+      cachedVideoTitle,
+      authUser,
+      videoUrl,
+      partInfo
+    );
+    if (!result.success && result.error?.error?.code === 401) {
+      const reauth = await ensureValidGoogleToken();
+      if (reauth) {
+        google_access_token = (await new Promise(res =>
+          chrome.storage.local.get('google_access_token', res)
+        )).google_access_token;
+        result = await tryScheduleEventOnce(
+          google_access_token,
+          entry.slot,
+          cachedVideoTitle,
+          authUser,
+          videoUrl,
+          partInfo
+        );
+      }
+    }
+    if (!result.success) {
+      console.error('Multi-session schedule failed:', result.error);
+      showScheduleFailModal({
+        title: cachedVideoTitle,
+        start: entry.slot.start,
+        end: entry.slot.end,
+      });
+      if (schedBtn) schedBtn.disabled = false;
+      return;
+    }
+    if (!firstSlot) firstSlot = entry.slot;
+    rows.push({
+      user_id: authUser.id,
+      title: cachedVideoTitle,
+      video_url: videoUrl,
+      start_time: entry.slot.start,
+      end_time: entry.slot.end,
+      google_event_id: result.eventId,
+      thumbnail: thumbnailUrl,
+      session_group_id: groupId,
+      session_index: entry.sessionIndex,
+      session_count: entry.sessionCount,
+      video_offset_start_sec: entry.videoOffsetStartSec,
+      video_offset_end_sec: entry.videoOffsetEndSec,
+      all_sessions_watched: false,
+    });
+  }
+
+  const { error } = await supabaseClient.from('videohistory').insert(rows);
+  if (error) {
+    console.error('videohistory insert failed:', error);
+    showToast('Could not save scheduled sessions', 'error');
+    if (schedBtn) schedBtn.disabled = false;
+    return;
+  }
+
+  const audio = new Audio(chrome.runtime.getURL('ding.mp3'));
+  audio.play().catch(() => {});
+  showScheduleSuccessModal({
+    title: cachedVideoTitle,
+    start: firstSlot.start,
+    end: firstSlot.end,
+  });
+  await initStreak(authUser.id);
+  if (schedBtn) schedBtn.disabled = false;
+}
 
 /* ── 36:2102 / 36:3080 Wrong URL — overlay over current screen ── */
 const LAST_SCHEDULE_KEY = 'lastScheduleSnapshot';
@@ -4494,7 +6198,7 @@ function hideNewUserWrongUrl() {
   screen.setAttribute('aria-hidden', 'true');
 }
 
-/* ── Figma 137:2688 Wrong URL — image BG + hardcoded dim/modal ── */
+/* ── Figma 533:9884 Wrong URL — fall cards + browser mock + Oops sheet ── */
 function stopWrongUrlFallAnim() {
   const screen = document.getElementById('wrongUrlFallAnim');
   if (!screen) return;
@@ -4536,44 +6240,15 @@ function showWrongUrlFallAnim() {
 }
 
 function showNewUserWrongUrl() {
-  hideWrongUrlPanel();
-  hideAuthFlow();
-  stopWrongUrlFallAnim();
-  document.getElementById('scheduleScreen')?.classList.add('hidden');
-  const onb = document.getElementById('onboarding');
-  onb?.classList.remove('hidden');
-  document.body.classList.add('onboarding-active');
-  ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'onboardingAnalyzing', 'wrongUrlFallAnim'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
-  });
-  const screen = document.getElementById('newUserWrongUrl');
-  if (screen) {
-    screen.classList.remove('hidden');
-    screen.setAttribute('aria-hidden', 'false');
-  }
-  enterOnbCardsThenPlay('#newUserWrongUrl', () => formatOnbUnwatchedLabel(randomOnbDay()));
-
-  const fixBtn = document.getElementById('newUserWrongUrlFixBtn');
-  if (fixBtn && !fixBtn.dataset.wired) {
-    fixBtn.dataset.wired = '1';
-    fixBtn.addEventListener('click', async () => {
-      recordButtonClick('Open any video on YouTube and retry');
-      const tab = await getActiveInjectableTab().catch(() => null);
-      if (tab?.id != null) {
-        chrome.tabs.update(tab.id, { url: WRONG_URL_FIX });
-      } else {
-        chrome.tabs.create({ url: WRONG_URL_FIX });
-      }
-      window.close();
-    });
-  }
+  // All wrong-URL paths share Figma 533:9884 (#wrongUrlFallAnim).
+  showWrongUrlFallAnim();
 }
 
 function wrongUrlMountParent() {
   if (document.body.classList.contains('onboarding-active')) {
     return document.getElementById('onboarding');
   }
-  return document.getElementById('scheduleScreen') || document.getElementById('popupWrapper');
+  return document.getElementById('popupWrapper') || document.getElementById('scheduleScreen');
 }
 
 function mountWrongUrlOverlay() {
@@ -4589,18 +6264,19 @@ async function ensureWatchUrlGate({ intent = 'schedule' } = {}) {
   const tab = await getActiveInjectableTab().catch(() => null);
   if (isYouTubeWatchUrl(tab?.url)) {
     hideWrongUrlPanel();
+    stopWrongUrlFallAnim();
     return true;
   }
   if (intent === 'idle' || intent === 'general') {
     hideWrongUrlPanel();
     return false;
   }
-  // Logged-out / pre-onboarding: NewUserWrongURL (Pain chrome). Logged-in: schedule overlay.
+  // Logged-out / pre-onboarding: NewUserWrongURL (Pain chrome). Logged-in: 444:7885 fall modal.
   if (intent === 'onboarding' || intent === 'new-user') {
     showNewUserWrongUrl();
     return false;
   }
-  await showWrongUrlPanel({ restore: intent !== 'onboarding' });
+  showWrongUrlFallAnim();
   return false;
 }
 
@@ -4629,7 +6305,7 @@ async function restoreLastScheduleSnapshot() {
   const durEl = document.getElementById('videoDuration');
   const thumbEl = document.getElementById('videoThumb');
   const bgEl = document.getElementById('schedBgImg');
-  if (titleEl && snap.title) titleEl.textContent = snap.title;
+  if (titleEl && snap.title) setSchedVideoTitle(snap.title);
   if (durEl && snap.durationLabel) durEl.textContent = snap.durationLabel;
   if (snap.thumbUrl) {
     if (thumbEl) thumbEl.src = snap.thumbUrl;
@@ -4652,58 +6328,53 @@ function hideWrongUrlPanel() {
   document.getElementById('onboarding')?.classList.remove('is-wrong-url');
   document.body.classList.remove('is-wrong-url');
   if (overlay) {
-    overlay.classList.remove('is-open');
-    overlay.classList.add('hidden');
-    overlay.hidden = true;
-    overlay.setAttribute('aria-hidden', 'true');
+    closeOverlay(overlay);
   }
   const scheduleBtn = document.getElementById('scheduleBtn');
   if (scheduleBtn && isYouTubeWatchUrl(cachedVideoUrl)) scheduleBtn.disabled = false;
 }
 
 async function showWrongUrlPanel({ restore = true } = {}) {
+  // Legacy overlay path → shared Figma 533:9884 sheet.
   if (typeof closeSchedPrefs === 'function') closeSchedPrefs();
   if (restore) await restoreLastScheduleSnapshot();
-
-  const overlay = mountWrongUrlOverlay();
-  const panel = document.getElementById('wrongUrlPanel');
-  if (!overlay || !panel) return;
-
-  const host = overlay.parentElement;
-  host?.classList.add('is-wrong-url');
-  document.body.classList.add('is-wrong-url');
-  overlay.hidden = false;
-  overlay.classList.remove('hidden');
-  overlay.classList.add('is-open');
-  overlay.setAttribute('aria-hidden', 'false');
-
+  showWrongUrlFallAnim();
   const scheduleBtn = document.getElementById('scheduleBtn');
   if (scheduleBtn) scheduleBtn.disabled = true;
   document.getElementById('slotGrid')?.querySelectorAll('.sched-slot').forEach(b => { b.disabled = true; });
-
-  const fixBtn = document.getElementById('wrongUrlFixBtn');
-  if (fixBtn && !fixBtn.dataset.wired) {
-    fixBtn.dataset.wired = '1';
-    fixBtn.addEventListener('click', async () => {
-      recordButtonClick('Open any video on YouTube and retry');
-      const tab = await getActiveInjectableTab().catch(() => null);
-      if (tab?.id != null) {
-        chrome.tabs.update(tab.id, { url: WRONG_URL_FIX });
-      } else {
-        chrome.tabs.create({ url: WRONG_URL_FIX });
-      }
-      window.close();
-    });
-  }
 }
 
-/* ── 36:2189 / 58:7076 Change Preferences: day → time in .sched-sheet ── */
+/* ── 36:2189 / 58:7076 Change Preferences: slide-up sheet (same as profile) ── */
 const PREFS_CHECK_SVG =
   '<svg class="prefs-day-check" viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">' +
   '<path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
   '</svg>';
 
-let prefsCollapsedBox = null;
+function prefsChipLabel(name) {
+  return (
+    `<span class="prefs-day-label">` +
+    `<span class="prefs-day-label-inner">${PREFS_CHECK_SVG}<span class="prefs-day-name">${name}</span></span>` +
+    `</span>`
+  );
+}
+
+function prefsChipHtml(name) {
+  return `<span class="prefs-day-hint">Moderately busy</span>${prefsChipLabel(name)}`;
+}
+
+/** Scan-derived busy hint — independent of whether the chip is selected. */
+function updatePrefsChipHint(btn) {
+  const hint = btn.querySelector('.prefs-day-hint');
+  if (!hint) return;
+  const key = btn.dataset.day || btn.dataset.slot;
+  const cache = btn.dataset.day ? prefsHintsCache.days : prefsHintsCache.slots;
+  hint.textContent = cache[key] || 'Moderately busy';
+}
+
+function paintAllPrefsHints() {
+  document.querySelectorAll('#prefsDays .prefs-day, #prefsTimes .prefs-day').forEach(updatePrefsChipHint);
+}
+
 let prefsHintsCache = { days: {}, slots: {} };
 
 function setBannerPressed(btn, on) {
@@ -4725,9 +6396,7 @@ function ensurePrefsDays() {
       btn.className = 'prefs-day';
       btn.dataset.day = key;
       btn.setAttribute('aria-pressed', 'false');
-      btn.innerHTML =
-        `<span class="prefs-day-hint">Moderately busy</span>` +
-        `<span class="prefs-day-label">${PREFS_CHECK_SVG}<span class="prefs-day-name">${PREFS_DAY_LABELS[key]}</span></span>`;
+      btn.innerHTML = prefsChipHtml(PREFS_DAY_LABELS[key]);
       btn.addEventListener('click', () => {
         const on = !btn.classList.contains('is-selected');
         btn.classList.toggle('is-selected', on);
@@ -4753,9 +6422,7 @@ function ensurePrefsTimes() {
       btn.className = 'prefs-day';
       btn.dataset.slot = def.key;
       btn.setAttribute('aria-pressed', 'false');
-      btn.innerHTML =
-        `<span class="prefs-day-hint">Moderately busy</span>` +
-        `<span class="prefs-day-label">${PREFS_CHECK_SVG}<span class="prefs-day-name">${def.label}</span></span>`;
+      btn.innerHTML = prefsChipHtml(def.label);
       btn.addEventListener('click', () => {
         const on = !btn.classList.contains('is-selected');
         btn.classList.toggle('is-selected', on);
@@ -4784,8 +6451,7 @@ function applyPrefsSelection(prefs) {
     const on = days.has(key);
     btn.classList.toggle('is-selected', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    const hint = btn.querySelector('.prefs-day-hint');
-    if (hint) hint.textContent = prefsHintsCache.days[key] || 'Moderately busy';
+    updatePrefsChipHint(btn);
   });
   setBannerPressed(document.getElementById('prefsSundayBtn'), days.has('sun'));
 
@@ -4794,8 +6460,7 @@ function applyPrefsSelection(prefs) {
     const on = slots.has(key);
     btn.classList.toggle('is-selected', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    const hint = btn.querySelector('.prefs-day-hint');
-    if (hint) hint.textContent = prefsHintsCache.slots[key] || 'Moderately busy';
+    updatePrefsChipHint(btn);
   });
   setBannerPressed(document.getElementById('prefsNightBtn'), slots.has(PREFS_NIGHT_KEY));
 }
@@ -4824,44 +6489,11 @@ function showPrefsStep(step) {
   time?.setAttribute('aria-hidden', isDay ? 'true' : 'false');
 }
 
-function prefsSheetBox(sheet, screen) {
-  const s = screen.getBoundingClientRect();
-  const r = sheet.getBoundingClientRect();
-  return {
-    left: r.left - s.left,
-    right: s.right - r.right,
-    top: r.top - s.top,
-    bottom: s.bottom - r.bottom,
-  };
-}
-
-function applyPrefsSheetBox(sheet, box) {
-  sheet.style.position = 'absolute';
-  sheet.style.left = `${box.left}px`;
-  sheet.style.right = `${box.right}px`;
-  sheet.style.top = `${box.top}px`;
-  sheet.style.bottom = `${box.bottom}px`;
-  sheet.style.width = 'auto';
-  sheet.style.zIndex = '5';
-  sheet.style.margin = '0';
-}
-
-function clearPrefsSheetBox(sheet) {
-  sheet.style.position = '';
-  sheet.style.left = '';
-  sheet.style.right = '';
-  sheet.style.top = '';
-  sheet.style.bottom = '';
-  sheet.style.width = '';
-  sheet.style.zIndex = '';
-  sheet.style.margin = '';
-}
-
-async function openSchedPrefs(step = 'day') {
-  const sheet = document.getElementById('schedSheet');
-  const backdrop = document.getElementById('schedPrefsBackdrop');
-  const screen = document.getElementById('scheduleScreen');
-  if (!sheet || !backdrop || !screen) return;
+async function openSchedPrefs(step = 'day', { fromSchedule = false } = {}) {
+  const overlay = mountOverlay('schedPrefsOverlay');
+  if (!overlay) return;
+  setProfileStackedUnder(true);
+  overlay.classList.toggle('is-from-schedule', fromSchedule);
 
   ensurePrefsDays();
   ensurePrefsTimes();
@@ -4883,6 +6515,7 @@ async function openSchedPrefs(step = 'day') {
   }
 
   await loadPrefsHints();
+  paintAllPrefsHints();
   const prefs = await loadUserPrefs(userId);
   if (!prefs.days?.length && !prefs.slots?.length) {
     applyPrefsSelection({ days: DEFAULT_PREF_DAYS, slots: DEFAULT_PREF_SLOTS });
@@ -4894,55 +6527,16 @@ async function openSchedPrefs(step = 'day') {
   }
 
   showPrefsStep(step);
-
-  if (!sheet.classList.contains('is-prefs')) {
-    prefsCollapsedBox = prefsSheetBox(sheet, screen);
-    applyPrefsSheetBox(sheet, prefsCollapsedBox);
-    sheet.classList.add('is-prefs');
-    backdrop.hidden = false;
-    backdrop.setAttribute('aria-hidden', 'false');
-    void sheet.offsetHeight;
-    requestAnimationFrame(() => {
-      backdrop.classList.add('is-open');
-      clearPrefsSheetBox(sheet);
-    });
-  }
+  openOverlay(overlay);
 }
 
 function closeSchedPrefs() {
-  const sheet = document.getElementById('schedSheet');
-  const dayPanel = document.getElementById('schedPrefsPanel');
-  const timePanel = document.getElementById('schedTimePrefsPanel');
-  const backdrop = document.getElementById('schedPrefsBackdrop');
-  const screen = document.getElementById('scheduleScreen');
-  if (!sheet || !screen || !sheet.classList.contains('is-prefs')) return;
-
-  const start = prefsSheetBox(sheet, screen);
-  const end = prefsCollapsedBox || { left: 8, right: 8, top: start.top, bottom: 8 };
-
-  applyPrefsSheetBox(sheet, start);
-  sheet.classList.remove('is-prefs');
-  dayPanel?.classList.add('hidden');
-  dayPanel?.setAttribute('aria-hidden', 'true');
-  timePanel?.classList.add('hidden');
-  timePanel?.setAttribute('aria-hidden', 'true');
-  backdrop?.classList.remove('is-open');
-
-  void sheet.offsetHeight;
-  requestAnimationFrame(() => applyPrefsSheetBox(sheet, end));
-
-  const finish = (ev) => {
-    if (ev && ev.target !== sheet) return;
-    if (ev && ev.propertyName && ev.propertyName !== 'top') return;
-    sheet.removeEventListener('transitionend', finish);
-    clearPrefsSheetBox(sheet);
-    if (backdrop) {
-      backdrop.hidden = true;
-      backdrop.setAttribute('aria-hidden', 'true');
-    }
-  };
-  sheet.addEventListener('transitionend', finish);
-  setTimeout(() => finish({ target: sheet, propertyName: 'top' }), 500);
+  const overlay = document.getElementById('schedPrefsOverlay');
+  if (!overlay || overlay.hidden) return;
+  // Keep day/time panels mounted through the slide-out — hiding them first
+  // collapses the sheet height and looks like a snap-close.
+  closeOverlay(overlay);
+  releaseProfileStackAfterSlide();
 }
 
 async function refreshSlotsAfterPrefsSave(userId) {
@@ -4954,6 +6548,13 @@ async function refreshSlotsAfterPrefsSave(userId) {
     chrome.storage.local.get('google_access_token', r)
   );
   const duration = (await getVideoDurationInMinutes()) || 10;
+  if (multiSessionState.plan) {
+    const result = await fetchMultiSessionSlots(userId, token, multiSessionState.plan);
+    multiSessionState.assigned = result.sessions;
+    multiSessionState.complete = result.complete;
+    paintMultiSessionUI();
+    return;
+  }
   const updatedSlots = await fetchAvailableCalendarSlots(userId, token, duration);
   availableSlots = updatedSlots;
   populateDropdown(updatedSlots);
@@ -4964,17 +6565,17 @@ function wireSchedPrefs(userId) {
   if (wireSchedPrefs._done) return;
   wireSchedPrefs._done = true;
 
-  document.getElementById('changePrefsBtn')?.addEventListener('click', () => openSchedPrefs('day'));
+  document.getElementById('changePrefsBtn')?.addEventListener('click', () => openSchedPrefs('day', { fromSchedule: true }));
   document.getElementById('prefsCloseBtn')?.addEventListener('click', () => closeSchedPrefs());
   document.getElementById('prefsTimeCloseBtn')?.addEventListener('click', () => closeSchedPrefs());
   document.getElementById('schedPrefsBackdrop')?.addEventListener('click', () => closeSchedPrefs());
   document.getElementById('prefsNextBtn')?.addEventListener('click', () => showPrefsStep('time'));
-  document.getElementById('prefsTimeBackBtn')?.addEventListener('click', () => showPrefsStep('day'));
+  document.getElementById('prefsTimeHeaderBackBtn')?.addEventListener('click', () => showPrefsStep('day'));
   document.getElementById('prefsSaveBtn')?.addEventListener('click', async () => {
     const id = wireSchedPrefs._userId;
     const selected = readPrefsFromUi();
     if (!selected.days.length || !selected.slots.length) {
-      showToast('Pick at least one day and one time slot');
+      showToast('Pick at least one day and one time slot', 'info');
       return;
     }
     const btn = document.getElementById('prefsSaveBtn');
@@ -4985,12 +6586,12 @@ function wireSchedPrefs(userId) {
     });
     if (btn) btn.disabled = false;
     if (!ok && !window.__WL_PREVIEW__) {
-      showToast('Failed to save preferences');
+      showToast('Failed to save preferences', 'error');
       return;
     }
     closeSchedPrefs();
     await refreshSlotsAfterPrefsSave(id);
-    showToast('Preferences saved');
+    showToast('Preferences saved', 'success');
   });
   document.getElementById('prefsSundayBtn')?.addEventListener('click', (e) => {
     const btn = e.currentTarget;
@@ -5091,7 +6692,6 @@ function showConfetti() {
  */
 function openShareModal() {
   // 1) Hide any open profile menu
-  document.getElementById('profileMenu')?.classList.add('hidden');
 
   // 2) Create the overlay + modal container
   const overlay = document.createElement('div');

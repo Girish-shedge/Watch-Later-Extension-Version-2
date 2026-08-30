@@ -1,0 +1,14 @@
+<svg width="308" height="68" viewBox="0 0 308 68" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <!-- Exported from Figma 513:1167 — frosted title band (2-line, 308×68) -->
+  <foreignObject x="-40" y="-40" width="388" height="148"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(20px);clip-path:url(#schedTitleBlurClip2);height:100%;width:100%"></div></foreignObject>
+  <g>
+    <path d="M0 0H308V52C308 60.8366 300.837 68 292 68H16C7.16345 68 0 60.8366 0 52V0Z" fill="url(#schedTitleGrad2)" style="mix-blend-mode:overlay"/>
+  </g>
+  <defs>
+    <clipPath id="schedTitleBlurClip2" transform="translate(40 40)"><path d="M0 0H308V52C308 60.8366 300.837 68 292 68H16C7.16345 68 0 60.8366 0 52V0Z"/></clipPath>
+    <linearGradient id="schedTitleGrad2" x1="154" y1="0" x2="154" y2="68" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+</svg>

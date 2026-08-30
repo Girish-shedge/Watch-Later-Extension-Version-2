@@ -8,21 +8,31 @@ const ANON_KEY   = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SRV_KEY    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY")!;
 
+// manifest.json pins the extension id via its "key" field, so this origin is stable.
+const EXTENSION_ORIGIN = "chrome-extension://hkekbdlgnmjpbaijipkanenaeabhegfk";
+
+// Reflecting an arbitrary Origin let any website call this from a browser.
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  const headers: Record<string, string> = { Vary: "Origin" };
+  if (origin === EXTENSION_ORIGIN) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+
 serve(async (req) => {
   // ——— CORS PRE-FLIGHT ———
-  const origin = req.headers.get("Origin") ?? "*";
+  const corsHeaders = corsFor(req);
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
       headers: {
-        "Access-Control-Allow-Origin":      origin,
+        ...corsHeaders,
         "Access-Control-Allow-Methods":     "POST, OPTIONS",
         "Access-Control-Allow-Headers":     "Authorization, Content-Type",
         "Access-Control-Max-Age":           "3600"
       }
     });
   }
-  const corsHeaders = { "Access-Control-Allow-Origin": origin };
 
   // ——— AUTHENTICATE ———
   const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");

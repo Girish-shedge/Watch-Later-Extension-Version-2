@@ -88,4 +88,34 @@ assert.strictEqual(
 );
 
 assert.ok(WEEKDAY_KEYS.includes('sun'));
+
+// Multi-session plan: even split, banner + cards share sessionLengthMin
+{
+  const plan = algo.computeSessionPlan(166, { LONG_VIDEO_THRESHOLD_MINUTES: 165 });
+  assert.ok(plan);
+  assert.strictEqual(plan.sessionCount, 2);
+  assert.strictEqual(plan.sessionLengthMin, 83);
+  assert.strictEqual(plan.sessions.length, 2);
+  assert.strictEqual(plan.sessions[0].videoOffsetStartSec, 0);
+  assert.strictEqual(plan.sessions[1].videoOffsetStartSec, plan.sessions[0].videoOffsetEndSec);
+  assert.strictEqual(algo.formatSessionLengthWhy(83), '1h 23m');
+  assert.strictEqual(algo.formatSessionLengthWhy(60), '1h');
+  assert.strictEqual(algo.formatSessionLengthWhy(90), '1h 30m');
+  assert.strictEqual(algo.computeSessionPlan(165, { LONG_VIDEO_THRESHOLD_MINUTES: 165 }), null);
+}
+
+{
+  algo.validateSessionPlan([
+    { date: '2026-07-22', start: '2026-07-22T10:00:00.000Z' },
+    { date: '2026-07-23', start: '2026-07-23T10:00:00.000Z' },
+  ]);
+  assert.throws(
+    () => algo.validateSessionPlan([
+      { date: '2026-07-22', start: '2026-07-22T10:00:00.000Z' },
+      { date: '2026-07-22', start: '2026-07-22T10:00:00.000Z' },
+    ]),
+    /Duplicate session slot/
+  );
+}
+
 console.log('✅ slot-algorithm-selfcheck passed');

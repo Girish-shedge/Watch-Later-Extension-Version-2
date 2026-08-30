@@ -1,40 +1,83 @@
-/* 1) Import Manrope from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap');
-/* Fallback for Proxima Nova Condensed (commercial font used in the Figma design system) */
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&display=swap');
+/* Proxima Nova — bundled from uploaded Proxima Nova/ (Figma Extension - V2 text styles) */
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('fonts/Proxima-Nova-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('fonts/Proxima-Nova-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('fonts/Proxima-Nova-Semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* Figma Bold (700) — Heading + Button */
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('fonts/Proxima-Nova-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('fonts/Proxima-Nova-Extrabold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  /* ???? Figma design tokens ? source: "Extension - V2" (PrF1j2l2jxbROee7Ek6PW8) ????
+  /* Figma design tokens — source: "Extension - V2" (PrF1j2l2jxbROee7Ek6PW8)
      v2 UI must use ONLY these tokens (no hardcoded colors/spacing/type/radius). */
 
-  /* Typography (Figma text styles ? Final Flow local styles) */
-  --font-condensed: 'Proxima Nova Condensed', 'Barlow Semi Condensed', sans-serif;
-  --type-heading: 700 26px/28px var(--font-condensed);   /* Heading */
-  --type-highlight: 800 18px/22px var(--font-condensed); /* Highlight Text */
-  --type-button: 700 16px/20px var(--font-condensed);    /* Button */
-  --type-label: 600 12px/16px var(--font-condensed);     /* Label */
-  --type-body: 600 16px/20px var(--font-condensed);      /* Body Text */
-  --type-subtext: 600 14px/18px var(--font-condensed);   /* Sub-Text */
-  --type-timestamp: 600 12px/16px var(--font-condensed); /* snapped to 4pt (was 11.5/13) */
-  --type-date: 800 14px/18px var(--font-condensed);      /* calendar date number */
-  --tracking-body: 0.016em;     /* Body Text 1.6% */
-  --tracking-subtext: 0.01em;   /* Sub-Text 1% */
-  --tracking-timestamp: 0;
+  /* Typography — Figma local text styles. Edit once here; use .text-* utility classes
+     + `letter-spacing: var(--tracking-*)` at call sites. */
+  --font-condensed: 'Proxima Nova', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --type-heading: 700 26px/32px var(--font-condensed);   /* Heading 26/32 Bold — Figma */
+  --type-highlight: 800 18px/22px var(--font-condensed); /* Highlight Text 18/22 Extrabold */
+  --type-button: 700 14px/16px var(--font-condensed);    /* Button 14/16 Bold */
+  --type-body: 600 16px/22px var(--font-condensed);      /* Body Text 16/22 Semibold */
+  --type-subtext: 600 14px/18px var(--font-condensed);   /* Sub-Text 14/18 Semibold */
+  --type-label: 600 12px/16px var(--font-condensed);     /* Label 12/16 Semibold */
+  --type-timestamp: 600 12px/16px var(--font-condensed); /* timestamp (snapped to Label) */
+  --type-date: 800 14px/18px var(--font-condensed);      /* calendar date number — Extrabold */
+  --tracking-heading: -0.02em;     /* Heading −2% */
+  --tracking-highlight: -0.02em;   /* Highlight −2% */
+  --tracking-button: -0.004em;     /* Button −0.4% */
+  --tracking-body: -0.008em;       /* Body −0.8% */
+  --tracking-subtext: -0.01em;     /* Sub-Text −1% */
+  --tracking-label: -0.014em;     /* Label −1.4% */
+  --tracking-timestamp: -0.014em;  /* same as Label */
+  --tracking-date: -0.02em;        /* calendar date — match Highlight */
 
   /* Colors (Figma color styles) */
   --color-text-primary: #000000;   /* Text-Primary */
   --color-text-inverse: #ffffff;   /* Text-Inverse */
   --color-text-label: #666666;     /* card label grey */
   --color-pink: #e75da8;           /* Pink */
-  --color-onb-unwatched: #ff0000;  /* Pain stamp ? Figma `red` */
-  --color-onb-watched: #00601e;    /* Promise stamp (Figma 143:4481) */
+  --color-onb-unwatched: #fa463d;  /* Alert — Figma 531:1080 Pain stamp */
+  --color-onb-watched: #029431;    /* Success — Figma 546:17023 Promise stamp */
   --color-onb-title: rgba(19, 19, 19, 0.75); /* Body on cards 143:4421 */
   --color-onb-duration-bg: rgba(0, 0, 0, 0.75); /* thumb duration chip */
   --onb-thumb-w: 111px; /* Figma 110.693 */
   --onb-thumb-h: 62px;
   --onb-duration-w: 19px; /* scaled schedule pill 53?0.359 */
   --onb-duration-h: 7px;  /* scaled 20?0.359 */
-  --type-onb-duration: 800 4px/4px var(--font-condensed); /* scaled Label 12 */
+  --type-onb-duration: 600 4px/4px var(--font-condensed); /* Figma 432:643 Semibold 4/4 */
+  --onb-card-body-h: 64px; /* Figma onbCardRow 432:640 */
+  --onb-title-h: 44px;     /* 2× Highlight 22 */
+  --onb-heading-row-gap: 6px; /* Figma 432:700 / 434:443 */
+  --onb-chip-rot: -2deg;   /* pink in-text chip — global */
   --color-surface-white: #ffffff;  /* Surface-White */
   --color-grey-grad-start: #d9d9d9; /* Grey-Gradient */
   --color-grey-grad-end: #f5f5f5;
@@ -43,33 +86,86 @@
   --onb-cards-gap: var(--space-4); /* 16 ? Figma onbCards 143:4413 */
   --onb-cards-pad-y: var(--space-2); /* 8 top/bottom; 0 left/right */
   --onb-card-max-w: 324px; /* Pain/Promise card max width */
-  --auth-warn-banner-w: 300px; /* Figma authWarnBanner content */
+  --auth-warn-banner-w: 300px; /* Figma authWarnBanner 545:16510 / 418:1083 */
   --auth-warn-banner-h: 34px;
+  --auth-warn-banner-px: var(--space-4); /* Figma 545:16510 horizontal pad 16 */
+  --auth-warn-banner-stroke-w: 1.5px; /* Figma 549:17073 outside stroke */
+  --color-warning-stroke-top: rgba(133, 77, 14, 0.1); /* #854D0E @10% */
+  --color-warning-stroke-bottom: rgba(254, 249, 195, 0.1); /* #FEF9C3 @10% */
+  --icon-stroke-w: 1.2px; /* Tabler icons global */
+  --nav-icon-size: 32px; /* history / profile shared nav chrome */
+  --prefs-nav-icon-size: 28px; /* prefs sheet header back/close */
+  --nav-icon-stroke-w: 2px;
+  --color-nav-icon-bg: #e6e6e6;
+  --color-nav-icon-stroke-start: #ffffff;
+  --color-nav-icon-stroke-end: #d9d9d9;
+  --color-feedback-field-border: #e6e6e6; /* Figma 533:4990 stroke */
+  --feedback-text-h: 176px; /* 8 lines @ 22px — ~250 chars without scroll */
+  --feedback-field-h: 240px; /* 16 pad + 176 text + 16 count + 32 pad */
+  --sched-slot-selected-stroke-w: 1.6px; /* Figma 532:2742 selected time body */
   --color-accent-grad-start: #6647f0; /* primary purple button gradient */
   --color-accent-grad-end: #3b13ec;
   --color-ticker-active: #d9d9d9;
   --color-ticker-inactive: rgba(217, 217, 217, 0.5);
-  --color-btn-sheen-start: rgba(255, 255, 255, 0); /* sheen dialed down per onboarding polish */
-  --color-btn-sheen-end: rgba(255, 255, 255, 0);
-  --color-btn-inner-border: rgba(255, 255, 255, 0.4);
-  --color-btn-inner-border-end: rgba(59, 19, 236, 0); /* ring fades out at bottom */
-  --color-overlay-dark: rgba(40, 40, 40, 0.5);   /* screens 3–4 card-stack overlay */
-  --color-overlay-light: rgba(255, 255, 255, 0.5);
-  /* Auth dim (Figma 171:743): #282828 → #FFFFFF @ 50% fill opacity */
-  --color-auth-dim-top: rgba(40, 40, 40, 0.5);
-  --color-auth-dim-bottom: rgba(255, 255, 255, 0.5);
+  --color-btn-sheen-start: rgba(255, 255, 255, 0.2); /* Figma btnLabel fill white@20% top */
+  --color-btn-sheen-end: rgba(255, 255, 255, 0);     /* same gradient, bottom stop @ 0% × 20% layer */
+  --color-btn-inner-border: rgba(255, 255, 255, 0.9); /* Figma 432:707 primary stroke stop 0 */
+  --color-btn-inner-border-end: var(--color-accent-grad-end); /* primary stroke stop 1 #3B13EC */
+  --color-btn-inner-border-secondary: #ffffff; /* Figma 541:15814 secondary stroke stop 0 */
+  --color-btn-secondary-text: #131313; /* Figma 541:15814 Btn label */
+  --color-btn-secondary-inner-end: #d9d9d9; /* Figma 541:15814 secondary stroke stop 1 */
+  --heading-line-h: 32px; /* Figma 531:1132 / 546:17055 Heading line-height */
+  --onb-modal-enter-ms: 650ms;
+  --onb-modal-enter-stagger: 200ms;
+  --onb-modal-enter-travel: 18px;
+  --onb-perm-enter-ms: 450ms;
+  --onb-perm-stagger-ms: 140ms;
+  /* Figma Failed-Gradient (531:958) / Success-Linear (546:16896) */
+  --color-overlay-dark: rgba(58, 58, 58, 0.75); /* sheet backdrop top #3A3A3A @75% */
+  --color-overlay-light: rgba(255, 255, 255, 0.75); /* sheet backdrop bottom @75% */
+  /* Auth dim — same sheet backdrop as modals */
+  --color-auth-dim-top: var(--color-overlay-dark);
+  --color-auth-dim-bottom: var(--color-overlay-light);
   --color-auth-video-fade-start: rgba(200, 202, 206, 0.05); /* Animation VIDEO overlay stop 0 */
   --shadow-auth-warn: 2px 2px 6px rgba(234, 234, 229, 0.5); /* Figma 171:800 */
   --color-tint-pink: #f8d3e7;   /* screen 3 tinted modal gradient */
   --color-tint-blue: #d8eeff;
   --color-perm-keyword: #4b0090; /* screen 4 permission cards */
   --color-perm-text: #494949;
-  --color-perm-border: #e0e0e0;
+  --color-perm-border: #e6e6e6; /* Figma 532:2491 Stroke-Grey */
   --color-perm-grad-end: #eee7fd;
-  --color-cal-header: #909090;   /* screen 5 calendar scan */
-  --color-cal-day: #d7d7d7;
-  --color-cal-border: #e1e1e1;
-  --color-cal-cell-grad-end: #faf4ff;
+  /* Calendar scan (Figma 422:1594 / 418:978) — Plugin API dump 2026-08-12 */
+  --color-cal-header-bg: #ede9fd;
+  --color-cal-month: #6647f0;
+  --color-cal-month-fade: #c6b9f9;
+  --color-cal-scanned-day: rgba(102, 71, 240, 0.5);
+  --color-cal-cell-text: #c7c7c7;
+  --color-cal-cell-fill-end: #f5f5f5;
+  --color-cal-cell-stroke-end: #d9d9d9;
+  --color-cal-scanned-fill-end: #faf4ff;
+  --color-cal-scanned-stroke-end: #e0c2ff;
+  --color-cal-scanned-ledge: #eddbff;
+  --color-cal-date-inset: #adadad;
+  --shadow-cal-cell: 0 2px 0 0 #d9d9d9, 0 4px 6px 0 rgba(102, 71, 240, 0);
+  --shadow-cal-scanned: 0 2px 0 0 #eddbff, 0 4px 6px 0 rgba(102, 71, 240, 0.35);
+  --shadow-cal-date-inset: 0 -1px 1px #adadad;
+  --shadow-cal-date-scanned-inset: 0 -1px 1px #6647f0;
+  --blur-cal-month-fade: 1px;    /* LAYER_BLUR radius 1 on prev/next month labels */
+  --blur-cal-dim: 2px;           /* Figma 380:2883 BACKGROUND_BLUR */
+  --cal-dim-fill: 75%;           /* Figma 380:2883 gradient fill opacity */
+  --cal-fade-ms: 400ms;          /* paired with CAL_FADE_MS — medium page/month swap */
+  --cal-cell-ms: 260ms;          /* paired with CAL_CELL_MS */
+  --cal-bounce-peak: 1.08;       /* incoming grid spring overshoot */
+  --color-cal-dim-top: #4f4f4f;  /* Figma 380:2883 overlay stop 0 */
+  --cal-cell-w: 36px;
+  --cal-cell-h: 40px;
+  --cal-month-label-w: 75px;
+  --cal-month-div-w: 37.5px;     /* Figma 422:1597 / 422:1599 */
+  --cal-month-step: calc(var(--cal-month-label-w) + var(--cal-month-div-w));
+  --cal-month-rest: calc(-2 * var(--cal-month-step)); /* window shows slots -1, 0, +1 */
+  --cal-header-inset: 3px;
+  --cal-slider-h: 22px;
+  --radius-cal-grid: 10px;
   --color-scan-veil: rgba(235, 231, 253, 0.85);
   --color-warning-bg: #fef9c3;   /* status/warning */
   --color-warning-text: #854d0e;
@@ -80,81 +176,188 @@
   --color-accent-selected-bg: #f7f6fe;
   --color-prefs-hint: #707070;           /* day busy label */
   --color-prefs-close-bg: rgba(0, 0, 0, 0.09);
+  --prefs-chip-rot: -1deg; /* Figma 380:3664 / 380:4034 day/time chip */
   --color-sunday-grad-start: #ffdbe7;
   --color-sunday-grad-end: #ffc0d5;
   --color-sunday-text: #df004a;
+  --color-sunday-title: #df004a; /* Figma 516:1251 / 499:1795 banner title */
+  --color-sunday-sub: rgba(223, 0, 74, 0.75); /* Figma 516:1252 / 499:1796 */
   --color-sunday-btn: #ff3479;
   --color-sunday-btn-border: #da004a;
+  --color-sunday-check-bg: #ff3479;
+  --color-sunday-check-border: #da004a;
   --color-sunday-glass: rgba(255, 255, 255, 0.2);
   --color-sched-dim: #000000; /* Figma 36:1908 fill; soft-light blend */
   --color-sched-noise: rgba(0, 0, 0, 0.25); /* Figma noise mono @ 25% */
-  /* Light ?45? rims ? intensity 0.8 ? hi 0.55?0.8, lo 0.28?0.8 */
-  --color-sched-glass-hi: rgba(255, 255, 255, 0.44);
-  --color-sched-glass-lo: rgba(0, 0, 0, 0.224);
-  --color-slot-label: #6b6b6b;
-  --color-slot-muted: #333333;
-  --color-slot-time: #2b2b2b;
-  --color-slot-border: #d7d7d7;
+  /* Profile menu 533:3931 / 549:17399 / 560:18332 */
+  --color-profile-grad-start: #ffdbe7;
+  --color-profile-grad-mid: #cbe2fe;
+  --profile-grad-stop-2: 56.21%; /* Figma 533:3931 fill stops */
+  --profile-grad-stop-3: 100%;
+  --profile-grad-cover: 75%; /* color band ends ~3/4 down the panel */
+  --color-menu-card-border: #eaeaea;
+  --color-menu-divider: #e6e6e6; /* Figma Stroke-Grey */
+  --color-stat-divider: #e6e6e6;
+  --color-profile-row-icon-bg: #f3f1fe; /* Primary 5% */
+  --color-profile-row-hover: #f3f1fe; /* same lavender wash as row icons */
+  --color-profile-stat-value: rgba(19, 19, 19, 0.75);
+  --color-profile-gift-stroke: #ffffff;
+  --color-profile-gift-stroke-end: var(--color-accent-grad-end); /* #3B13EC */
+  --btn-stroke-w-gift: 0.889px; /* Figma 549:17360 OUTSIDE stroke */
+  /* Stars vs 48px avatar — Figma 549:17355 / 549:17359 (panel-relative → wrap) */
+  --profile-star-tr-top: 0px;
+  --profile-star-tr-right: -16px; /* left edge at avatar right */
+  --profile-star-bl-left: -12px;
+  --profile-star-bl-top: 36px;
+  --profile-count-ms: var(--success-star-ms); /* 0→N ease-in-out */
+  --color-input-border: #e1e1e1;
+  --color-input-placeholder: #6f6f6f;
+  --color-trend-up-bg: rgba(0, 207, 38, 0.1);
+  --color-trend-up-text: #008f11;
+  --color-trend-down-bg: #ffddde;
+  --color-trend-down-text: #ff0b0f;
+  --color-profile-close-bg: rgba(0, 0, 0, 0.1);
+  --blur-sheet-backdrop: 2px;
+  --blur-profile-backdrop: var(--blur-sheet-backdrop);
+  --profile-enter-ms: var(--success-enter-ms);
+  --profile-card-ms: var(--success-card-ms);
+  --profile-card-text-ms: var(--success-card-text-ms);
+  --profile-copy-ms: var(--success-copy-ms);
+  --profile-copy-stagger: var(--success-copy-stagger);
+  --profile-star-ms: var(--success-star-ms);
+  --profile-content-ms: 280ms; /* legacy cascade fallback */
+  /* Delete confirm 116:5060 ? amber video banner */
+  --color-delete-video-start: #fefcef;
+  --color-delete-video-end: #fef9cd;
+  --color-delete-video-border: #f5edc4;
+  --color-delete-video-text: #854d0e;
+  /* Schedule sheet 532:2721 */
+  --color-slot-label: #666666; /* Grey — “Select Time Slot” */
+  --color-slot-muted: rgba(19, 19, 19, 0.75); /* Text-Primary @75% — date/weekday */
+  --color-slot-time: #131313; /* Text-Primary — time body */
+  --color-slot-border: transparent; /* unselected time body has no stroke in Figma */
   --color-slot-header-start: rgba(242, 242, 242, 0.5);
   --color-slot-header-end: rgba(218, 218, 218, 0.5);
-  --color-slot-selected-bg: #f7f6fe;
-  --color-video-fade-start: rgba(0, 0, 0, 0); /* 72:154 overlay stop 0 */
-  --color-video-fade-end: rgba(0, 0, 0, 0.5); /* 72:154 overlay stop 1 */
+  --color-sched-prefs-bg: #f3f1fe; /* Primary 5% — selected slot + multi shell */
+  --color-sched-prefs-btn-bg: rgba(59, 19, 236, 0.08); /* Figma 533:6011 Change Preferences */
+  --color-slot-selected-bg: var(--color-sched-prefs-bg);
+  --type-slot-time: 600 13px/18px var(--font-condensed); /* Figma 532:2737 / 533:5991 Sub-Text 13/18 */
+  /* Multi-session schedule (Figma 380:7315 / 380:7379) */
+  --multi-session-banner-h: 48px;
+  --multi-session-banner-overlap: 20px;
+  --multi-session-banner-pt: 6px;
+  --multi-session-banner-pb: 8px;
+  --color-multi-why-backdrop: rgba(0, 0, 0, 0.5); /* Why sheet dim — Figma 400:9920 */
+  --multi-session-card-h: 59px; /* Figma 533:5985 session card */
+  --multi-session-card-py: var(--space-2);
+  --multi-session-area-h: 170px; /* Figma 533:5979 (2 sessions) */
+  --frame-h-multi: 551px; /* 2-session @ pad 8/8/8 — computeMultiFrameHeight(2) */
+  --color-multi-session-shell-border: var(--color-accent-grad-end); /* #3B13EC — Figma 533:5983 */
+  --color-multi-session-card-border: var(--color-sched-prefs-bg); /* #f3f1fe — Figma 533:5985 */
+  --color-multi-session-divider: var(--color-perm-border); /* Stroke-Grey #e6e6e6 */
+  --sched-title-frame-h-1: 46px; /* Figma 513:1176 — 1-line title band */
+  --sched-title-frame-h-2: 68px; /* Figma 513:1167 — 2-line title band */
   --color-wrong-url-fade: rgba(255, 255, 255, 0.19); /* 36:2103 art sheen */
   --color-offline-fact-start: #ec2ef8; /* 36:3013 fact card */
   --color-offline-fact-end: #e435d9;
-  /* 102:1204 View history playlist */
-  --color-history-filter-bg: #f0f0f0;
+  /* 533:7243 View history playlist */
   --color-history-title: #131313;
-  --color-history-search-muted: #6e6e6e;
-  --color-history-filter-text: #2b2b2b;
+  --color-history-tabs-bg-start: #f2f2f2; /* Figma 533:7258 S-Btn gradient */
+  --color-history-tabs-bg-end: #d9d9d9;
+  --color-history-tab-text: rgba(19, 19, 19, 0.75);
+  --color-history-row-sub: #808080; /* Text-Secondary — Figma 533:7287 */
+  --shadow-history-tab: 0 -2px 8px rgba(0, 0, 0, 0.05); /* Figma 533:7259 active tab */
+  --history-nav-icon-size: 28px; /* Figma 533:7245 / 533:7253 */
   --color-history-divider: #e6e6e6;
   --color-history-icon-bg: rgba(0, 0, 0, 0.06);
   --color-history-icon-bg-strong: rgba(0, 0, 0, 0.09);
   --color-history-trash-start: #f2f2f2;
-  --color-history-trash-end: #cccccc;
-  --color-history-action-ring: rgba(255, 255, 255, 0.75);
+  --color-history-trash-end: #d9d9d9;
+  --color-history-action-ring: rgba(255, 255, 255, 0.9);
+  --color-history-action-ring-end: var(--color-accent-grad-end);
+  --color-history-trash-ring: #ffffff;
+  --color-history-trash-ring-end: #cccccc;
   --color-history-action-sheen: rgba(255, 255, 255, 0.2);
-  --history-filter-w: 140px; /* fits Scheduled (99) + chevron */
-  --history-row-h: 38px;
-  --history-row-gap: 10px;
-  /* 4 row wraps (Figma 110:1425 / 102:1204): each wrap = row + divider(+gap) except last; + 3 margins between wraps */
+  --color-history-empty-art: #e6e6e6;
+  --color-history-empty-heading: rgba(19, 19, 19, 0.75);
+  --color-history-empty-sub: #808080;
+  --history-panel-h: 436px; /* Figma 533:7243 lock */
+  --history-row-h: 40px;
+  --history-row-gap: 8px; /* 8 + divider + 8 between rows */
+  /* 5 text rows (40) + 4 dividers + 8 gaps around each of 4 dividers = 268 */
   --history-list-h: calc(
-    (4 * var(--history-row-h)) + (3 * 1px) + (3 * var(--history-row-gap)) + (3 * var(--history-row-gap))
+    (5 * var(--history-row-h)) + (4 * 1px) + (8 * var(--history-row-gap))
   );
-  --history-panel-h: 379px; /* Figma 102:1204 fixed modal height */
+  --history-empty-list-h: 316px; /* Figma empty block — no pager */
+  --blur-history-backdrop: var(--blur-sheet-backdrop);
 
-  /* 58:6710 Schedule success modal */
+  /* 541:15067 Schedule success (was 380:5065) */
   --color-success-grad-1: #c9ffa3;
   --color-success-grad-2: #9bff9d;
   --color-success-grad-3: #c2ffce;
-  --color-success-card-border: #cabdff;
+  --color-success-card-border: #9bff9d; /* front card 2px green rim */
   --color-success-card-title: #1f1f1f;
   --color-success-ghost-time: #606060;
-  --color-success-time-start: #4b0090;
-  --color-success-time-end: #411bec;
-  --color-success-btn-text: #111111;
-  --shadow-success-card: 0 2px 6px rgba(206, 206, 206, 0.25);
-  --success-panel-h: 400px;
+  --color-success-time-start: var(--color-accent-grad-start);
+  --color-success-time-end: var(--color-accent-grad-end);
   --success-card-w: 280px;
+  --success-hero-h: 204px;
+  --radius-success-card: 16px;
+  --type-success-copy: 600 16px/22px var(--font-condensed); /* Figma card title + body 16/22 Semibold */
+  --success-copy-travel: 18px;
+  --success-enter-ms: 550ms; /* outcome sheet — medium (between shared 420 and prior slow 680) */
+  --success-card-ms: 650ms;
+  --success-card-text-ms: 450ms; /* card text fades in after shell (--success-enter-ms + --success-card-ms) */
+  --success-copy-ms: 550ms;
+  --success-copy-stagger: 200ms;
+  --success-star-ms: 650ms;
+  --success-star-stagger: 100ms;
+  --success-grad-stop-2: 27.79%; /* Figma 541:15067 fill stops */
+  --success-grad-stop-3: 69.24%;
+  --success-grad-cover: 56%; /* Figma transform scale ~1.784 — color band ends ~mid panel */
+  --blur-success-backdrop: var(--blur-sheet-backdrop);
+
+  /* 541:15659 Schedule failed — same shell, Failed-Gradient + alert text */
+  --color-fail-grad-1: #ffa3ae;
+  --color-fail-grad-2: #ff9b9d;
+  --color-fail-grad-3: #ffd6dd;
+  --fail-grad-stop-2: 34.17%; /* Figma 541:15659 fill stops */
+  --fail-grad-stop-3: 68.63%;
+  --fail-grad-cover: 62%; /* Figma transform scale ~1.618 */
+  --color-fail-card-border: #ffa3ae;
+  --color-fail-error-text: var(--color-onb-unwatched); /* Alert #fa463d */
+  /* Shared bottom-sheet slide (profile / success / prefs / history / feedback / …).
+     Paired with SHEET_SLIDE_MS / MODAL_ANIM_MS / PROFILE_SLIDE_MS / SUCCESS_SLIDE_MS. */
+  --sheet-slide-ms: 420ms;
+  --success-slide-ms: var(--sheet-slide-ms);
+  --profile-slide-ms: var(--success-enter-ms);
+  /* Toast (380:7845) — bottom center; hold 1.5s then slide down; paired with TOAST_MS / TOAST_SLIDE_MS */
+  --toast-slide-ms: 280ms;
+  --toast-hold-ms: 1500ms;
+  --toast-bottom-inset: 40px;
+  --toast-slide-travel: 12px;
+  --color-toast-success-from: #e7ffea;
+  --color-toast-success-to: #ccffd2;
+  --color-toast-error-from: #ffe5e6;
+  --color-toast-error-to: #ffcccd;
+  --color-toast-info-from: #ebe7fd;
+  --color-toast-info-to: #d8d0fb;
+  --shadow-toast: 0 2px 12px rgba(220, 220, 220, 0.25), 0 4px 24px rgba(91, 91, 91, 0.25);
+  --shadow-toast-inset: inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-toast-icon-success: inset 0 -1.333px 5.333px rgba(0, 143, 17, 0.35);
+  --shadow-toast-icon-error: inset 0 -1.333px 5.333px rgba(255, 11, 15, 0.35);
+  --shadow-toast-icon-info: inset 0 -1.333px 5.333px rgba(59, 19, 236, 0.35);
+
+  /* Motion — v2 default easing for sheets, modals, toasts, cascades (see rules.mdc → Motion) */
+  --motion-ease: ease-in-out;
 
   /* Effects (Figma effect styles) */
   --shadow-modal: 0 -2px 16px rgba(0, 0, 0, 0.05); /* Modal */
   --shadow-chip: 0 1px 12px #f9d4e8;               /* Chips */
   --shadow-card: 2px 2px 12px rgba(234, 234, 229, 0.5); /* shadow/modal-card */
-  --blur-sched-bg: 80px;     /* 36:1907 layer blur */
-  --blur-sched-dim: 40px;    /* 77:156 Dev Mode CSS; Figma effect radius is 80 */
-  --blur-sched-title: 40px;  /* 36:1926 progressive BACKGROUND_BLUR end radius */
-  --blur-prefs-backdrop: 2px; /* 58:7004 BACKGROUND_BLUR */
-  /* 36:1911 / 36:1919 Figma Glass (screenshot: light ?45?/80%, refraction 80, depth 20, dispersion 50, frost 4, splay 0) */
-  --sched-glass-frost: 4px;           /* Frost */
-  --sched-glass-refraction: 0.8;      /* Refraction 80 */
-  --sched-glass-depth: 20;            /* Depth */
-  --sched-glass-light-intensity: 0.8; /* Light intensity 80% */
-  --sched-glass-dispersion: 0.5;      /* Dispersion 50 */
-  --sched-glass-splay: 0;             /* Splay 0 */
-  /* displace scale ? depth ? refraction */
-  --sched-glass-displace: 16;
+  --blur-sched-bg: 80px;     /* 380:3586 layer blur */
+  --blur-sched-dim: 40px;    /* 380:3587 / 380:3588 dim blur */
+  --blur-prefs-backdrop: var(--blur-sheet-backdrop);
   --sched-bg-pos-y: 11.41%;  /* Pixel stretch Transform Y */
   --sched-noise-size: 0.5;   /* Figma noise size X/Y */
 
@@ -167,35 +370,176 @@
   --space-6: 24px;
   --space-7: 28px;
   --space-8: 32px;
-  /* Figma Outer Btn shell pad (58:7314) ? 3px, not on the 4pt scale */
-  --pad-btn-shell: 3px;
+  /* Figma Btn shell pad — primary 432:707 = 4px; secondary 541:15814 = 4px */
+  --pad-btn-shell: 4px;
+  --pad-btn-shell-secondary: 4px;
+  --btn-h: 40px; /* Figma primary/secondary button outer height */
+  --btn-stroke-w: 1.5px; /* Figma 432:707 btnLabel stroke */
+  --btn-stroke-w-secondary: 1.5px; /* Figma 541:15814 btnLabel stroke */
 
   /* Radius */
   --radius-chip: 6px;
   --radius-sm: 8px;          /* permission-card inner, calendar day cell */
   --radius-perm: 10px;
   --radius-card: 12px;
-  --radius-modal: 16px;
+  --radius-modal: 12px; /* Figma 499+ — all modals / bottom sheets */
+  --radius-sched-video-title: 16px; /* 380:3607 schedTitleFrame bottom corners */
   --radius-pill: 17px;
-  --radius-screen: 0;
+  --radius-screen: 0; /* Figma 432:527+ — main 340×486 frames have no corner radius */
+  --radius-onb-modal: 16px; /* Figma radius-4 — Pain/Promise onbModal 531:1125 / 546:17046 */
   --size-tick: 6px; /* Figma ticker dot 38:4970 / 38:4971 */
   --radius-button: 40px;
+  --radius-button-inner: calc(var(--radius-button) - var(--pad-btn-shell));
+  --radius-button-inner-secondary: calc(var(--radius-button) - var(--pad-btn-shell-secondary));
 
-  /* Main popup chrome ? one size for every screen */
+  /* Main popup chrome — schedule @ pad 8 all sides + 16 gap nav→thumb (Figma 532:2708) */
   --frame-w: 340px;
-  --frame-h: 486px;
+  --frame-h: 499px;
+  --pad-screen-t: var(--space-2); /* 8 — schedule screen top (Option A) */
+  --pad-screen-x: var(--space-2); /* 8 — schedule screen + every modal L/R */
+  --pad-screen-b: var(--space-2); /* 8 — schedule screen + every modal bottom */
 
-  /* Figma Modal (38:4968) / Schedule Bottom Sheet (36:1928) */
-  --pad-modal-top: 12px;
-  --pad-modal-x: 12px;
-  --pad-modal-bottom: 12px; /* modals: 12 all sides (was 6) */
-  --pad-auth-bottom: 12px; /* alias — auth sheets use same 12 */
+  /* Figma Modal (38:4968) / Schedule Bottom Sheet (36:1928).
+     Every modal and bottom sheet is 12 on all four sides — use --space-3 directly.
+     Per-side modal padding tokens were removed so the asymmetry can't creep back. */
   --shadow-modal-card: 2px 2px 12px rgba(234, 234, 229, 0.5); /* Figma shadow/modal-card */
 }
+/* Typography utilities — Figma text styles; use .text-* classes */
+.auth-heading,
+.delete-heading-line,
+.history-title,
+.logout-title,
+.multi-why-heading-row,
+.offline-title,
+.onb-heading p,
+.prefs-title,
+.profile-greeting,
+.success-heading,
+.text-heading,
+.feedback-title,
+.wrong-url-title {
+  font: var(--type-heading);
+  letter-spacing: var(--tracking-heading);
+}
+#videoTitle,
+.cal-month-label-inner,
+.dropdown-label-row,
+.history-empty-heading,
+.modal-title,
+.onb-chip,
+.prefs-day-chip,
+.profile-persona,
+.profile-stat-value,
+.sched-video-title,
+.text-highlight,
+#whatsNewModal .whatsnew-modal .modal-title,
+.onb-title {
+  font: var(--type-highlight);
+  letter-spacing: var(--tracking-highlight);
+}
+.onb-btn-inner,
+.confirm-btn,
+.prefs-banner-title,
+.primary-btn,
+.small-btn,
+.text-btn {
+  font: var(--type-button);
+  letter-spacing: var(--tracking-button);
+}
+.auth-body,
+.delete-body,
+.feedback-textarea,
+.greeting,
+.history-row-title,
+.logout-copy,
+.offline-body,
+.offline-fact-text,
+.onb-body,
+.profile-row,
+.success-body,
+.success-card-title,
+.text-body,
+.feedback-input,
+.toast-msg,
+.wrong-url-body {
+  font: var(--type-body);
+  letter-spacing: var(--tracking-body);
+}
+.auth-warn-banner-text,
+.dropdown-list li,
+.menu-dropdown li,
+.fail-card-error,
+.favourite-modal,
+.feedback-btn,
+.footer,
+.footer-btn,
+.history-empty-sub,
+.how-it-works-btn,
+.label-text,
+.manual-text,
+.modal-subheading,
+.offline-fact-badge,
+.onb-info p,
+.onb-label,
+.prefs-night-copy,
+.profile-fallback,
+.profile-sub,
+.quick-slot-toggle,
+.success-card-time,
+#slotDropdown,
+.title-text,
+.text-subtext,
+#whatsNewModal .whatsnew-modal .modal-subheading {
+  font: var(--type-subtext);
+  letter-spacing: var(--tracking-subtext);
+}
+.history-pager-label,
+.history-row-sub,
+.prefs-day-label,
+.prefs-day-name,
+.sched-slot-time {
+  font: var(--type-slot-time); /* Figma Sub-Text 13/18 — history rows + schedule slots */
+  letter-spacing: var(--tracking-subtext);
+}
+.cal-day-cell .cal-day,
+.history-tab,
+.multi-session-banner-left,
+.multi-session-banner-right,
+.multi-session-card-row,
+.multi-session-partial,
+.onb-perm-label,
+.prefs-banner-sub,
+.prefs-day-hint,
+.profile-stat-label,
+.profile-trend,
+.profile-version,
+.rate-label,
+.sched-duration span,
+.sched-multi-blocked-note,
+.sched-prefs,
+.sched-sheet-label,
+.sched-slot-head,
+.subs-text,
+.feedback-count,
+.text-sm {
+  font: var(--type-label);
+  letter-spacing: var(--tracking-label);
+}
+.onb-duration,
+.text-onb-duration {
+  font: var(--type-onb-duration);
+  letter-spacing: var(--tracking-label);
+}
+.cal-day-cell .cal-date,
+.text-date {
+  font: var(--type-date);
+  letter-spacing: var(--tracking-date);
+}
+
 
 :root {
-  /* ??? Typography ??? */
-  --font-sans: 'Be Vietnam Pro', sans-serif;
+  /* Legacy aliases — Proxima Nova (Figma Extension - V2); do not reintroduce Barlow */
+  --font-sans: var(--font-condensed);
   --font-base-size: 14px;
   --font-small-size: 12px;
   --font-large-size: 18px;
@@ -241,6 +585,7 @@ html {
   min-width: var(--frame-w);
   height: var(--frame-h);
   min-height: var(--frame-h);
+  border-radius: var(--radius-screen);
 }
 
 body {
@@ -251,6 +596,9 @@ body {
   min-height: var(--frame-h);
   overflow: hidden;
   background: transparent; /* allow the popup-container shape to show */
+  font-family: var(--font-condensed);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-screen);
 }
 
 /* Cursor / localhost preview frame (chrome.html / popup.html?preview=1)
@@ -283,21 +631,20 @@ body.wl-preview #popupWrapper {
   height: var(--frame-h);
   min-height: var(--frame-h);
   flex-shrink: 0;
+  border-radius: 0;
+  overflow: hidden;
 }
 body.wl-preview .popup-container {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
-body.wl-preview #networkLostScreen,
-body.wl-preview #toast {
+body.wl-preview #onboarding {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+body.wl-preview #networkLostScreen {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
-}
-body.wl-preview #toast {
-  bottom: 24px;
-}
-body.wl-preview #networkLostScreen {
   top: 24px;
 }
 
@@ -310,6 +657,7 @@ body.wl-preview #networkLostScreen {
   min-height: var(--frame-h);
   background: var(--color-bg-surface);
   overflow: hidden;
+  border-radius: var(--radius-screen);
 }
 
 #scheduleBtn:disabled,
@@ -338,28 +686,25 @@ body.wl-preview #networkLostScreen {
   z-index: 1;
 }
 
+#realContent {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .greeting {
   margin-bottom: 16px;
   margin-top: 16px;
-  font-size: 15px;
   align-items: center;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-weight: 500;
   text-align: center;
 
 }
 
-#feedbackInput:focus {
-  outline: none;
-  border-color: #6a4fbb;
-}
-
 .feedback-textarea {
   width: 100%;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.8px;
-  font-weight: 400;
-  font-size: 14px;
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #ccc;
@@ -379,7 +724,6 @@ body.wl-preview #networkLostScreen {
 
 .small-btn {
   padding: 6px 12px;
-  font-size: 14px;
   min-width: 80px;
   flex-shrink: 0;
 }
@@ -389,10 +733,7 @@ body.wl-preview #networkLostScreen {
   display: block;
   margin-top: 16px;
   width: 100%;
-  font-size: 14px;
   height: 44px;
-  font-weight: 500;
-  font-family: 'Be Vietnam Pro', sans-serif;
   color: #fff;
   background-color: var(--color-primary);
   border: none;
@@ -406,10 +747,7 @@ body.wl-preview #networkLostScreen {
   display: block;
   width: 100%;
   margin-top: 16px;
-  font-size: 14px;
   height: 52px;
-  font-weight: 500;
-  font-family: 'Be Vietnam Pro', sans-serif;
   color: #fff;
   background-color: var(--color-primary); /* Google Red */
   border: 2.5px solid #C34B0F;     /* All sides 1px */
@@ -463,52 +801,9 @@ body.wl-preview #networkLostScreen {
   border: 1px solid var(--color-primary);
 }
 
-/* reuse the same gradient + keyframes from the CodePen */
-#scheduleBtn.confirm-btn.with-icon {
-  background: linear-gradient(
-    135deg,
-    #ED631E 0%,
-    #ED631E 40%,
-    #ffffff 50%,
-    #ED631E 60%,
-    #ED631E 100%
-  );
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  background-size: 300% 300%;
-  transition: none;       /* animation will handle it */
-  position: relative;     /* ensure overflow hidden if needed */
-  overflow: hidden;
-}
-
-#scheduleBtn.confirm-btn.with-icon:hover {
-  animation: bgshimmer 1s linear;
-}
-
 @keyframes shimmer {
   from { background-position: -600px 0; }
   to   { background-position:    0px 0; }
-}
-
-
-#scheduleBtn {
-  align-items: center;                  /* ? center content vertically */
-  gap: 8px;                              /* ? spacing between icon and text */
-  width: 100%;
-  margin-top: 16px;
-  font-size: 16px;
-  height: 52px;
-  font-weight: 500;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.4px;        /* tightened tracking */
-  color: #fff;
-  background-color: var(--color-primary); /* Google Red */
-  border: 2.5px solid #C34B0F;     /* All sides 1px */
-  border-bottom-width: 6px;      /* Only bottom gets 3px */
-  border-radius: 16px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: background 0.3s ease, transform 0.2s ease;
 }
 
 @keyframes subtle-shake {
@@ -573,11 +868,7 @@ legend {
   /* sizing & spacing */
   width: 100%;
   padding:10px 40px 10px 12px;
-  font-size:14px;
   line-height:1.2;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-weight: 500;
-  letter-spacing: -1px;
 
   /* colors & borders */
   background-color: #fff;
@@ -629,7 +920,6 @@ legend {
   border: 1px solid #ddd;
   border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  font-family: 'Be Vietnam Pro', sans-serif;
   width: 140px;
   z-index: 9;
 }
@@ -737,8 +1027,6 @@ legend {
 .dropdown-list li {
   padding: 8px 12px;
   cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: var(--font-base-size);
   transition: background 0.2s;
 }
 
@@ -775,48 +1063,6 @@ legend {
   height: 16px;
 }
 
-.profile-menu {
-  position: absolute;
-  top: 60px; /* slightly below the icon */
-  right: 24px;
-  transform: translateX(-100%) translateY(0); /* shifts fully to left of profile icon */
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #d1d1d1;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15); /* soft drop shadow */
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.8px;        /* tightened tracking */
-  font-size: 14px;
-  font-weight: 400;
-  overflow: hidden;
-  z-index: 100001;
-  min-width: 140px;
-  transition: opacity 0.2s ease;
-}
-
-.profile-menu::before {
-  content: '';
-  position: absolute;
-  top: 12px;
-  right: -6px;
-  border-width: 6px;
-  border-style: solid;
-  border-color: transparent transparent transparent #fff;
-  box-shadow: -1px 1px 3px rgba(0,0,0,0.05);
-}
-
-
-.profile-menu-item {
-  padding: 10px 12px;
-  cursor: pointer;
-  border-bottom: 1px solid #eee;
-}
-.profile-menu-item:last-child {
-  border-bottom: none;
-}
-.profile-menu-item:hover {
-  background: #f6f6f6;
-}
 .hidden {
   display: none;
 }
@@ -826,13 +1072,10 @@ legend {
   height: 32px;
   background-color: #f15b5b;
   color: white;
-  font-weight: 600;
-  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-family: 'Be Vietnam Pro', sans-serif;
   cursor: default;
 }
 
@@ -851,10 +1094,6 @@ legend {
   align-items: center;
   padding: 16px 0px 0px 0px;
   border-radius: 0 0 16px 16px;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -1px;        /* tightened tracking */
-  font-weight: 400px;
-  font-size: 14px;
   gap: 12px;
 }
 
@@ -882,13 +1121,9 @@ legend {
   border: none;
   border-radius: 12px;
   padding: 8px 8px;
-  font-size: 13px;
   cursor: pointer;
   border: 2px solid #e0e0e0;     /* All sides 1px */
   border-bottom-width: 4px;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-weight: 400;
-  letter-spacing: -1px;        /* tightened tracking */
   display: flex;
   align-items: center;
 }
@@ -910,10 +1145,8 @@ legend {
 }
 
 .rate-label {
-  font-size: 12px;
   color: #444;
   margin-right: 4px;
-  font-family: 'Be Vietnam Pro', sans-serif;
 }
 
 
@@ -959,21 +1192,9 @@ legend {
 }
 
 #videoTitle {
-  text-align: center;
-  color: #ED631E;
-  font-family: 'Be Vitenam Pro', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.4px;        /* tightened tracking */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;       /* Limit to 3 lines */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.4;
-  /* Optional standard fallback */
-  line-clamp: 2;
-  box-orient: vertical;
+  text-align: left;
+  color: var(--color-text-inverse);
+  font-feature-settings: 'dlig' 1;
 }
 
 /* Hover effect for thumbs */
@@ -989,32 +1210,89 @@ legend {
   box-shadow: 0 0 0 2px #ED631E33;
 }
 
-/* Toast message */
+/* Toast · bottom center, 40px above frame bottom — slide up/down */
 .toast {
-  position: fixed;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.8px;        /* tightened tracking */
-  font-size: 13px;
-  font-weight: 400;
-  gap: 8px;
-  top: 12px;
-  right: 12px;
-  background-color: var(--color-primary-hover);
-  color: white;
-  padding: 12px 12px;
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-  opacity: 0;
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  z-index: 1001;
+  position: absolute;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: var(--toast-bottom-inset);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: calc(100% - 2 * var(--space-4));
+  padding: 6px 12px 6px 6px;
+  border: 1px solid #ededed;
+  border-radius: 63px;
+  background: var(--color-surface-white);
+  box-shadow: var(--shadow-toast), var(--shadow-toast-inset);
   pointer-events: none;
-  transform: translateY(-20px);
+  transform: translate(-50%, var(--toast-slide-travel));
+  opacity: 0;
 }
-
-.toast.show {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+.toast.is-open {
+  display: flex;
+  animation: toastSlideIn var(--toast-slide-ms) var(--motion-ease) both;
+}
+.toast.is-open.is-closing {
+  animation: toastSlideOut var(--toast-slide-ms) var(--motion-ease) both;
+}
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translate(-50%, var(--toast-slide-travel)); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, var(--toast-slide-travel)); }
+}
+.toast-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0.667px solid var(--color-surface-white);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.toast-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, var(--color-toast-info-from), var(--color-toast-info-to));
+  box-shadow: var(--shadow-toast-icon-info);
+}
+.toast.is-success .toast-icon::before {
+  background: linear-gradient(to bottom, var(--color-toast-success-from), var(--color-toast-success-to));
+  box-shadow: var(--shadow-toast-icon-success);
+}
+.toast.is-error .toast-icon::before {
+  background: linear-gradient(to bottom, var(--color-toast-error-from), var(--color-toast-error-to));
+  box-shadow: var(--shadow-toast-icon-error);
+}
+.toast-icon-img {
+  position: relative;
+  z-index: 1;
+  display: none;
+  width: 24px;
+  height: 24px;
+}
+.toast-icon-img--success { width: 22px; height: 22px; }
+.toast.is-success .toast-icon-img--success,
+.toast.is-error .toast-icon-img--error,
+.toast.is-info .toast-icon-img--info { display: block; }
+.toast-msg {
+  min-width: 0;
+  overflow: hidden;
+  font-feature-settings: 'ordn' 1, 'ornm' 1;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 
@@ -1029,7 +1307,7 @@ legend {
 }
 
 .popup-container {
-  border-radius: 0;
+  border-radius: var(--radius-screen);
   overflow: hidden;
   background: #fff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* optional for subtle elevation */
@@ -1045,11 +1323,7 @@ legend {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0px;
-  font-size: 20px;
-  font-weight: 400;
   color: #202020;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -1px;        /* tightened tracking */
 }
 
 .history-clear[disabled] {
@@ -1108,17 +1382,12 @@ legend {
 
 
 .label-text {
-  font-size: 13px;
   color: #222;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.8px;
 }
 
 .manual-text {
   color: #1A81E9;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 400;
   text-decoration: underline;
 }
 .manual-text:hover {
@@ -1131,7 +1400,6 @@ legend {
   align-items: center;
   margin-top: 10px;
   gap: 6px;
-  font-size: 13px;
 }
 .quick-slot-toggle input,
 .quick-slot-toggle label {
@@ -1145,11 +1413,7 @@ legend {
   border-radius: 12px;
   width: 160px;
   padding: 8px 8px;
-  font-size: 13px;
   cursor: pointer;
-  font-weight: 500;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.8px;        /* tightened tracking */
   margin-right: auto; /* pushes it to left */
 }
 
@@ -1226,18 +1490,13 @@ legend {
   width: 250px;
   position: relative;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-size: 14px;
 }
 
 .modal-subheading {
   max-width: 230px;
-  font-size: 13px;
   color: #666;
   margin-bottom: 6px;
   margin-top: 0px;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -0.4px;        /* tightened tracking */
   text-align: left;
 }
 
@@ -1248,11 +1507,7 @@ legend {
 }
 
 .modal-title {
-  font-size: 18px;
-  font-weight: 600;
   margin: 0;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  letter-spacing: -1px;        /* tightened tracking */
 }
 
 .close-modal {
@@ -1303,13 +1558,10 @@ legend {
 }
 
 .subs-text {
-  font-size: 12px;
   color: #777;
 }
 
 .title-text {
-  font-size: 14px;
-  font-weight: 600;
   color: #333;
 }
 
@@ -1338,128 +1590,6 @@ legend {
   100% { height: 100%; opacity: 1;   }
 }
 
-/* Refer a Friend styles */
-#referOverlay .favourite-modal {
-  max-width: 320px;
-  text-align: center;
-}
-.referral-section {
-  display: flex;
-  flex-direction: column; 
-  margin: 16px 0;
-}
-#referralInput {
-  flex: 1;
-  padding: 8px;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-/* Refer-a-Friend input styling */
-#referOverlay #referralInput {
-  width: 100%;             /* fill available width */
-  padding: 12px;           /* give it some breathing room */
-  font-size: 20px;         /* increase font size */
-  font-weight: 600;        /* make it bold */
-  text-align: center;      /* center the text */
-  letter-spacing: 0.2em;   /* space out characters */
-  border: 1px solid #ddd;  /* you can tweak the border color */
-  border-radius: 8px;      /* match your other inputs */
-  box-sizing: border-box;  /* ensure padding doesn?t push it wider */
-}
-
-#copyReferralBtn {
-  padding: 8px 12px;
-  font-size: 14px;
-  cursor: pointer;
-}
-.referral-count {
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-/* center the message under the modal */
-.referral-result.referral-success {
-  text-align: center;
-  margin-top: 12px;
-  font-size: 14px;
-}
-
-
-
-/* Make the refer-banner fit exactly inside the modal */
-#referOverlay .refer-banner {
-  box-sizing: border-box;    /* include padding in its width */
-  width: 100%;               /* fill the modal?s content area */
-  max-width: 100%;           /* never exceed the modal */
-  margin: 12px 0;            /* same top/bottom spacing */
-  overflow: hidden;          /* clip any stray bits */
-  border-radius: 8px;        /* match your other cards */
-}
-
-/* If you have an image inside your banner, constrain it */
-#referOverlay .refer-banner img {
-  display: block;            /* eliminate inline whitespace */
-  max-width: 100%;           /* scale down to fit */
-  height: auto;              /* maintain aspect ratio */
-  border-radius: 6px;        /* soften the corners to match */
-}
-
-.modal-subheading .modal-link {
-  color: #000EEE;
-  text-decoration: underline;
-}
-
-.modal-subheading .modal-link1 {
-  color: #000EEE;
-  text-decoration: underline;
-}
-
-
-
-
-/* ??? Enter Referral Code modal ????????????????????????????????????????? */
-
-/* left-align text just like your other popups */
-#enterReferralOverlay .favourite-modal {
-  text-align: left;
-}
-
-/* style the input */
-#enterReferralOverlay .referral-input {
-  width: 100%;
-  padding: 10px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  margin-top: 8px;
-  box-sizing: border-box;
-}
-
-/* inline error message */
-#enterReferralOverlay .error-message {
-  color: #d32f2f;
-  font-size: 13px;
-  margin: 4px 0;
-}
-
-/* keep the Check button full-width and spaced */
-#enterReferralOverlay .confirm-btn {
-  width: 100%;
-  margin-top: 12px;
-}
-
-/* success text below */
-#enterReferralOverlay .referral-result {
-  margin-top: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: center;
-  color: #FF6600;
-}
 
 #popupWrapper {
   position: relative;
@@ -1507,13 +1637,11 @@ body.theme-transitioning #themeWave {
 
 /* heading */
 #whatsNewModal .whatsnew-modal .modal-title {
-  font-size: 18px;
   margin: 0 0 8px;
 }
 
 /* subheading */
 #whatsNewModal .whatsnew-modal .modal-subheading {
-  font-size: 14px;
   color: #555;
   margin: 0 0 12px;
   text-align: left;
@@ -1635,8 +1763,9 @@ body.dark-mode .feedback.error {
 }
 
 body.dark-mode .toast {
-  background: #b95712;
-  color: white;
+  /* Figma toast stays white in both modes */
+  background: var(--color-surface-white);
+  color: var(--color-text-primary);
 }
 
 body.dark-mode select,
@@ -1681,40 +1810,6 @@ body.dark-mode select {
   opacity: 0.5;
 }
 
-/* Common layout for failure screen */
-#failureScreen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  padding: var(--space-4) 0;
-}
-
-#failureScreen img {
-  margin: 0 0 var(--space-3);
-  max-width: 100%;
-}
-
-#failedMessage {
-  margin: 0;
-  font: var(--type-highlight);
-  color: var(--color-text-primary);
-  text-align: center;
-}
-
-#retryLink {
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  color: var(--color-accent-grad-end);
-  text-decoration: underline;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  margin-top: var(--space-1);
-}
-
 /* ?? SKELETON SHIMMER ? mirrors v2 schedule / wrong-url / offline shells ?? */
 @keyframes skeleton-shimmer {
   0% { background-position: -200px 0; }
@@ -1748,7 +1843,7 @@ body.dark-mode select {
   display: none;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4); /* 16 — matches .sched-screen */
   width: 100%;
   min-height: calc(var(--frame-h) - var(--space-4));
 }
@@ -1778,9 +1873,9 @@ body.dark-mode select {
 
 .skel-video {
   width: 308px;
-  height: 172px;
-  border-radius: var(--radius-modal);
+  height: 172.514px;
   flex-shrink: 0;
+  clip-path: url(#schedThumbClip);
 }
 
 .skel-sheet {
@@ -1790,7 +1885,7 @@ body.dark-mode select {
   gap: var(--space-4);
   box-sizing: border-box;
   width: 100%;
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
+  padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
 }
@@ -1823,8 +1918,127 @@ body.dark-mode select {
 }
 .skel-cta {
   width: 100%;
-  height: 38px;
+  height: var(--btn-h);
   border-radius: var(--radius-button);
+}
+
+/* Multi-session schedule skeleton (Figma 380:7332 / 380:7407 / 380:7410) */
+.skel-multi-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.skel-multi-banner {
+  width: 100%;
+  height: var(--multi-session-banner-h);
+  margin-bottom: calc(-1 * var(--multi-session-banner-overlap));
+  border-radius: var(--radius-card);
+  position: relative;
+  z-index: 0;
+}
+
+.skel-multi-shell {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-multi-session-shell-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-slot-selected-bg);
+  position: relative;
+  z-index: 1;
+}
+
+.skel-multi-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.skel-multi-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: var(--multi-session-card-h);
+  box-sizing: border-box;
+  padding: var(--multi-session-card-py) var(--space-2);
+  border: 1px solid var(--color-multi-session-card-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-white);
+}
+
+.skel-multi-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.skel-multi-part {
+  width: 48px;
+  height: var(--space-4);
+}
+
+.skel-multi-date {
+  width: 64px;
+  height: var(--space-4);
+}
+
+.skel-multi-divider {
+  display: block;
+  width: 100%;
+  height: 1px;
+  border-radius: 0;
+}
+
+.skel-multi-time {
+  width: 112px;
+  height: var(--space-4);
+}
+
+.skel-multi-offset {
+  width: 88px;
+  height: var(--space-4);
+}
+
+.skel-multi-btns {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.skel-multi-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--btn-h);
+  border-radius: var(--radius-button);
+}
+
+.multi-session-card--skeleton {
+  pointer-events: none;
+}
+
+.multi-session-skel-part {
+  width: 48px;
+  height: var(--space-4);
+}
+
+.multi-session-skel-date {
+  width: 64px;
+  height: var(--space-4);
+}
+
+.multi-session-skel-time {
+  width: 112px;
+  height: 18px;
+}
+
+.multi-session-skel-offset {
+  width: 88px;
+  height: 18px;
 }
 
 /* Wrong-URL / offline skeleton shells (same 4pt rhythm) */
@@ -1874,22 +2088,65 @@ body.onboarding-active .popup-container {
   min-width: var(--frame-w);
   height: var(--frame-h);
   min-height: var(--frame-h);
-  border-radius: 0; /* Pain/Promise BG export is square */
+  border-radius: var(--radius-screen); /* Figma 432:527 main screen = 0 */
   background: linear-gradient(to bottom, var(--color-screen-grad-start), var(--color-screen-grad-end));
   overflow: hidden;
 }
 
-/* Single exported BG ? Figma 143:4407 / 153:5244 */
-.onb-frame-bg {
+/* Figma 432:528 / 434:268 / 444:7885 — grid overlay @ 20% on #f2f2f2→white gradient */
+.onb-grid-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 0;
   pointer-events: none;
+  opacity: 0.2;
+  background-image: url('../Icon/onb/onb-grid-tile.svg');
+  background-size: 38px 38px;
+}
+
+/* Pain/Promise per-screen BG PNGs (Figma 531:958 / 546:16896 — onbGrid / onbVignette / onbEllipse) */
+.onb-screen-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.onb-bg-layer {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+#onboardingPain .onb-bg-grid,
+#onboardingPromise .onb-bg-grid {
+  left: -321.057px;
+  top: -63.865px;
+  width: 982.114px;
+  height: 613.729px;
+}
+#onboardingPain .onb-bg-vignette,
+#onboardingPromise .onb-bg-vignette {
+  left: 0;
+  top: -0.044px;
+  width: 340px;
+  height: 486.088px;
+}
+#onboardingPain .onb-bg-ellipse,
+#onboardingPromise .onb-bg-ellipse {
+  left: -261.613px;
+  top: -188.612px;
+  width: 863.225px;
+  height: 863.225px;
+}
+#onboarding:has(#onboardingPain:not(.hidden)) > .onb-grid-bg,
+#onboarding:has(#onboardingPromise:not(.hidden)) > .onb-grid-bg {
+  display: none;
+}
+
+/* Single exported BG removed — #onboarding linear-gradient matches Figma 432:527 without baked radius */
+.onb-frame-bg {
+  display: none;
 }
 
 .onboarding-screen {
@@ -1904,15 +2161,32 @@ body.onboarding-active .popup-container {
   width: var(--frame-w);
   height: var(--frame-h);
   padding: var(--space-2);
-  border-radius: 0;
+  border-radius: var(--radius-screen);
   background: transparent;
   overflow: hidden;
 }
 
-/* Pain/Promise: cards flush L/R (0 horizontal pad); modal keeps inset 8 */
+#onboardingPain .onb-cards,
+#onboardingPromise .onb-cards {
+  position: relative;
+  z-index: 1;
+}
+#onboardingPain .onb-modal,
+#onboardingPromise .onb-modal {
+  z-index: 2;
+}
+
+/* Pain/Promise/Permissions: cards flush L/R (0 horizontal pad) */
 #onboardingPain,
-#onboardingPromise {
+#onboardingPromise,
+#onboardingPermissions {
   padding: 0;
+}
+/* Figma 432:694 onbModal — square corners on onboarding frames */
+#onboardingPain .onb-modal,
+#onboardingPromise .onb-modal {
+  border-radius: var(--radius-onb-modal);
+  box-shadow: var(--shadow-modal); /* Figma 432:694 / 434:435 Modal */
 }
 
 /* card stack ? Figma onbCards 143:4413: gap 16, py 8, px 0 */
@@ -1925,7 +2199,8 @@ body.onboarding-active .popup-container {
 }
 
 #onboardingPain .onb-cards,
-#onboardingPromise .onb-cards {
+#onboardingPromise .onb-cards,
+#onboardingPermissions .onb-cards {
   height: var(--frame-h);
   justify-content: flex-start;
   gap: var(--onb-cards-gap); /* 16 */
@@ -1943,14 +2218,20 @@ body.onboarding-active .popup-container {
 }
 #onboardingPain .onb-card,
 #onboardingPromise .onb-card,
+#onboardingPermissions .onb-card,
 #newUserWrongUrl .onb-card {
   width: 100%;
   max-width: var(--onb-card-max-w);
   will-change: opacity;
   pointer-events: none;
 }
+#onboardingPain .onb-card,
+#onboardingPromise .onb-card {
+  border-radius: var(--radius-onb-modal); /* Figma radius-4 = 16 */
+}
 #onboardingPain .onb-card:nth-child(n + 4),
 #onboardingPromise .onb-card:nth-child(n + 4),
+#onboardingPermissions .onb-card:nth-child(n + 4),
 #newUserWrongUrl .onb-card:nth-child(n + 4) {
   opacity: 0;
 }
@@ -1998,7 +2279,6 @@ body.onboarding-active .popup-container {
   border-radius: var(--radius-pill);
   background: var(--color-onb-duration-bg);
   color: var(--color-text-inverse);
-  font: var(--type-onb-duration);
   white-space: nowrap;
   overflow: hidden;
   pointer-events: none;
@@ -2008,19 +2288,18 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px; /* Figma 143:4424 title?label */
+  gap: 2px; /* Figma 432:646 title→stamp */
   align-self: stretch;
   flex: 1 0 0;
   min-width: 0;
-  height: var(--onb-thumb-h);
+  height: var(--onb-card-body-h);
 }
 
-/* Title ? Body 16/20 @ rgba(19,19,19,0.75), 2-line clamp */
+/* Title — Highlight 18/22 Extrabold @ rgba(19,19,19,0.75), 2-line clamp (Figma 432:648) */
 .onb-title {
   margin: 0;
   width: 100%;
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
+  height: var(--onb-title-h);
   color: var(--color-onb-title);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -2031,21 +2310,21 @@ body.onboarding-active .popup-container {
 
 .onb-label {
   margin: 0;
-  font: var(--type-label);
   color: var(--color-onb-unwatched);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#onboardingPromise .onb-label {
+#onboardingPromise .onb-label,
+#onboardingPermissions .onb-label {
   color: var(--color-onb-watched);
 }
-/* bottom sheet — 12 all sides, gap 16; no drop shadow */
+/* bottom sheet — 12 all sides, gap 16; inset 8 L/R/B from frame */
 .onb-modal {
   position: absolute;
-  bottom: var(--space-2);
-  left: var(--space-2);
-  right: var(--space-2);
+  bottom: var(--pad-screen-b);
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
   width: auto;
   max-width: none;
   margin: 0;
@@ -2055,7 +2334,7 @@ body.onboarding-active .popup-container {
   gap: var(--space-4);
   box-sizing: border-box;
   padding: var(--space-3);
-  border-radius: var(--radius-modal);
+  border-radius: var(--radius-onb-modal);
   background: var(--color-surface-white);
   box-shadow: none;
 }
@@ -2064,7 +2343,7 @@ body.onboarding-active .popup-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4); /* Figma 432:694 heading→btn = modal gap 16 */
   width: 100%;
 }
 
@@ -2102,7 +2381,6 @@ body.onboarding-active .popup-container {
 .onb-heading p {
   margin: 0;
   width: 100%;
-  font: var(--type-heading);
   font-feature-settings: 'dlig' 1;
   color: var(--color-text-primary);
   text-align: center;
@@ -2112,8 +2390,13 @@ body.onboarding-active .popup-container {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  height: 28px; /* one heading line (Figma 38:4973) */
+  height: var(--heading-line-h); /* Figma 432:701 26/30 */
   width: 100%;
+}
+#onboardingPain .onb-heading-row,
+#onboardingPromise .onb-heading-row,
+#newUserWrongUrl .onb-heading-row {
+  gap: var(--onb-heading-row-gap); /* Figma 432:700 / 434:443 = 6 */
 }
 .onb-heading-row.tall {
   height: 32px; /* chip rows on screens 3?4 (Figma 36:1647, 36:1672) */
@@ -2135,20 +2418,103 @@ body.onboarding-active .popup-container {
   border-radius: var(--radius-chip);
   background: var(--color-pink);
   box-shadow: var(--shadow-chip);
-  font: var(--type-highlight);
   font-feature-settings: 'dlig' 1;
   color: var(--color-text-inverse);
   white-space: nowrap;
 }
-/* Slides 1?2 pink chips: straighten on hover */
+/* Slides 1–2 pink chips: +1° (Figma 432:702), white→pink stroke, straighten on hover */
 #onboardingPain .onb-chip,
-#onboardingPromise .onb-chip {
+#onboardingPromise .onb-chip,
+#newUserWrongUrl .onb-chip {
+  transform: rotate(var(--onb-chip-rot));
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-pink), var(--color-pink)) padding-box,
+    linear-gradient(to bottom, var(--color-surface-white), var(--color-pink)) border-box;
   transition: transform 0.25s ease-in-out;
   cursor: default;
 }
 #onboardingPain .onb-chip:hover,
-#onboardingPromise .onb-chip:hover {
+#onboardingPromise .onb-chip:hover,
+#newUserWrongUrl .onb-chip:hover {
   transform: rotate(0deg);
+}
+
+/* Pain/Promise modal entry — lines rise, chip 0°→1°, then CTA (Figma 531:958 / 546:16896) */
+.onb-heading-line {
+  will-change: transform, opacity;
+}
+@keyframes onbLineIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--onb-modal-enter-travel));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes onbChipLand {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(var(--onb-chip-rot)); }
+}
+@keyframes onbModalCtaIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--onb-modal-enter-travel));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+#onboardingPain.is-modal-entering .onb-heading-line,
+#onboardingPromise.is-modal-entering .onb-heading-line {
+  opacity: 0;
+  animation: onbLineIn var(--onb-modal-enter-ms) var(--motion-ease) forwards;
+}
+#onboardingPain.is-modal-entering .onb-heading-line:nth-child(1),
+#onboardingPromise.is-modal-entering .onb-heading-line:nth-child(1) {
+  animation-delay: 0ms;
+}
+#onboardingPain.is-modal-entering .onb-heading-line:nth-child(2),
+#onboardingPromise.is-modal-entering .onb-heading-line:nth-child(2) {
+  animation-delay: var(--onb-modal-enter-stagger);
+}
+#onboardingPain.is-modal-entering .onb-heading-line:nth-child(3) {
+  animation-delay: calc(var(--onb-modal-enter-stagger) * 2);
+}
+#onboardingPain.is-modal-entering .onb-chip,
+#onboardingPromise.is-modal-entering .onb-chip {
+  transform: rotate(0deg);
+  animation: onbChipLand var(--onb-modal-enter-ms) var(--motion-ease) forwards;
+}
+#onboardingPain.is-modal-entering .onb-heading-line:nth-child(1) .onb-chip {
+  animation-delay: 0ms;
+}
+#onboardingPromise.is-modal-entering .onb-heading-line:nth-child(2) .onb-chip {
+  animation-delay: var(--onb-modal-enter-stagger);
+}
+#onboardingPain.is-modal-entering .onb-modal-cta,
+#onboardingPromise.is-modal-entering .onb-modal-cta {
+  opacity: 0;
+  animation: onbModalCtaIn var(--onb-modal-enter-ms) var(--motion-ease) forwards;
+}
+#onboardingPain.is-modal-entering .onb-modal-cta {
+  animation-delay: calc(var(--onb-modal-enter-stagger) * 3);
+}
+#onboardingPromise.is-modal-entering .onb-modal-cta {
+  animation-delay: calc(var(--onb-modal-enter-stagger) * 2);
+}
+
+/* Pain→Promise: empty white modal during crossfade, then playOnbModalEnter */
+.onboarding-screen.is-modal-shell-only .onb-heading,
+.onboarding-screen.is-modal-shell-only .onb-modal-cta {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+  transform: none !important;
+  transition: none !important;
 }
 
 /* primary purple pill button (gradient shell + sheen inner) */
@@ -2157,31 +2523,51 @@ body.onboarding-active .popup-container {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  height: 38px; /* Figma "Outer Btn" 58:7314 */
+  height: var(--btn-h); /* Figma button outer height */
   width: 100%;
   padding: var(--pad-btn-shell);
   border: none;
   border-radius: var(--radius-button);
   background: linear-gradient(to bottom, var(--color-accent-grad-start), var(--color-accent-grad-end));
   cursor: pointer;
+  /* Nothing should paint outside the shell — and the Pain↔Promise morph squeezes
+     the secondary to 0 width, so the label has to be clipped, not reflowed. */
+  overflow: hidden;
 }
 .onb-btn-inner {
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
   height: 100%;
   width: 100%;
-  padding: 0 var(--space-4);
-  /* ring stroke is a gradient (white 75% ? transparent), so it melts into the
-     shell at the bottom: transparent border + border-box gradient layer */
-  border: 1px solid transparent;
-  border-radius: var(--radius-button);
-  background:
-    linear-gradient(to bottom, var(--color-btn-sheen-start), var(--color-btn-sheen-end)) padding-box,
-    linear-gradient(to bottom, var(--color-btn-inner-border), var(--color-btn-inner-border-end)) border-box;
-  font: var(--type-button);
+  padding: 0 var(--space-3); /* Figma 432:707 btnLabel pad 12 */
+  border: none;
+  border-radius: var(--radius-button-inner);
+  /* Fill: white→transparent @ 20% layer opacity (Figma btnLabel fill) */
+  background: linear-gradient(to bottom, var(--color-btn-sheen-start), var(--color-btn-sheen-end));
   color: var(--color-text-inverse);
+  white-space: nowrap;
+}
+/* 1px/1.5px outside stroke — sits in the shell gutter (Figma strokeAlign OUTSIDE) */
+.onb-btn-inner::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--btn-stroke-w));
+  border-radius: var(--radius-button-inner);
+  padding: var(--btn-stroke-w);
+  background: linear-gradient(to bottom, var(--color-btn-inner-border), var(--color-btn-inner-border-end));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 .onb-btn:hover {
   filter: brightness(1.08);
@@ -2195,8 +2581,8 @@ body.onboarding-active .popup-container {
 }
 .onb-btn-row .onb-btn { flex: 1 0 0; min-width: 0; }
 .onb-btn-row .onb-btn.icon-only {
-  flex: 0 0 38px; /* square, same 38px as the button height (Figma 57:6365) */
-  width: 38px;
+  flex: 0 0 var(--btn-h); /* square icon-only matches button height */
+  width: var(--btn-h);
 }
 .onb-btn.icon-only .onb-btn-inner {
   padding: 0;
@@ -2204,7 +2590,30 @@ body.onboarding-active .popup-container {
 .onb-btn.icon-only img {
   width: 22px;
   height: 22px;
-  transform: rotate(-90deg); /* chevron-up asset ? points left */
+}
+.history-row-actions .onb-btn.icon-only img {
+  width: 18px;
+  height: 18px;
+  transform: none;
+}
+
+/* Shared sheet backdrop — black @50% + 2px blur (all overlays) */
+.onb-overlay,
+.prefs-backdrop,
+.wrong-url-backdrop,
+.wua-dim,
+.offline-backdrop,
+.history-backdrop,
+.delete-backdrop,
+.profile-backdrop,
+.feedback-backdrop,
+.logout-backdrop,
+.multi-why-backdrop,
+.success-backdrop,
+.auth-flow-backdrop {
+  background: var(--color-multi-why-backdrop); /* rgba(0,0,0,0.5) */
+  backdrop-filter: blur(var(--blur-sheet-backdrop)); /* 2px */
+  -webkit-backdrop-filter: blur(var(--blur-sheet-backdrop));
 }
 
 /* Screens 3?4 overlay (Figma 91:757 / 91:936) ? prefs-style backdrop */
@@ -2212,13 +2621,6 @@ body.onboarding-active .popup-container {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(
-    to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
-  );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.45s ease-in-out;
@@ -2238,11 +2640,11 @@ body.onboarding-active .popup-container {
   gap: var(--space-3);
   justify-content: flex-start;
   align-items: center;
-  padding: var(--space-2);
+  padding: var(--pad-screen-t) var(--pad-screen-x) var(--pad-screen-b); /* 8 / 8 / 8 — match .sched-screen */
   overflow: hidden;
   position: relative;
 }
-/* Wrong URL Permissions/Analyzing: fall cards BG instead of schedule chrome */
+/* Auth OAuth backdrop only — onboarding Permissions/Analyzing share correct-URL chrome */
 .onb-fall-bg {
   display: none;
   position: absolute;
@@ -2254,6 +2656,7 @@ body.onboarding-active .popup-container {
   pointer-events: none;
   user-select: none;
 }
+body.is-onb-wrong-url #authFlowFallBg { display: block; }
 .onb-sched-chrome {
   position: absolute;
   inset: 0;
@@ -2262,7 +2665,7 @@ body.onboarding-active .popup-container {
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2);
+  padding: var(--pad-screen-t) var(--pad-screen-x) var(--pad-screen-b); /* 8 / 8 / 8 */
   box-sizing: border-box;
   pointer-events: none;
   overflow: hidden;
@@ -2274,12 +2677,6 @@ body.onboarding-active .popup-container {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-}
-body.is-onb-wrong-url .onb-fall-bg { display: block; }
-body.is-onb-wrong-url .onb-sched-chrome { display: none !important; }
-body.is-onb-wrong-url .onb-sched-screen {
-  padding: 0;
-  background: transparent;
 }
 .onb-sched-screen .sched-nav,
 .onb-sched-screen .sched-video,
@@ -2389,10 +2786,23 @@ body.is-onb-wrong-url .onb-sched-screen {
 }
 
 .onb-btn-secondary {
+  padding: var(--pad-btn-shell-secondary);
   background: linear-gradient(to bottom, var(--color-screen-grad-start), var(--color-grey-grad-start));
 }
 .onb-btn-secondary .onb-btn-inner {
-  color: var(--color-text-primary);
+  border-radius: var(--radius-button-inner-secondary);
+  color: var(--color-btn-secondary-text);
+  /* Figma 541:15814 / 545:16520 — same sheen stack as primary 432:707 */
+  background: linear-gradient(to bottom, var(--color-btn-sheen-start), var(--color-btn-sheen-end));
+}
+.onb-btn-secondary .onb-btn-inner::before {
+  inset: calc(-1 * var(--btn-stroke-w-secondary));
+  padding: var(--btn-stroke-w-secondary);
+  border-radius: var(--radius-button-inner-secondary);
+  background: linear-gradient(to bottom, var(--color-btn-inner-border-secondary), var(--color-btn-secondary-inner-end));
+}
+.onb-btn-secondary:hover {
+  filter: brightness(1.08);
 }
 
 #onboarding3 .onb-chip,
@@ -2450,8 +2860,6 @@ body.is-onb-wrong-url .onb-sched-screen {
 .onb-body {
   margin: 0;
   width: 100%;
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
   color: var(--color-text-label);
   text-align: center;
 }
@@ -2466,11 +2874,10 @@ body.is-onb-wrong-url .onb-sched-screen {
   flex: 1 0 0;
   min-width: 0;
   box-sizing: border-box;
-  padding: var(--space-1);
+  padding: 2px; /* Figma 532:2491 permBenefitWrap */
   border: 0.4px solid var(--color-perm-border);
   border-radius: var(--radius-perm);
   background: var(--color-surface-white);
-  transition: opacity 0.42s ease-in-out, transform 0.42s ease-in-out;
 }
 .onb-perm-inner {
   position: relative;
@@ -2485,48 +2892,113 @@ body.is-onb-wrong-url .onb-sched-screen {
   position: relative;
   z-index: 1;
   margin: 0;
-  font: var(--type-label);
+  width: 100%;
+  text-align: left;
   color: var(--color-perm-text);
 }
 .onb-perm-label b {
-  font-weight: 800; /* FIND TIME / SCHEDULE / REMIND a touch bolder than Label */
+  font-weight: 700;
   color: var(--color-perm-keyword);
 }
-/* hand-drawn number watermark, bottom-left, clipped by the card */
+/* hand-drawn number watermark (Figma 532:2495 / 2499 / 2505) */
 .onb-perm-num {
   position: absolute;
   left: var(--space-2);
-  top: 62px;
-  height: 47px;
+  display: block;
+  max-width: none;
+  pointer-events: none;
 }
-/* rotated calendar doodle, bottom-right; one source image holds 4 variants
-   in a 2?2 grid, each card crops a different quadrant (Figma 36:1677/84/87) */
-.onb-perm-art {
+.onb-perm-num--1 {
+  top: 62.69px;
+  width: 21.873px;
+  height: 46.611px;
+}
+.onb-perm-num--2 {
+  top: 64.26px;
+  width: 28.888px;
+  height: 43.46px;
+}
+.onb-perm-num--3 {
+  top: 61.68px;
+  width: 32.32px;
+  height: 48.621px;
+}
+/* rotated koala crop, bottom-right (Figma 532:2493 / 2500 / 2503) */
+.onb-perm-koala {
   position: absolute;
-  left: 38px;
-  top: 51px;
-  width: 70px;
-  height: 70px;
   transform: rotate(6deg);
   overflow: hidden;
   transition: transform 0.25s ease-in-out;
 }
-.onb-perm:nth-child(3) .onb-perm-art { left: 46px; }
-.onb-perm-art img {
+.onb-perm-koala--1 {
+  left: 38.52px;
+  top: 50.5px;
+  width: 76.934px;
+  height: 76.934px;
+}
+.onb-perm-koala--2 {
+  left: 38.52px;
+  top: 50.59px;
+  width: 75.294px;
+  height: 76.761px;
+}
+.onb-perm-koala--3 {
+  left: 43.89px;
+  top: 50.53px;
+  width: 76.36px;
+  height: 76.873px;
+}
+.onb-perm-koala img {
   position: absolute;
-  width: 206%;
-  height: 206%;
-  left: -2%;
-  top: -2%;
+  display: block;
+  max-width: none;
   transition: transform 0.25s ease-in-out;
 }
-.onb-perm-art.art2 img { left: -104%; top: 0; }
-.onb-perm-art.art3 img { left: -2%; top: -104%; }
-/* Card hover: clock / calendar / alarm all nudge up the same way */
-.onb-perm:hover .onb-perm-art.art1,
-.onb-perm:hover .onb-perm-art.art2,
-.onb-perm:hover .onb-perm-art.art3 {
+.onb-perm-koala--1 img {
+  width: 206.41%;
+  height: 206.45%;
+  left: -1.93%;
+  top: -2.42%;
+}
+.onb-perm-koala--2 img {
+  width: 206.51%;
+  height: 201.65%;
+  left: -104.41%;
+  top: 0;
+}
+.onb-perm-koala--3 img {
+  width: 207.61%;
+  height: 205.9%;
+  left: -1.83%;
+  top: -104.27%;
+}
+.onb-perm:hover .onb-perm-koala {
   transform: rotate(6deg) translateY(-6px);
+}
+
+@keyframes onbPermSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+#onbPermsSheet.is-perms-entering .onb-perm {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: onbPermSlideIn var(--onb-perm-enter-ms) var(--motion-ease) forwards;
+}
+#onbPermsSheet.is-perms-entering .onb-perm:nth-child(1) {
+  animation-delay: var(--sheet-slide-ms);
+}
+#onbPermsSheet.is-perms-entering .onb-perm:nth-child(2) {
+  animation-delay: calc(var(--sheet-slide-ms) + var(--onb-perm-stagger-ms));
+}
+#onbPermsSheet.is-perms-entering .onb-perm:nth-child(3) {
+  animation-delay: calc(var(--sheet-slide-ms) + var(--onb-perm-stagger-ms) * 2);
 }
 
 /* button + revoke note (Figma 36:1690) */
@@ -2545,18 +3017,22 @@ body.is-onb-wrong-url .onb-sched-screen {
   width: 100%;
 }
 .onb-info {
-  color: var(--color-accent-grad-start); /* icon stroke + text */
+  color: var(--color-text-label); /* Figma 532:2514 Grey #666 */
 }
-.onb-info svg {
+.onb-info svg,
+.onb-info img,
+.onb-info-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
 }
+.onb-info-icon {
+  color: var(--color-text-label);
+}
 .onb-info p {
   margin: 0;
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
   text-align: center;
+  color: var(--color-text-label);
 }
 
 /* ?? Screen 5: post-login "scanning your calendar" (Figma 58:6541) ?? */
@@ -2564,164 +3040,228 @@ body.is-onb-wrong-url .onb-sched-screen {
   gap: var(--space-4);
 }
 #onboardingAnalyzing .onb-text-block {
-  gap: var(--space-3);
+  gap: var(--space-2); /* Figma 422:1626 authCopy gap 8 */
+}
+#onboardingAnalyzing .onb-heading-row.tall {
+  height: 28px; /* Figma 422:1628 headingLine3 */
 }
 
-.onb-cal {
-  position: relative;
+/* ---------------------------------------------------------------------------
+   Calendar scanning animation — Figma 422:1593 / 422:1594 / 418:978
+   Month slider + 3-row × 7-col day grid with scanned / not-scanned / blank cells
+   --------------------------------------------------------------------------- */
+.cal-month-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  box-sizing: border-box;
-  width: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--color-cal-border);
+  gap: var(--cal-header-inset); /* Figma 422:1594 gap 3 */
+  align-items: center;
+  width: calc(100% + 6px); /* Figma 306 in a 300 content box */
+  margin-inline: calc(var(--cal-header-inset) * -1);
+  padding: var(--cal-header-inset);
   border-radius: var(--radius-card);
-  background: var(--color-surface-white);
+  background: var(--color-cal-header-bg);
+  box-sizing: border-box;
   overflow: hidden;
 }
-.onb-cal-header {
+.cal-month-slider {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  font: var(--type-button);
-  color: var(--color-cal-header);
+  height: var(--cal-slider-h);
+  overflow: hidden;
 }
-.onb-cal-header p { margin: 0; }
-.onb-cal-grid {
+.cal-month-slider::before,
+.cal-month-slider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--cal-month-label-w);
+  z-index: 1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--blur-cal-month-fade));
+  -webkit-backdrop-filter: blur(var(--blur-cal-month-fade));
+}
+.cal-month-slider::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-cal-header-bg), transparent);
+}
+.cal-month-slider::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-cal-header-bg), transparent);
+}
+.cal-month-track {
+  --cal-track-shift: 0;
+  display: flex;
+  align-items: center;
+  height: var(--cal-slider-h);
+  transform: translateX(calc(var(--cal-month-rest) - var(--cal-track-shift, 0) * var(--cal-month-step)));
+  transition: transform var(--cal-fade-ms) ease-in-out;
+  will-change: transform;
+}
+.cal-month-track.is-snap {
+  transition: none;
+}
+.cal-month-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--cal-month-label-w);
+  width: var(--cal-month-label-w);
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+.cal-month-label-inner {
+  color: var(--color-cal-month);
+}
+.cal-month-divider {
+  flex: 0 0 var(--cal-month-div-w);
+  width: var(--cal-month-div-w);
+  height: 1px;
+  border-radius: 2px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--color-surface-white), rgba(255, 255, 255, 0));
+}
+.cal-grid-stack {
+  position: relative;
+  width: 100%;
+}
+.cal-grid {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  padding: var(--space-2);
+  border-radius: var(--radius-cal-grid);
+  background: var(--color-surface-white);
+  box-sizing: border-box;
+  overflow: hidden;
+  transform-origin: 50% 50%;
 }
-.onb-cal-row {
+.cal-grid-outgoing {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.cal-week-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
 }
-.onb-cal-cell {
+.cal-day-cell {
+  --cal-cell-opacity: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-cell-grad-end));
-  color: var(--color-cal-day);
-  text-align: center;
-}
-.onb-cal-cell .day { font: var(--type-label); }
-.onb-cal-cell .date { font: var(--type-date); }
-/* pending = not yet swept; peek = faint preview below the beam; scanned = fully on */
-.onb-cal-cell .day,
-.onb-cal-cell .date {
-  transition: opacity 220ms ease-in-out;
-}
-.onb-cal-cell.is-pending span { opacity: 0; }
-.onb-cal-cell.is-peek span { opacity: 0.1; }
-.onb-cal-cell.is-scanned span { opacity: 1; }
-.onb-cal-cell.is-out span { opacity: 0.25; } /* day outside the month being scanned */
-
-/* Figma 96:1099 ? purple beam + % pill travel top?bottom over the card */
-.onb-scan-veil {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 0;
-  border-bottom: 4px solid var(--color-accent-grad-start);
-  background: linear-gradient(to top, var(--color-scan-veil), transparent);
-  pointer-events: none;
-  z-index: 2;
-  will-change: height;
-}
-.onb-scan-pill {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  transform: translate(-50%, -50%);
-  display: flex;
-  padding: 2px;
-  border-radius: calc(var(--radius-sm) + 1px);
-  background: linear-gradient(to bottom, var(--color-accent-grad-start), var(--color-accent-grad-end));
-  pointer-events: none;
-  z-index: 3;
-  will-change: top;
-}
-.onb-scan-pill span {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  height: 24px;
-  padding: 0 var(--space-2);
+  width: var(--cal-cell-w);
+  height: var(--cal-cell-h);
+  padding: 2px 0;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background:
-    linear-gradient(to bottom, var(--color-btn-sheen-start), var(--color-btn-sheen-end)) padding-box,
-    linear-gradient(to bottom, var(--color-btn-inner-border), transparent) border-box;
-  font: var(--type-label);
-  color: var(--color-text-inverse);
-  white-space: nowrap;
+    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-cell-fill-end)) padding-box,
+    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-cell-stroke-end)) border-box;
+  color: var(--color-cal-cell-text);
+  text-align: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-cal-cell);
+  transform-origin: 50% 50%;
+  transition: box-shadow var(--cal-cell-ms) ease-in-out,
+              background var(--cal-cell-ms) ease-in-out,
+              color var(--cal-cell-ms) ease-in-out,
+              filter var(--cal-cell-ms) ease-in-out,
+              opacity var(--cal-cell-ms) ease-in-out;
+}
+.cal-day-cell .cal-day { }
+.cal-day-cell .cal-date {
+  text-shadow: var(--shadow-cal-date-inset); /* Figma INNER_SHADOW 0 -1 / 1 #adadad */
+}
+.cal-day-cell.is-scanned {
+  background:
+    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-scanned-fill-end)) padding-box,
+    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-scanned-stroke-end)) border-box;
+  box-shadow: var(--shadow-cal-scanned);
+}
+.cal-day-cell.is-scanned .cal-day { color: var(--color-cal-scanned-day); }
+.cal-day-cell.is-scanned .cal-date {
+  color: var(--color-cal-month);
+  text-shadow: var(--shadow-cal-date-scanned-inset);
+}
+.cal-day-cell.is-empty {
+  /* visible empty chip — no overflow dates */
+  pointer-events: none;
+}
+.cal-grid.is-fading-out,
+.cal-grid-outgoing.is-fading-out {
+  animation: calGridOut var(--cal-fade-ms) ease-in-out both;
+}
+.cal-grid.is-fading-in {
+  overflow: visible;
+  animation: calGridIn var(--cal-fade-ms) ease-in-out both;
+}
+@keyframes calGridOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+@keyframes calGridIn {
+  0% { opacity: 0; transform: scale(0.9); }
+  58% { opacity: 1; transform: scale(var(--cal-bounce-peak)); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cal-day-cell,
+  .cal-grid,
+  .cal-month-track {
+    animation: none !important;
+    transition: none !important;
+  }
+  .cal-grid.is-fading-out,
+  .cal-grid.is-fading-in,
+  .cal-grid-outgoing.is-fading-out {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-/* amber "we never check your events" note */
-.onb-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  box-sizing: border-box;
-  width: 100%;
-  padding: var(--space-2);
-  border: 1.6px solid var(--color-warning-text);
-  border-radius: var(--radius-card);
-  background: linear-gradient(to top, var(--color-warning-bg) 26.79%, var(--color-surface-white) 132.96%);
-  box-shadow: var(--shadow-card);
-  color: var(--color-warning-text); /* icon stroke + text */
-}
-.onb-status svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-.onb-status p {
-  margin: 0;
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  text-align: center;
-}
+/* amber "we never check your events" note — superseded by .auth-warn-banner */
 /* ---------------------------------------------------------------------------
-   Schedule screen ? Figma 36:1906 (Extension - 01)
+   Schedule screen — Figma 434:1153 (correctURLscheduleScreen)
+   Nav 434:1157 · Video 434:1163 · Sheet 434:1170
    --------------------------------------------------------------------------- */
 .sched-screen {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: flex-start; /* pad 8 all sides — do not center-slack the inset */
+  gap: var(--space-4); /* 16 — Figma 434:1153 / 533:5909 */
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  min-height: var(--frame-h);
-  padding: var(--space-2);
+  min-height: 0;
+  max-height: 100%;
+  padding: var(--pad-screen-t) var(--pad-screen-x) var(--pad-screen-b); /* 8 / 8 / 8 */
   overflow: hidden;
   background: var(--color-surface-white);
+  border-radius: var(--radius-screen);
 }
 
 .sched-bg {
   position: absolute;
   left: 50%;
-  top: -69px;
+  top: -90px; /* Figma 380:3586 ≈ -89.97 */
   width: 751px;
-  height: 421px;
+  height: 421.488px;
   transform: translateX(calc(-50% + 8px));
   overflow: hidden;
   pointer-events: none;
-  /* 80px layer blur on the stretched thumb */
   filter: blur(var(--blur-sched-bg));
 }
 /* Pixel stretch approx (Offset -100%, Y 11.41%, A 90?, R 400) ? vertical pull from sample line */
@@ -2754,7 +3294,7 @@ body.is-onb-wrong-url .onb-sched-screen {
   filter: blur(var(--blur-sched-dim));
 }
 
-/* 36:1909 Schedule / Top Nav ? 324 wide (fill), pad 8/8/0/8, SPACE_BETWEEN, CENTER */
+/* 380:3589 Schedule / Top Nav — 324 wide (fill), pad 8/8/0/8, SPACE_BETWEEN */
 .sched-nav {
   position: relative;
   z-index: 1;
@@ -2789,31 +3329,21 @@ body.is-onb-wrong-url .onb-sched-screen {
   border: none;
   border-radius: var(--radius-button);
   overflow: hidden;
-  background: var(--color-sched-icon-bg); /* #000000 @ 25% */
+  background: var(--color-sched-icon-bg); /* #000000 @ 25%, flat ? no glass */
   cursor: pointer;
-  /* light ?45? @ 80% ? NW highlight / SE shade */
-  box-shadow:
-    inset 1.25px 1.25px 0.5px var(--color-sched-glass-hi),
-    inset -1px -1px 1.5px var(--color-sched-glass-lo);
-  backdrop-filter:
-    blur(var(--sched-glass-frost))
-    saturate(calc(100% + 100% * var(--sched-glass-refraction)))
-    brightness(1.06);
-  -webkit-backdrop-filter:
-    blur(var(--sched-glass-frost))
-    saturate(calc(100% + 100% * var(--sched-glass-refraction)))
-    brightness(1.06);
 }
-/* Chromium: refraction + chromatic dispersion via SVG url() on unprefixed backdrop-filter.
-   -webkit-backdrop-filter does NOT accept url() ? keep frost/saturate/brightness on the base rule only. */
-@supports (backdrop-filter: blur(1px) url(#schedGlassRefract)) {
-  .sched-icon-btn {
-    backdrop-filter:
-      blur(var(--sched-glass-frost))
-      saturate(calc(100% + 100% * var(--sched-glass-refraction)))
-      brightness(1.06)
-      url(#schedGlassRefract);
-  }
+/* Menu button carries the user's Google photo (koala fallback) instead of an icon */
+.sched-avatar-btn {
+  padding: 0;
+  background: var(--color-sched-icon-bg);
+}
+.sched-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  pointer-events: none;
 }
 .sched-icon {
   display: block;
@@ -2823,11 +3353,68 @@ body.is-onb-wrong-url .onb-sched-screen {
   pointer-events: none;
 }
 
-/* 36:1918 Logo Wordmark ? 74.295?28.408 */
+/* Figma 575:199 effectDecor — back / close / pagination */
+.nav-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-nav-icon-bg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.nav-icon-btn::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--nav-icon-stroke-w));
+  border-radius: inherit;
+  padding: var(--nav-icon-stroke-w);
+  background: linear-gradient(
+    to bottom,
+    var(--color-nav-icon-stroke-start),
+    var(--color-nav-icon-stroke-end)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.nav-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.nav-icon-btn .nav-icon,
+.nav-icon-btn svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: var(--space-4);
+  height: var(--space-4);
+}
+.nav-icon--back {
+  transform: rotate(-90deg);
+}
+.nav-icon--fwd {
+  transform: rotate(90deg);
+}
+
+/* Figma 628:1314 schedLogo — 78.755×25.81 */
 .sched-logo {
   display: block;
-  width: 74.295px;
-  height: 28.408px;
+  width: 78.755px;
+  height: 25.81px;
   flex-shrink: 0;
 }
 
@@ -2835,34 +3422,34 @@ body.is-onb-wrong-url .onb-sched-screen {
   position: relative;
   z-index: 1;
   width: 308px;
-  height: 172.514px; /* Figma 36:1922 / 72:152 */
+  height: 172.514px; /* Figma 380:3595 schedVideo */
   flex-shrink: 0;
-  /* overflow visible so the duration pill can sit in the notch */
-  overflow: visible;
+  overflow: visible; /* duration pill sits in the notch */
 }
 
-/* 72:152 Thumbnail Frame ? 72:153 exact notched mask clip */
+/* 380:3598 schedThumbFrame — 380:3599 notched mask; title scrim blurs a synced thumb copy */
 .sched-thumb {
   position: absolute;
   inset: 0;
   z-index: 0;
   width: 308px;
   height: 172.514px;
-  background: transparent; /* notched clip is on the img ? no rect fill behind */
+  background: transparent;
+  overflow: hidden;
 }
 .sched-video-img {
   display: block;
   width: 308px;
   height: 172.514px;
-  object-fit: cover; /* Figma FILL */
+  object-fit: cover;
   clip-path: url(#schedThumbClip);
 }
 
-/* 72:150 Duration Pill ? 53?20 ? white ? radius 40 ? Glass (frost ~3.4) ? Label 12/16 black */
+/* 380:3596 schedDuration — 53×20 white pill, Label 12/16 */
 .sched-duration {
   position: absolute;
   top: 0;
-  right: 0; /* Figma x=255 ? 308-53=255 */
+  right: 0; /* Figma x=255 → 308−53 */
   z-index: 2;
   display: flex;
   align-items: center;
@@ -2875,108 +3462,87 @@ body.is-onb-wrong-url .onb-sched-screen {
   border-radius: var(--radius-button);
   background: var(--color-surface-white);
   pointer-events: none;
-  /* Glass: radius 3.37, refraction 0.8, depth 16.8, light ?45 / 0.8, dispersion 0.5 */
-  backdrop-filter: blur(3.37px) saturate(180%) brightness(1.04);
-  -webkit-backdrop-filter: blur(3.37px) saturate(180%) brightness(1.04);
-  box-shadow:
-    inset 1px 1px 0.5px rgba(255, 255, 255, 0.7),
-    inset -0.5px -0.5px 1px rgba(0, 0, 0, 0.12);
 }
 .sched-duration span {
   position: relative;
   z-index: 1;
-  font: var(--type-label);
   color: var(--color-text-primary);
   text-align: center;
   white-space: nowrap;
   line-height: 16px;
 }
 
-/* 36:1926 Title Frame ? pad 12, bottom radius 16, height hugs title
-   Fill: linear #000 0%?50% opacity, mix-blend overlay
-   Effect: progressive BACKGROUND_BLUR startRadius 0 ? radius 40 (top?bottom) */
+/* Figma 513:1167 / 513:1176 — exported SVG title band + text above */
 .sched-title-frame {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 1;
+  box-sizing: border-box;
+  width: 308px;
+  padding: var(--space-3);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
-  width: 308px;
-  min-height: 0;
-  padding: var(--space-3);
-  border-radius: 0 0 var(--radius-modal) var(--radius-modal);
+  border-radius: 0 0 var(--radius-sched-video-title) var(--radius-sched-video-title);
   overflow: hidden;
 }
-.sched-title-blur {
+.sched-title-frame.is-two-line {
+  height: var(--sched-title-frame-h-2);
+  min-height: var(--sched-title-frame-h-2);
+}
+.sched-title-frame.is-one-line {
+  height: var(--sched-title-frame-h-1);
+  min-height: var(--sched-title-frame-h-1);
+}
+.sched-title-frame-bg {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  display: block;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
-.sched-title-blur-band {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-}
-/* Progressive approx of Figma BACKGROUND_BLUR 0 ? 40 */
-.sched-title-blur-band[data-blur="10"] {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 30%);
-}
-.sched-title-blur-band[data-blur="20"] {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 20%, #000 55%);
-  mask-image: linear-gradient(to bottom, transparent 0%, transparent 20%, #000 55%);
-}
-.sched-title-blur-band[data-blur="30"] {
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 40%, #000 75%);
-  mask-image: linear-gradient(to bottom, transparent 0%, transparent 40%, #000 75%);
-}
-.sched-title-blur-band[data-blur="40"] {
-  backdrop-filter: blur(var(--blur-sched-title));
-  -webkit-backdrop-filter: blur(var(--blur-sched-title));
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 55%, #000 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, transparent 55%, #000 100%);
-}
-.sched-video-fade {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  /* Frame fill: #000 @ 0% ? #000 @ 50%, blend OVERLAY */
-  background: linear-gradient(
-    to bottom,
-    var(--color-video-fade-start) 0%,
-    var(--color-video-fade-end) 100%
-  );
-  mix-blend-mode: overlay;
-  pointer-events: none;
+.sched-title-frame-bg[hidden] {
+  display: none;
 }
 .sched-video-title {
   position: relative;
   z-index: 1;
-  margin: 0;
-  width: 285.559px;
+  flex: 0 1 auto;
+  min-width: 0;
+  width: 100%;
   max-width: 100%;
-  max-height: 44px; /* 2 ? 22px line-height */
-  font: var(--type-highlight); /* Highlight Text 800 18/22 */
+  margin: 0; /* Highlight Text 800 18/22 */
   font-feature-settings: 'dlig' 1;
   color: var(--color-text-inverse);
   overflow: hidden;
   text-overflow: ellipsis;
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+.sched-title-frame.is-two-line .sched-video-title {
+  max-height: 44px; /* 2 × 22px */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.sched-title-frame.is-one-line .sched-video-title {
+  display: block;
+  max-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .sched-sheet {
@@ -2985,22 +3551,28 @@ body.is-onb-wrong-url .onb-sched-screen {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--space-4);
+  gap: var(--space-4); /* 16 — Figma 532:2721 */
   box-sizing: border-box;
   width: 100%;
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
-  border-radius: var(--radius-modal);
+  max-width: 324px;
+  padding: var(--space-3); /* 12 all sides — Figma 532:2721 */
+  border-radius: var(--radius-onb-modal); /* 16 — Figma 532:2721 radius-4 */
   background: var(--color-surface-white);
+  box-shadow: var(--shadow-modal); /* 0 -2px 16px @5% — Figma 532:2721 Modal */
   overflow: hidden;
-  transition:
-    top 0.45s ease-in-out,
-    bottom 0.45s ease-in-out,
-    left 0.45s ease-in-out,
-    right 0.45s ease-in-out,
-    height 0.45s ease-in-out,
-    padding 0.45s ease-in-out,
-    gap 0.45s ease-in-out,
-    box-shadow 0.45s ease-in-out;
+  flex-shrink: 0;
+}
+
+/* Home sheet in flex flow (Figma 434:1153 — not absolute-pinned) */
+#schedSheet.sched-sheet {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: 324px;
+  max-width: 324px;
+  z-index: 2;
+  margin: auto 0 0; /* pin to bottom pad 8; slack sits above sheet */
 }
 
 .sched-sheet-home {
@@ -3011,46 +3583,47 @@ body.is-onb-wrong-url .onb-sched-screen {
   width: 100%;
 }
 
-/* 58:7004 backdrop ? #282828?#FFF @ 50% (reuse overlay tokens) + blur 2 */
-.sched-prefs-backdrop {
+/* Prefs overlay — slides up like profile (not a morph of #schedSheet) */
+.prefs-overlay {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 57; /* profile child: above .profile-overlay */
   box-sizing: border-box;
-  background: linear-gradient(
-    to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
-  );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.45s ease-in-out;
 }
-.sched-prefs-backdrop[hidden] { display: none; }
-.sched-prefs-backdrop.is-open {
-  opacity: 1;
+.prefs-overlay[hidden],
+.prefs-overlay.hidden {
+  display: none !important;
+}
+.prefs-overlay.is-open {
+  display: block !important;
   pointer-events: auto;
 }
-
-/* 36:2189 expanded prefs sheet */
-.sched-sheet.is-prefs {
+.prefs-backdrop {
   position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  top: 58px;
-  bottom: var(--space-2);
-  z-index: 5;
+  inset: 0;
+  box-sizing: border-box;
+  opacity: 0;
+}
+.prefs-sheet {
+  position: absolute;
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  box-sizing: border-box;
   width: auto;
   height: auto;
-  gap: var(--space-5);
-  padding: var(--pad-modal-top) var(--pad-modal-x) var(--pad-modal-bottom);
-  box-shadow: var(--shadow-card);
-  justify-content: flex-end;
-}
-.sched-sheet.is-prefs .sched-sheet-home {
-  display: none;
+  max-height: calc(var(--frame-h-active, var(--frame-h)) - var(--pad-screen-x) - var(--pad-screen-b));
+  padding: var(--space-3);
+  border-radius: var(--radius-modal);
+  background: var(--color-surface-white);
+  box-shadow: none;
+  overflow: hidden;
+  transform: translateY(calc(100% + var(--pad-screen-b)));
 }
 
 /* 36:2102 / 36:3080 Wrong URL ? overlay over current screen (onboarding or schedule) */
@@ -3074,20 +3647,13 @@ body.is-onb-wrong-url .onb-sched-screen {
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  background: linear-gradient(
-    to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
-  );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
 }
 
 .wrong-url-panel {
   position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  bottom: var(--space-2);
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3132,25 +3698,24 @@ body.is-onb-wrong-url .onb-sched-screen {
 .wrong-url-copy {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-3);
+  align-items: center; /* Figma 533:10013 counterAxis CENTER */
+  gap: var(--space-2); /* 8 — Figma 533:10013 */
   width: 100%;
+  text-align: center;
 }
 .wrong-url-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 6px; /* Figma headingRow 444:8015 */
   width: 100%;
-  font: var(--type-heading);
   color: var(--color-text-primary);
   font-feature-settings: 'dlig' 1;
+  text-align: center;
 }
 .wrong-url-body {
   margin: 0;
   width: 100%;
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
   color: var(--color-text-label);
   text-align: center;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
@@ -3188,59 +3753,104 @@ body.is-onb-wrong-url .onb-sched-screen {
   max-width: none;
 }
 
-/* Wrong URL screen ? Figma 137:2688: image BG + hardcoded dim/modal */
+/* Wrong URL end — Figma 533:9884: fall cards + browser mock + Oops sheet */
 .wua-screen {
-  padding: 0;
+  padding: var(--space-2); /* 8 — sheet inset */
   overflow: hidden;
-  background: transparent;
+  background: linear-gradient(to bottom, #f2f2f2, #ffffff); /* Figma 533:9884 root */
   pointer-events: auto;
+  box-sizing: border-box;
+  justify-content: flex-end;
+  align-items: stretch;
 }
-.wua-bg {
+.wua-fall {
   position: absolute;
   inset: 0;
-  display: block;
+  z-index: 0;
   width: 100%;
   height: 100%;
-  object-fit: fill;
+  object-fit: cover;
   pointer-events: none;
   user-select: none;
-  z-index: 0;
 }
 .wua-dim {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
+}
+.wua-sheet {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: 324px; /* Figma 533:10010 */
+  margin: 0 auto;
+  border-radius: var(--radius-onb-modal); /* 16 — visual card clip */
+  background: var(--color-surface-white);
+  overflow: hidden;
+  box-sizing: border-box;
+  pointer-events: auto;
+  box-shadow: var(--shadow-modal);
+}
+.wua-browser {
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  height: 194.4px; /* Figma 533:10011 */
+  overflow: hidden;
+  background: var(--color-surface-white);
+}
+.wua-browser-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+.wua-browser-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background: linear-gradient(
     to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
+    rgba(239, 238, 247, 0.05) 72%,
+    var(--color-surface-white) 100%
   );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
 }
 .wua-panel {
-  position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  top: 128px;
-  bottom: auto;
+  position: relative;
   z-index: 2;
   margin: 0;
-  width: auto;
+  width: 100%;
   max-width: none;
-  gap: var(--space-4);
-  padding: var(--space-3);
-  border-radius: var(--radius-card);
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Figma 533:10012 primary+counter CENTER */
+  gap: var(--space-4); /* 16 — Figma 533:10012 */
+  padding: var(--space-3); /* 12 */
+  border-radius: 0;
+  background: var(--color-surface-white);
   box-shadow: none;
   pointer-events: auto;
+  overflow: hidden;
+  box-sizing: border-box;
+  text-align: center;
 }
 .wua-panel .onb-btn {
   max-width: none;
   width: 100%;
+  align-self: stretch;
+}
+.wua-panel .wrong-url-copy {
+  align-self: stretch;
 }
 .wua-panel .onb-chip {
-  transform: rotate(-1deg);
+  flex-shrink: 0;
 }
 /* 36:3008 No internet modal */
 .offline-overlay {
@@ -3261,24 +3871,18 @@ body.is-onb-wrong-url .onb-sched-screen {
 .offline-backdrop {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
-  );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
 }
 .offline-panel {
   position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  bottom: var(--space-2);
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
   box-sizing: border-box;
+  width: auto;
   padding: var(--space-3);
   border-radius: var(--radius-modal);
   background: var(--color-surface-white);
@@ -3321,8 +3925,6 @@ body.is-onb-wrong-url .onb-sched-screen {
   border: 2px solid var(--color-surface-white);
   border-radius: var(--radius-sm);
   background: var(--color-surface-white);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
   color: rgba(0, 0, 0, 0.75);
   text-align: center;
   text-transform: uppercase;
@@ -3358,8 +3960,6 @@ body.is-onb-wrong-url .onb-sched-screen {
 .offline-fact-text {
   margin: 0;
   width: 100%;
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
   color: var(--color-text-inverse);
   text-align: center;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
@@ -3402,7 +4002,6 @@ body.is-onb-wrong-url .onb-sched-screen {
   justify-content: center;
   gap: 6px;
   width: 100%;
-  font: var(--type-heading);
   color: var(--color-text-primary);
   font-feature-settings: 'dlig' 1;
   text-align: center;
@@ -3410,8 +4009,6 @@ body.is-onb-wrong-url .onb-sched-screen {
 .offline-body {
   margin: 0;
   width: 100%;
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
   color: var(--color-text-label);
   text-align: center;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
@@ -3425,51 +4022,58 @@ body.is-onb-wrong-url .onb-sched-screen {
   display: none;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--space-5); /* Figma 36:2189 */
+  gap: var(--space-4); /* Figma 499:1868 / 499:1729 */
   width: 100%;
   min-height: 0;
   flex: 1;
 }
-.sched-sheet.is-prefs .sched-prefs-panel:not(.hidden) {
+.sched-prefs-panel:not(.hidden) {
   display: flex;
 }
 .sched-prefs-panel.hidden {
   display: none !important;
 }
 .prefs-night-copy {
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
   color: var(--color-sunday-text);
 }
 
-.prefs-top {
+.prefs-slot-column {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   width: 100%;
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
 }
+
 .prefs-header {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  height: 28px;
-}
-.prefs-header-spacer {
-  width: 28px;
-  height: 28px;
+  min-height: var(--heading-line-h);
   flex-shrink: 0;
+}
+.prefs-header .nav-icon-btn {
+  width: var(--prefs-nav-icon-size);
+  height: var(--prefs-nav-icon-size);
+}
+/* Day: back stays in layout at 0% opacity so title stays centered vs Time */
+#prefsDayHeader .prefs-header-back {
   opacity: 0;
+  pointer-events: none;
+}
+#prefsTimeHeader .prefs-header-back {
+  opacity: 1;
+  pointer-events: auto;
 }
 .prefs-title {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--onb-heading-row-gap);
   min-width: 0;
-  font: var(--type-heading);
   color: var(--color-text-primary);
   font-feature-settings: 'dlig' 1;
 }
@@ -3483,122 +4087,102 @@ body.is-onb-wrong-url .onb-sched-screen {
   border-radius: var(--radius-chip);
   background: var(--color-day-chip);
   box-shadow: var(--shadow-chip);
-  font: var(--type-highlight);
   color: var(--color-text-inverse);
-  transform: rotate(-2deg);
+  transform: rotate(var(--prefs-chip-rot));
 }
-.prefs-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 35px;
-  background: var(--color-prefs-close-bg);
-  color: var(--color-text-primary);
-  backdrop-filter: blur(17.5px);
-  -webkit-backdrop-filter: blur(17.5px);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.prefs-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  box-sizing: border-box;
-  width: 100%;
-  height: 32px;
-  border: 1.6px solid var(--color-warning-text);
-  border-radius: var(--radius-sm);
-  background: linear-gradient(to top, var(--color-surface-white), var(--color-warning-bg));
-  box-shadow: var(--shadow-card);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  color: var(--color-warning-text);
-}
-.prefs-status svg { flex-shrink: 0; color: var(--color-warning-text); }
-
 .prefs-days {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-4); /* Figma 380:3682 prefsSlotColumn row gap 16 */
   width: 100%;
   flex: 1;
   min-height: 0;
 }
 .prefs-days-row {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3); /* Figma 432:464 chip row gap 12 */
   width: 100%;
 }
 .prefs-day {
-  position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1 0 0;
+  align-items: stretch;
+  width: calc((100% - var(--space-3)) / 2); /* same fixed half as .sched-slot */
   min-width: 0;
-  padding: 0;
+  padding: 2px;
   border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-}
-.prefs-day-hint {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  box-sizing: border-box;
-  width: 100%;
-  height: 44px;
-  margin-bottom: -20px;
-  padding: var(--space-1) var(--space-4) 0;
   border-radius: var(--radius-card);
   background: linear-gradient(
     to right,
-    var(--color-slot-header-start),
-    var(--color-slot-header-end)
+    rgba(229, 229, 229, 0.5),
+    rgba(242, 242, 242, 0.5) 50%,
+    rgba(229, 229, 229, 0.5)
   );
-  font: var(--type-label);
-  color: var(--color-prefs-hint);
+  box-shadow: inset 0 1px 6px rgba(229, 229, 229, 0.75);
+  cursor: pointer;
+  text-align: center;
+}
+.prefs-day-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-slot-muted);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .prefs-day-label {
-  position: relative;
-  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: var(--sched-slot-selected-stroke-w) solid var(--color-slot-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-white);
+  color: var(--color-slot-time);
+  text-align: center;
+}
+.prefs-day-label-inner {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  box-sizing: border-box;
   width: 100%;
-  height: 28px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-slot-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-white);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  color: var(--color-slot-time);
+  min-width: 0;
 }
 .prefs-day.is-selected .prefs-day-label {
-  border-color: var(--color-accent-selected);
-  background: var(--color-accent-selected-bg);
+  border-color: var(--color-accent-grad-end);
+  background: var(--color-sched-prefs-bg);
 }
 .prefs-day-check {
-  display: none;
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--color-accent-selected);
+  color: var(--color-accent-grad-end);
+  visibility: hidden;
 }
-.prefs-day.is-selected .prefs-day-check { display: block; }
+.prefs-day.is-selected .prefs-day-check {
+  visibility: visible;
+}
+.prefs-day-name {
+  box-sizing: border-box;
+  width: 80px;
+  flex-shrink: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-.prefs-sunday {
+.prefs-banner {
   box-sizing: border-box;
   width: 100%;
   padding: var(--space-1);
@@ -3606,47 +4190,59 @@ body.is-onb-wrong-url .onb-sched-screen {
   background: linear-gradient(to bottom, var(--color-sunday-grad-start), var(--color-sunday-grad-end));
   flex-shrink: 0;
 }
-.prefs-sunday-inner {
+.prefs-banner-inner {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-1);
+  gap: var(--space-2);
   box-sizing: border-box;
   width: 100%;
+  min-height: 42px;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-surface-white);
   border-radius: var(--radius-sm);
   background: var(--color-sunday-glass);
 }
-.prefs-sunday-img {
-  width: 32px;
-  height: 32px;
-  object-fit: cover;
-  flex-shrink: 0;
-  border-radius: 4px;
-}
-.prefs-sunday-copy {
+.prefs-banner-copy {
   flex: 1;
-  margin: 0;
   min-width: 0;
-  font: var(--type-label);
-  color: var(--color-sunday-text);
+  text-align: left;
 }
-.prefs-sunday-check {
+.prefs-banner-title {
+  margin: 0;
+  color: var(--color-sunday-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prefs-banner-sub {
+  margin: 0;
+  color: var(--color-sunday-sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prefs-banner-check {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1.6px solid var(--color-sunday-btn-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-sunday-btn);
-  cursor: pointer;
   flex-shrink: 0;
-  opacity: 0.45;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1.6px solid var(--color-sunday-check-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-sunday-check-bg);
+  color: var(--color-surface-white);
+  cursor: pointer;
 }
-.prefs-sunday-check[aria-pressed="true"] { opacity: 1; }
+.prefs-banner-check svg {
+  opacity: 0;
+}
+.prefs-banner-check[aria-pressed="true"] svg {
+  opacity: 1;
+}
 
 .prefs-actions {
   display: flex;
@@ -3654,29 +4250,29 @@ body.is-onb-wrong-url .onb-sched-screen {
   justify-content: center;
   gap: var(--space-3);
   width: 100%;
-  height: 38px;
+  height: var(--btn-h);
   flex-shrink: 0;
 }
-.prefs-actions .onb-btn.icon-only {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-}
-.prefs-actions .onb-btn:not(.icon-only) {
+.prefs-actions .onb-btn {
   flex: 1;
-  height: 38px;
+  height: var(--btn-h);
 }
 
 .sched-sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-5); /* Figma 532:2722 / 533:6009 */
   width: 100%;
+  min-height: 24px; /* Figma 532:2722 schedSheetHeader */
 }
 
 .sched-sheet-label {
+  display: flex;
+  align-items: center;
+  height: 24px;
   margin: 0;
-  font: var(--type-label);
+  line-height: 16px;
   color: var(--color-slot-label);
   white-space: nowrap;
   overflow: hidden;
@@ -3684,56 +4280,94 @@ body.is-onb-wrong-url .onb-sched-screen {
 }
 
 .sched-prefs {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
+  gap: var(--space-1); /* 4 — Figma 533:6011 */
   box-sizing: border-box;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-slot-border);
-  border-radius: var(--radius-chip);
-  background: transparent;
-  font: var(--type-label);
-  color: var(--color-slot-muted);
+  height: 24px; /* Figma 532:2764 btnLabel */
+  padding: 0 6px; /* Figma 533:6011 — no 6px spacing token */
+  border: none;
+  border-radius: var(--radius-chip); /* 6 */
+  background: var(--color-sched-prefs-btn-bg); /* Primary @8% */
+  color: var(--color-accent-grad-end); /* Primary #3b13ec — label + icon */
   cursor: pointer;
   white-space: nowrap;
 }
-.sched-prefs svg {
+.sched-prefs::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0.8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(59, 19, 236, 0.5),
+    rgba(255, 255, 255, 0)
+  ); /* Figma 533:6011 stroke Primary@50% → white@0% */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.sched-prefs img,
+.sched-prefs-icon {
+  position: relative;
+  z-index: 1;
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+  display: block;
+}
+.sched-prefs span {
+  position: relative;
+  z-index: 1;
 }
 
 .sched-slots {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-3); /* 12 — Figma 434:1179 row + col */
   width: 100%;
 }
 
 .sched-slot {
   display: flex;
   flex-direction: column;
-  width: calc((100% - var(--space-4)) / 2);
+  align-items: stretch;
+  width: calc((100% - var(--space-3)) / 2);
   min-width: 0;
-  padding: 0;
+  padding: 2px; /* Figma 434:1181 */
   border: none;
-  background: transparent;
+  border-radius: var(--radius-card);
+  background: linear-gradient(
+    to right,
+    rgba(229, 229, 229, 0.5),
+    rgba(242, 242, 242, 0.5) 50%,
+    rgba(229, 229, 229, 0.5)
+  );
+  box-shadow: inset 0 1px 6px rgba(229, 229, 229, 0.75);
   cursor: pointer;
   text-align: left;
 }
 
 .sched-slot-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
   width: 100%;
-  height: 44px;
-  margin-bottom: -20px;
-  padding: var(--space-1) var(--space-3) 0;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(to right, var(--color-slot-header-start), var(--color-slot-header-end));
-  font: var(--type-label);
+  height: 20px; /* Figma 434:1182 */
+  margin: 0;
+  padding: 0 var(--space-2);
+  border-radius: 0;
+  background: transparent;
   color: var(--color-slot-muted);
   white-space: nowrap;
 }
@@ -3750,11 +4384,9 @@ body.is-onb-wrong-url .onb-sched-screen {
   width: 100%;
   height: 28px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--color-slot-border);
-  border-radius: var(--radius-sm);
+  border: var(--sched-slot-selected-stroke-w) solid var(--color-slot-border); /* unselected: no stroke */
+  border-radius: var(--radius-card); /* 12 — Figma 532:2736 / 532:2742 */
   background: var(--color-surface-white);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
   color: var(--color-slot-time);
   text-align: center;
   white-space: nowrap;
@@ -3763,9 +4395,8 @@ body.is-onb-wrong-url .onb-sched-screen {
 }
 
 .sched-slot.selected .sched-slot-time {
-  border-width: 1.4px;
-  border-color: var(--color-accent-grad-end);
-  background: var(--color-slot-selected-bg);
+  border-color: var(--color-accent-grad-end); /* 1.6px Primary — Figma 532:2742 */
+  background: var(--color-sched-prefs-bg);
 }
 
 .sched-slot:disabled {
@@ -3777,51 +4408,400 @@ body.is-onb-wrong-url .onb-sched-screen {
   width: 100%;
 }
 
-/* beat legacy #scheduleBtn / #videoTitle orange styles */
-#scheduleBtn.onb-btn {
+html.is-multi-session-frame,
+html.is-multi-session-frame body,
+html.is-multi-session-frame .popup-container,
+html.is-multi-session-frame #popupWrapper {
+  height: var(--frame-h-active, var(--frame-h-multi));
+  min-height: var(--frame-h-active, var(--frame-h-multi));
+}
+
+.sched-sheet.is-multi-session .sched-sheet-home {
+  gap: var(--space-4);
+}
+
+.sched-screen.is-multi-session {
+  justify-content: flex-start;
+}
+
+/* Multi-session schedule (Figma 380:7315 / 380:7379) */
+.sched-multi-home {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.sched-multi-home[hidden] {
+  display: none;
+}
+
+.sched-single-home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.sched-single-home[hidden] {
+  display: none;
+}
+
+.multi-session-area {
+  display: flex;
+  flex-direction: column;
   gap: 0;
   width: 100%;
-  margin-top: 0;
-  height: 38px;
-  padding: var(--space-1);
-  border: none;
-  border-radius: var(--radius-button);
-  background: linear-gradient(to bottom, var(--color-accent-grad-start), var(--color-accent-grad-end));
-  box-shadow: none;
-  font: inherit;
-  letter-spacing: normal;
-  color: var(--color-text-inverse);
+  min-height: var(--multi-session-area-h);
 }
-#scheduleBtn.onb-btn:disabled {
-  opacity: 0.6;
+
+/* Figma 380:7407 — authWarnBanner variant (300×48, pt 6 / px 12 / pb 8) */
+.multi-session-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--multi-session-banner-h);
+  min-height: var(--multi-session-banner-h);
+  padding: var(--multi-session-banner-pt) var(--space-3) var(--multi-session-banner-pb);
+  margin-bottom: calc(-1 * var(--multi-session-banner-overlap));
+  border: none;
+  border-radius: var(--radius-card);
+  background: linear-gradient(
+    to bottom,
+    var(--color-warning-bg),
+    var(--color-surface-white)
+  );
+  box-shadow: var(--shadow-auth-warn);
+  color: var(--color-warning-text);
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  flex-shrink: 0;
+}
+.multi-session-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--auth-warn-banner-stroke-w);
+  background: linear-gradient(
+    to bottom,
+    var(--color-warning-stroke-top),
+    var(--color-warning-stroke-bottom)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.multi-session-banner-left,
+.multi-session-banner-right {
+  margin: 0;
+  color: var(--color-warning-text);
+}
+
+.multi-session-banner-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.multi-session-banner-right {
+  flex-shrink: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.multi-session-why {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-position: from-font;
+  cursor: pointer;
+  display: inline;
+}
+
+.multi-session-partial {
+  margin: var(--space-1) 0 0;
+  color: var(--color-warning-text);
+}
+
+.multi-session-partial[hidden] {
+  display: none;
+}
+
+.multi-session-cards-shell {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-multi-session-shell-border);
+  border-radius: var(--radius-card);
+  background: var(--color-sched-prefs-bg);
+  position: relative;
+  z-index: 1;
+}
+
+.multi-session-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.multi-session-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: var(--multi-session-card-h);
+  box-sizing: border-box;
+  padding: var(--multi-session-card-py) var(--space-2);
+  border: 1px solid var(--color-multi-session-card-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-white);
+}
+
+.multi-session-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.multi-session-card-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.multi-session-card-row--time {
+  font: var(--type-slot-time); /* Figma 533:5990 Sub-Text 13/18 */
+  letter-spacing: var(--tracking-subtext);
+}
+
+.multi-session-card-part {
+  color: var(--color-history-empty-sub); /* Text-Secondary #808080 — Figma 533:5987 */
+}
+
+.multi-session-card-date {
+  color: var(--color-history-empty-sub); /* Text-Secondary #808080 — Figma 533:5988 */
+}
+
+.multi-session-card-clock {
+  color: var(--color-slot-time); /* Text-Primary #131313 — Figma 533:5991 */
+}
+
+.multi-session-card-offset {
+  color: var(--color-history-empty-sub); /* Text-Secondary #808080 — Figma 533:5992 */
+}
+
+.multi-session-card-divider {
+  height: 1px;
+  width: 100%;
+  margin: 0;
+  border: none;
+  background: var(--color-multi-session-divider); /* Stroke-Grey #e6e6e6 */
+}
+
+.sched-multi-btn-row {
+  width: 100%;
+  height: var(--btn-h);
+  flex-shrink: 0;
+}
+
+.sched-multi-btn-row .onb-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--btn-h);
+}
+
+.sched-multi-blocked-note {
+  margin: 0;
+  color: var(--color-slot-muted);
+  text-align: center;
+}
+
+.sched-multi-blocked-note[hidden] {
+  display: none;
+}
+
+#scheduleMultiBtn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* beat any leftover #videoTitle specificity from legacy rules */
 #videoTitle.sched-video-title {
-  /* beat legacy #videoTitle orange/center styles ? keep schedule Highlight Text */
   text-align: left;
   color: var(--color-text-inverse);
-  font: var(--type-highlight);
   font-feature-settings: 'dlig' 1;
-  letter-spacing: normal;
-  line-height: 22px;
+  margin: 0;
 }
 
-/* when a status screen takes over, hide the schedule chrome */
-#failureScreen:not(.hidden) ~ .sched-screen {
-  display: none;
+/* -- Shared bottom-sheet motion (ALL sheets) -----------------------------
+   Slide up from below the frame + backdrop fade. `--motion-ease` (ease-in-out).
+   Tokens: --sheet-slide-ms ↔ SHEET_SLIDE_MS / MODAL_ANIM_MS / PROFILE_SLIDE_MS;
+   outcome sheets use --success-enter-ms ↔ SUCCESS_ENTER_MS / SUCCESS_SLIDE_MS.
+   Enter and exit need separate keyframes — reverse on a finished animation snaps
+   to the end. Exit: sheet + backdrop only; inner content holds (outcome sheets). */
+@keyframes sheetSlideIn {
+  from { transform: translateY(calc(100% + var(--space-2))); }
+  to   { transform: translateY(0); }
 }
-#realContent:has(#failureScreen:not(.hidden)) .sched-screen {
-  display: none;
+@keyframes sheetSlideOut {
+  from { transform: translateY(0); }
+  to   { transform: translateY(calc(100% + var(--space-2))); }
+}
+@keyframes sheetBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sheetBackdropOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
-/* 102:1204 View history playlist ? overlay over schedule (same shell as Wrong URL) */
+.wl-modal.is-open .wl-modal-panel,
+.prefs-overlay.is-open .prefs-sheet,
+.feedback-overlay.is-open .feedback-panel,
+.logout-overlay.is-open .logout-panel,
+.multi-why-overlay.is-open .multi-why-panel {
+  animation: sheetSlideIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
+/* Profile panel: slide once on .is-entering, then hold translateY(0) on .is-open
+   so removing is-entering (or a stacked child) never drops the sheet off-screen. */
+.profile-overlay.is-open:not(.is-closing) .profile-panel {
+  transform: translateY(0);
+}
+.profile-overlay.is-entering:not(.is-stacked-under) .profile-panel {
+  animation: sheetSlideIn var(--profile-enter-ms) var(--motion-ease) both;
+}
+.wl-modal.is-open.is-closing .wl-modal-panel,
+.prefs-overlay.is-open.is-closing .prefs-sheet,
+.profile-overlay.is-open.is-closing .profile-panel,
+.feedback-overlay.is-open.is-closing .feedback-panel,
+.logout-overlay.is-open.is-closing .logout-panel,
+.multi-why-overlay.is-open.is-closing .multi-why-panel {
+  animation: sheetSlideOut var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.profile-overlay.is-open.is-closing .profile-panel {
+  animation: sheetSlideOut var(--profile-enter-ms) var(--motion-ease) both;
+}
+
+/* Success/fail outcome sheets — medium enter (--success-enter-ms) */
+.success-overlay.is-open .success-panel {
+  animation: sheetSlideIn var(--success-enter-ms) var(--motion-ease) both;
+}
+.success-overlay.is-open.is-closing .success-panel {
+  animation: sheetSlideOut var(--success-enter-ms) var(--motion-ease) both;
+}
+
+.wl-modal.is-open > [class*="backdrop"],
+.prefs-overlay.is-open .prefs-backdrop,
+.feedback-overlay.is-open .feedback-backdrop,
+.logout-overlay.is-open .logout-backdrop,
+.multi-why-overlay.is-open .multi-why-backdrop {
+  animation: sheetBackdropIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
+/* Profile backdrop: fade once on entry, then hold opacity so stacking a child
+   (and later unstacking) never replays a fade behind the child sheet. */
+.profile-overlay.is-open:not(.is-closing) .profile-backdrop {
+  opacity: 1;
+}
+.profile-overlay.is-entering:not(.is-stacked-under) .profile-backdrop {
+  animation: sheetBackdropIn var(--profile-enter-ms) var(--motion-ease) both;
+}
+.wl-modal.is-open.is-closing > [class*="backdrop"],
+.prefs-overlay.is-open.is-closing .prefs-backdrop,
+.profile-overlay.is-open.is-closing .profile-backdrop,
+.feedback-overlay.is-open.is-closing .feedback-backdrop,
+.logout-overlay.is-open.is-closing .logout-backdrop,
+.multi-why-overlay.is-open.is-closing .multi-why-backdrop {
+  animation: sheetBackdropOut var(--sheet-slide-ms) var(--motion-ease) both;
+}
+
+/* Onboarding permission + analyze sheets — same slide contract as .wl-modal */
+.onb-sheet-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.onb-sheet-overlay[hidden],
+.onb-sheet-overlay.hidden {
+  display: none !important;
+}
+.onb-sheet-overlay.is-open {
+  display: block;
+  pointer-events: auto;
+}
+.onb-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+}
+.onb-sheet-slot {
+  position: absolute;
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
+  z-index: 4;
+  box-sizing: border-box;
+}
+.onb-sheet-overlay.is-open .onb-sheet-backdrop {
+  animation: sheetBackdropIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.onb-sheet-overlay.is-open .onb-sheet-slot {
+  animation: sheetSlideIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.onb-sheet-overlay.is-open.is-closing .onb-sheet-backdrop {
+  animation: sheetBackdropOut var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.onb-sheet-overlay.is-open.is-closing .onb-sheet-slot {
+  animation: sheetSlideOut var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.profile-overlay.is-open.is-closing .profile-backdrop {
+  animation: sheetBackdropOut var(--profile-enter-ms) var(--motion-ease) both;
+}
+.success-overlay.is-open .success-backdrop {
+  animation: sheetBackdropIn var(--success-enter-ms) var(--motion-ease) both;
+}
+.success-overlay.is-open.is-closing .success-backdrop {
+  animation: sheetBackdropOut var(--success-enter-ms) var(--motion-ease) both;
+}
+
+.wl-modal-panel {
+  transform: translateY(calc(100% + var(--space-2)));
+  /* morph rather than jump when the panel's content changes size;
+     interpolate-size lets `height: auto` participate (Chromium 129+) */
+  interpolate-size: allow-keywords;
+  transition: height var(--sheet-slide-ms) var(--motion-ease);
+}
+
+/* 533:7243 View history playlist — stacks over profile (black blur) */
 .history-overlay {
   position: absolute;
   inset: 0;
-  z-index: 55;
+  z-index: 57; /* profile child: above .profile-overlay */
   box-sizing: border-box;
   pointer-events: none;
 }
@@ -3834,88 +4814,52 @@ body.is-onb-wrong-url .onb-sched-screen {
   pointer-events: auto;
 }
 
+.history-backdrop,
+.wrong-url-backdrop,
+.offline-backdrop,
+.delete-backdrop {
+  opacity: 0;
+}
 .history-backdrop {
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  background: linear-gradient(
-    to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
-  );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
 }
 
 .history-panel {
   position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  bottom: var(--space-2);
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
   top: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-4); /* 16 — Figma 533:7243 */
   box-sizing: border-box;
   width: auto;
-  height: var(--history-panel-h); /* fixed ? even with 0 rows */
-  max-height: var(--history-panel-h);
-  padding: var(--space-3);
-  border-radius: var(--radius-modal);
+  height: var(--history-panel-h);
+  max-height: calc(100% - var(--pad-screen-x) - var(--pad-screen-b));
+  padding: var(--space-3); /* 12 */
+  border-radius: var(--radius-onb-modal); /* 16 */
   background: var(--color-surface-white);
-  box-shadow: none;
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
 }
 
 .history-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3); /* 12 — Figma 533:7244 */
   width: 100%;
-  height: var(--space-8);
+  height: var(--space-8); /* 32 */
   flex-shrink: 0;
 }
-
 .history-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: var(--space-8);
-  height: var(--space-8);
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-button);
-  background: var(--color-history-icon-bg-strong);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  width: var(--history-nav-icon-size);
+  height: var(--history-nav-icon-size);
 }
-.history-nav .history-icon-btn:first-child {
-  background: var(--color-history-icon-bg);
-}
-.history-icon-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-.history-icon {
-  display: block;
-  width: var(--space-4);
-  height: var(--space-4);
-  color: inherit;
-}
-.history-icon--back {
-  transform: rotate(-90deg);
-}
-.history-icon--fwd {
-  transform: rotate(90deg);
-}
-.history-icon--chevron {
-  transform: rotate(-90deg);
-}
-.history-filter.is-open .history-icon--chevron {
-  transform: rotate(90deg);
+.history-pager .history-icon-btn {
+  background: var(--color-history-icon-bg-strong); /* Figma 533:7304 */
 }
 
 .history-title {
@@ -3923,16 +4867,11 @@ body.is-onb-wrong-url .onb-sched-screen {
   flex: 1;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 6px;
   margin: 0;
   width: auto;
   min-width: 0;
   height: var(--space-8);
-  font: var(--type-heading);
-  font-family: var(--font-condensed);
-  font-weight: 700;
-  font-size: 26px;
-  letter-spacing: 0;
   color: var(--color-text-primary);
   text-align: center;
   text-decoration: none;
@@ -3947,152 +4886,81 @@ body.is-onb-wrong-url .onb-sched-screen {
   cursor: default;
 }
 .history-title .onb-chip {
-  transform: rotate(-2deg);
-}
-
-.history-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
   flex-shrink: 0;
 }
 
-.history-filter {
-  position: relative;
-  flex-shrink: 0;
-  width: var(--history-filter-w);
-  box-sizing: border-box;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-history-filter-bg);
-}
-.history-filter-btn {
+.history-panel-inner {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  height: var(--space-7);
-  padding: 0 6px;
-  border: none;
-  border-radius: 6px;
-  background: var(--color-surface-white);
-  color: var(--color-history-filter-text);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  cursor: pointer;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
-#historyFilterLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.history-filter-menu {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  left: 0;
-  z-index: 2;
-  display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
+  min-height: 0;
   width: 100%;
-  min-width: 100%;
-  box-sizing: border-box;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-history-filter-bg);
-  box-shadow: var(--shadow-card);
-}
-.history-filter-menu[hidden],
-.history-filter-menu.hidden {
-  display: none !important;
-}
-.history-filter-option {
-  height: var(--space-7);
-  padding: 0 var(--space-1);
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-history-filter-text);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  text-align: left;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.history-filter-option:hover,
-.history-filter-option[aria-selected="true"] {
-  background: var(--color-surface-white);
 }
 
-.history-search {
+.history-tabs {
   display: flex;
-  flex: 1;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
-  height: 36px;
-  padding: 0 var(--space-3);
-  border-radius: 18px;
-  background: var(--color-history-filter-bg);
-  color: var(--color-text-primary);
+  gap: 0;
   box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: var(--space-1); /* 4 — Figma 533:7258 */
+  border-radius: var(--radius-card); /* 12 */
+  background: linear-gradient(
+    to bottom,
+    var(--color-history-tabs-bg-start),
+    var(--color-history-tabs-bg-end)
+  );
+  flex-shrink: 0;
 }
-.history-search input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--color-history-filter-text);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-}
-.history-search input::placeholder {
-  color: var(--color-history-search-muted);
-}
-/* hide native search clear ? we use #historySearchClear */
-.history-search input[type="search"]::-webkit-search-decoration,
-.history-search input[type="search"]::-webkit-search-cancel-button,
-.history-search input[type="search"]::-webkit-search-results-button,
-.history-search input[type="search"]::-webkit-search-results-decoration {
-  -webkit-appearance: none;
-  appearance: none;
-  display: none;
-}
-.history-search-clear {
+.history-tab {
   display: flex;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  width: var(--space-4);
-  height: var(--space-4);
-  padding: 0;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-2);
   border: none;
+  border-radius: var(--radius-chip); /* 6 inactive */
   background: transparent;
-  color: inherit;
+  color: var(--color-history-tab-text);
   cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition:
+    background-color 0.2s var(--motion-ease),
+    color 0.2s var(--motion-ease),
+    box-shadow 0.2s var(--motion-ease);
 }
-.history-search-clear[hidden],
-.history-search-clear.hidden {
-  display: none !important;
+.history-tab.is-active {
+  border-radius: var(--radius-sm); /* 8 — Figma 533:7259 */
+  border: 1px solid var(--color-surface-white);
+  background: var(--color-surface-white);
+  color: var(--color-history-title);
+  box-shadow: var(--shadow-history-tab);
 }
 
 .history-list {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0;
   width: 100%;
-  min-height: var(--history-list-h); /* reserve 4-row slot even when empty */
+  min-height: var(--history-list-h);
   height: var(--history-list-h);
   max-height: var(--history-list-h);
-  /* panel gap 12 + 4 = 16 between toolbar and list (Figma 102:1218) */
-  margin-top: var(--space-1);
   overflow: hidden;
+  transition: opacity 0.16s var(--motion-ease);
+}
+.history-list.is-empty {
+  min-height: var(--history-empty-list-h);
+  height: var(--history-empty-list-h);
+  max-height: var(--history-empty-list-h);
+}
+.history-list.is-swapping {
+  opacity: 0;
 }
 .history-row-wrap {
   display: flex;
@@ -4104,9 +4972,9 @@ body.is-onb-wrong-url .onb-sched-screen {
   overflow: hidden;
   box-sizing: border-box;
   transition:
-    height 0.35s ease-in-out,
-    margin-bottom 0.35s ease-in-out,
-    opacity 0.35s ease-in-out;
+    height 0.35s var(--motion-ease),
+    margin-bottom 0.35s var(--motion-ease),
+    opacity 0.35s var(--motion-ease);
 }
 .history-row-wrap:last-child {
   margin-bottom: 0;
@@ -4123,19 +4991,62 @@ body.is-onb-wrong-url .onb-sched-screen {
 .history-empty {
   display: flex;
   flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-3);
   width: 100%;
-  min-height: var(--history-list-h);
-  padding: var(--space-4) 0;
+  min-height: 100%;
   box-sizing: border-box;
-  color: var(--color-text-label);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
+}
+.history-empty-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.history-empty-thumb {
+  flex-shrink: 0;
+  width: 80px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--color-history-empty-art);
+}
+.history-empty-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 134px;
+  height: 48px;
+  flex-shrink: 0;
+}
+.history-empty-line {
+  width: 100%;
+  height: 15px;
+  border-radius: var(--radius-sm);
+  background: var(--color-history-empty-art);
+}
+.history-empty-line--short {
+  height: 8px;
+  margin-top: auto;
+}
+.history-empty-copy {
+  width: 100%;
+}
+.history-empty-heading {
+  margin: 0;
+  color: var(--color-history-empty-heading);
+  text-align: center;
+  font-feature-settings: 'dlig' 1;
+}
+.history-empty-sub {
+  margin: 0;
+  color: var(--color-history-empty-sub);
   text-align: center;
 }
 
-/* History fetch skeleton ? reuses .skeleton shimmer */
+/* History fetch skeleton — reuses .skeleton shimmer */
 .history-skel-row {
   pointer-events: none;
 }
@@ -4149,12 +5060,6 @@ body.is-onb-wrong-url .onb-sched-screen {
   height: 12px;
   margin: 3px 0;
 }
-.history-skel-filter {
-  display: inline-block;
-  width: 88px;
-  height: 14px;
-  vertical-align: middle;
-}
 .history-skel-pager {
   display: inline-block;
   width: 120px;
@@ -4164,7 +5069,7 @@ body.is-onb-wrong-url .onb-sched-screen {
 .history-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 0;
   width: 100%;
   height: var(--history-row-h);
   min-height: var(--history-row-h);
@@ -4172,8 +5077,8 @@ body.is-onb-wrong-url .onb-sched-screen {
   box-sizing: border-box;
   overflow: hidden;
   transition:
-    transform 0.35s ease-in-out,
-    opacity 0.35s ease-in-out;
+    transform 0.35s var(--motion-ease),
+    opacity 0.35s var(--motion-ease);
 }
 .history-row.is-removed {
   opacity: 0.5;
@@ -4190,8 +5095,7 @@ body.is-onb-wrong-url .onb-sched-screen {
   width: 100%;
   overflow: hidden;
   color: var(--color-history-title);
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
+  line-height: 22px; /* Figma 533:7286 Body 16/22 */
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4200,9 +5104,7 @@ body.is-onb-wrong-url .onb-sched-screen {
 .history-row-sub {
   width: 100%;
   overflow: hidden;
-  color: var(--color-text-label);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
+  color: var(--color-history-row-sub); /* #808080 — Figma 533:7287 */
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4214,7 +5116,7 @@ body.is-onb-wrong-url .onb-sched-screen {
 .history-row-sub--swap .history-sub-track {
   display: flex;
   flex-direction: column;
-  animation: histSubSwap 4.8s ease-in-out infinite;
+  animation: histSubSwap 4.8s var(--motion-ease) infinite;
 }
 .history-row-sub--swap .history-sub-line {
   height: 18px;
@@ -4228,65 +5130,56 @@ body.is-onb-wrong-url .onb-sched-screen {
   100% { transform: translateY(0); }
 }
 
+/* Hover actions — var(--btn-h) square onb-btn icon-only (Figma 545:16306) */
 .history-row-actions {
-  display: none;
+  --history-actions-w: var(--btn-h);
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  transition:
+    max-width 0.3s var(--motion-ease),
+    margin-left 0.3s var(--motion-ease);
+}
+.history-row-actions:has(.history-row-action + .history-row-action) {
+  --history-actions-w: 84px; /* 38 + 8 + 38 */
+}
+.history-row-actions:has(.history-row-action + .history-row-action + .history-row-action) {
+  --history-actions-w: 130px; /* 38 + 8 + 38 + 8 + 38 */
 }
 .history-row:hover .history-row-actions,
 .history-row:focus-within .history-row-actions {
-  display: flex;
+  max-width: var(--history-actions-w);
+  margin-left: var(--space-3);
 }
-.history-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  padding: 2.591px;
-  border: none;
-  border-radius: 34.545px;
-  cursor: pointer;
-  box-sizing: border-box;
+.history-row-actions .onb-btn.icon-only {
+  flex: 0 0 var(--btn-h);
+  width: var(--btn-h);
+  opacity: 0;
+  transform: translateX(var(--space-4));
+  transition:
+    opacity 0.3s var(--motion-ease),
+    transform 0.3s var(--motion-ease);
 }
-.history-action-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32.818px;
-  height: 32.818px;
-  border: 0.864px solid var(--color-history-action-ring);
-  border-radius: 34.545px;
-  background: linear-gradient(
-    to bottom,
-    var(--color-history-action-sheen),
-    transparent
-  );
-  box-sizing: border-box;
-  color: var(--color-text-inverse);
+.history-row:hover .history-row-actions .onb-btn.icon-only,
+.history-row:focus-within .history-row-actions .onb-btn.icon-only {
+  opacity: 1;
+  transform: translateX(0);
 }
-.history-action--watch {
-  background: linear-gradient(
-    to bottom,
-    var(--color-accent-grad-start),
-    var(--color-accent-grad-end)
-  );
+.history-row-actions .onb-btn.icon-only .onb-btn-inner {
+  padding: 0;
 }
-.history-action--delete {
-  background: linear-gradient(
-    to bottom,
-    var(--color-history-trash-start),
-    var(--color-history-trash-end)
-  );
-}
-.history-action--delete .history-action-inner {
-  color: var(--color-text-primary);
-}
-.history-action .history-icon {
+.history-row-actions .onb-btn.icon-only img,
+.history-row-actions .onb-btn.icon-only svg {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
+}
+.history-row-actions .onb-btn-secondary.icon-only .onb-btn-inner {
+  color: var(--color-text-primary);
 }
 
 .history-divider {
@@ -4295,15 +5188,10 @@ body.is-onb-wrong-url .onb-sched-screen {
   flex-shrink: 0;
   border: none;
   margin: 0;
-  background: linear-gradient(
-    to right,
-    var(--color-surface-white),
-    var(--color-history-divider) 50%,
-    var(--color-surface-white)
-  );
+  background: var(--color-history-divider);
   transition:
-    transform 0.35s ease-in-out,
-    opacity 0.35s ease-in-out;
+    transform 0.35s var(--motion-ease),
+    opacity 0.35s var(--motion-ease);
 }
 
 .history-pager {
@@ -4311,20 +5199,21 @@ body.is-onb-wrong-url .onb-sched-screen {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  margin-top: auto; /* pin to bottom of fixed-height panel */
+  margin-top: auto;
   flex-shrink: 0;
+}
+.history-pager[hidden] {
+  display: none;
 }
 .history-pager-label {
   flex: 1;
   margin: 0;
   min-width: 0;
-  color: var(--color-text-label);
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
+  color: var(--color-history-tab-text);
   text-align: center;
 }
 
-/* 58:6710 Schedule success modal */
+/* 541:15067 / 541:15659 Schedule success + fail — sheet slides up; cards/copy/stars cascade */
 .success-overlay {
   position: absolute;
   inset: 0;
@@ -4345,57 +5234,50 @@ body.is-onb-wrong-url .onb-sched-screen {
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  background: linear-gradient(
-    to bottom,
-    var(--color-overlay-dark),
-    var(--color-overlay-light)
-  );
-  backdrop-filter: blur(var(--blur-prefs-backdrop));
-  -webkit-backdrop-filter: blur(var(--blur-prefs-backdrop));
+  opacity: 0;
 }
 
 .success-panel {
   position: absolute;
-  left: var(--space-2);
-  right: var(--space-2);
-  bottom: var(--space-2);
-  top: auto;
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
   box-sizing: border-box;
   width: auto;
-  height: var(--success-panel-h);
+  height: auto;
+  max-height: calc(100% - var(--pad-screen-x) - var(--pad-screen-b));
   padding: var(--space-3);
-  border-radius: var(--radius-modal);
-  background: linear-gradient(
+  border-radius: var(--radius-onb-modal);
+  background-color: var(--color-surface-white);
+  background-image: linear-gradient(
     180deg,
-    var(--color-success-grad-1) 5.7%,
-    var(--color-success-grad-2) 17.4%,
-    var(--color-success-grad-3) 37.2%,
-    var(--color-surface-white) 61.8%
+    var(--color-success-grad-1) 0%,
+    var(--color-success-grad-2) var(--success-grad-stop-2),
+    var(--color-success-grad-3) var(--success-grad-stop-3),
+    var(--color-surface-white) 100%
   );
-  box-shadow: none;
+  background-size: 100% var(--success-grad-cover);
+  background-repeat: no-repeat;
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
+  transform: translateY(calc(100% + var(--pad-screen-b)));
 }
 
-.success-topo {
+.success-grid {
   position: absolute;
-  left: -115px;
-  top: -71px;
-  width: 615px;
-  height: 303px;
-  opacity: 0.08;
-  mix-blend-mode: multiply;
+  inset: 0;
   pointer-events: none;
-  overflow: hidden;
-}
-.success-topo-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 1px, transparent 1px);
+  background-size: 38px 38px;
+  -webkit-mask-image: linear-gradient(to bottom, #fff 0%, rgba(255, 255, 255, 0.4) 42%, transparent 62%);
+  mask-image: linear-gradient(to bottom, #fff 0%, rgba(255, 255, 255, 0.4) 42%, transparent 62%);
+  opacity: 0.85;
 }
 
 .success-hero {
@@ -4405,8 +5287,8 @@ body.is-onb-wrong-url .onb-sched-screen {
   justify-content: center;
   flex-shrink: 0;
   width: 100%;
-  height: 204px;
-  border-radius: var(--radius-modal);
+  height: var(--success-hero-h);
+  border-radius: var(--radius-onb-modal);
 }
 
 .success-card {
@@ -4416,28 +5298,71 @@ body.is-onb-wrong-url .onb-sched-screen {
   justify-content: center;
   box-sizing: border-box;
   width: var(--success-card-w);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-modal);
+  padding: var(--space-3);
+  gap: var(--space-1);
+  border-radius: var(--radius-success-card);
   background: var(--color-surface-white);
-  box-shadow: var(--shadow-success-card);
+  box-shadow: var(--shadow-modal);
 }
-.success-card--ghost {
+.success-card--ghost,
+.success-card--front {
   position: absolute;
   left: 50%;
-  top: 40px;
+  top: 50%;
+  margin: 0;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+.success-card--ghost {
   z-index: 0;
-  gap: 6px;
-  border: 1px solid var(--color-success-card-border);
-  opacity: 0.5;
-  transform: translateX(-50%) rotate(2deg);
+  border: none;
 }
 .success-card--front {
-  position: relative;
   z-index: 1;
-  gap: 2px;
-  margin-top: var(--space-8);
   border: 2px solid var(--color-success-card-border);
-  transform: rotate(-2deg);
+}
+.success-overlay.is-open:not(.is-closing) .success-card--ghost {
+  animation: successCardGhost var(--success-card-ms) var(--motion-ease) both;
+  animation-delay: var(--success-enter-ms);
+}
+.success-overlay.is-open:not(.is-closing) .success-card--front {
+  animation: successCardFront var(--success-card-ms) var(--motion-ease) both;
+  animation-delay: var(--success-enter-ms);
+}
+@keyframes successCardGhost {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(2deg);
+  }
+}
+@keyframes successCardFront {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-2deg);
+  }
+}
+.success-card .success-card-title,
+.success-card .success-card-time,
+.success-card .fail-card-error {
+  opacity: 0;
+}
+.success-overlay.is-open:not(.is-closing) .success-card .success-card-title,
+.success-overlay.is-open:not(.is-closing) .success-card .success-card-time,
+.success-overlay.is-open:not(.is-closing) .success-card .fail-card-error {
+  animation: successCardTextIn var(--success-card-text-ms) var(--motion-ease) both;
+  animation-delay: calc(var(--success-enter-ms) + var(--success-card-ms));
+}
+@keyframes successCardTextIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .success-card-title {
@@ -4445,29 +5370,24 @@ body.is-onb-wrong-url .onb-sched-screen {
   width: 100%;
   overflow: hidden;
   color: var(--color-success-card-title);
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
 }
-.success-card--ghost .success-card-title {
-  font: var(--type-highlight);
-  letter-spacing: normal;
-  -webkit-line-clamp: 2;
+.success-card--front .success-card-title {
+  color: var(--color-history-title);
 }
 .success-card-time {
   margin: 0;
   width: 100%;
   overflow: hidden;
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: linear-gradient(
-    to right,
+    to bottom,
     var(--color-success-time-start),
     var(--color-success-time-end)
   );
@@ -4476,38 +5396,56 @@ body.is-onb-wrong-url .onb-sched-screen {
   color: transparent;
 }
 .success-card-time--ghost {
-  font: var(--type-button);
-  letter-spacing: 0.02em;
   background: none;
   color: var(--color-success-ghost-time);
   -webkit-background-clip: unset;
   background-clip: unset;
 }
 
-.success-sparkle {
+.success-star {
   position: absolute;
   z-index: 2;
   display: block;
   pointer-events: none;
+  transform: scale(0) rotate(0deg);
+  transform-origin: center;
 }
-.success-sparkle--tr {
-  top: 17px;
-  right: 10px;
-  width: 29px;
-  height: 27px;
+.success-star--tr {
+  top: -2px;
+  right: var(--space-3);
+  width: 40px;
+  height: 40px;
+  --star-rest-rot: 45deg;
 }
-.success-sparkle--bl {
-  left: 9px;
-  bottom: 11px;
-  width: 18px;
-  height: 17px;
-  transform: scaleY(-1);
+.success-star--bl {
+  left: 3px;
+  bottom: 26px;
+  width: 28px;
+  height: 28px;
+  --star-rest-rot: -45deg;
+}
+.success-overlay.is-open:not(.is-closing) .success-star {
+  animation: successStarIn var(--success-star-ms) var(--motion-ease) both;
+  animation-delay: var(--success-enter-ms);
+}
+.success-overlay.is-open:not(.is-closing) .success-star--bl {
+  animation-delay: calc(var(--success-enter-ms) + var(--success-star-stagger));
+}
+@keyframes successStarIn {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(var(--star-rest-rot));
+  }
 }
 
 .success-copy {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
   flex-shrink: 0;
 }
@@ -4517,48 +5455,138 @@ body.is-onb-wrong-url .onb-sched-screen {
   align-items: center;
   margin: 0;
   width: 100%;
-  font: var(--type-heading);
   font-feature-settings: 'dlig' 1;
-  color: var(--color-text-primary);
+  color: var(--color-history-title); /* Figma #131313 */
   text-align: center;
 }
 .success-heading-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--onb-heading-row-gap);
   width: 100%;
   white-space: nowrap;
 }
 .success-heading-line {
   width: 100%;
-}
-.success-heading .onb-chip {
-  flex-shrink: 0;
+  line-height: var(--heading-line-h);
 }
 .success-body {
   margin: 0;
   width: 100%;
-  color: var(--color-text-label);
-  font: var(--type-body);
-  letter-spacing: var(--tracking-body);
+  color: var(--color-text-label); /* Figma #666666 */ /* Figma Body 2% */
   text-align: center;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
 }
 
+.success-overlay.is-open:not(.is-closing) .success-heading {
+  animation: successCopyIn var(--success-copy-ms) var(--motion-ease) both;
+  animation-delay: var(--success-enter-ms);
+}
+.success-overlay.is-open:not(.is-closing) .success-body {
+  animation: successCopyIn var(--success-copy-ms) var(--motion-ease) both;
+  animation-delay: calc(var(--success-enter-ms) + var(--success-copy-stagger));
+}
+.success-overlay.is-open:not(.is-closing) .success-actions {
+  animation: successCopyIn var(--success-copy-ms) var(--motion-ease) both;
+  animation-delay: calc(var(--success-enter-ms) + var(--success-copy-stagger) * 2);
+}
+@keyframes successCopyIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--success-copy-travel));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .success-actions {
   flex-shrink: 0;
-  margin-top: auto;
+  width: 100%;
 }
-.success-btn-secondary {
-  background: linear-gradient(
-    to bottom,
-    var(--color-history-trash-start),
-    var(--color-history-trash-end)
+
+/* 541:15659 — Failed-Gradient + pink rim; same enter sequence as success */
+#failPanel {
+  background-color: var(--color-surface-white);
+  background-image: linear-gradient(
+    180deg,
+    var(--color-fail-grad-1) 0%,
+    var(--color-fail-grad-2) var(--fail-grad-stop-2),
+    var(--color-fail-grad-3) var(--fail-grad-stop-3),
+    var(--color-surface-white) 100%
   );
+  background-size: 100% var(--fail-grad-cover);
+  background-repeat: no-repeat;
 }
-.success-btn-secondary .onb-btn-inner {
-  color: var(--color-success-btn-text);
+#failPanel .success-grid {
+  opacity: 0.65;
+}
+.fail-card--front {
+  border-color: var(--color-fail-card-border);
+}
+.fail-card-error {
+  margin: 0;
+  width: 100%;
+  color: var(--color-fail-error-text);
+}
+
+/* Exit: hold enter end-state — only sheet + backdrop slide down */
+.success-overlay.is-open.is-closing .success-card--ghost {
+  animation: none;
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(2deg);
+}
+.success-overlay.is-open.is-closing .success-card--front {
+  animation: none;
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(-2deg);
+}
+.success-overlay.is-open.is-closing .success-card .success-card-title,
+.success-overlay.is-open.is-closing .success-card .success-card-time,
+.success-overlay.is-open.is-closing .success-card .fail-card-error {
+  animation: none;
+  opacity: 1;
+}
+.success-overlay.is-open.is-closing .success-star {
+  animation: none;
+  opacity: 1;
+  transform: scale(1) rotate(var(--star-rest-rot));
+}
+.success-overlay.is-open.is-closing .success-heading,
+.success-overlay.is-open.is-closing .success-body,
+.success-overlay.is-open.is-closing .success-actions {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .success-overlay.is-open:not(.is-closing) .success-card--ghost,
+  .success-overlay.is-open:not(.is-closing) .success-card--front,
+  .success-overlay.is-open:not(.is-closing) .success-star,
+  .success-overlay.is-open:not(.is-closing) .success-heading,
+  .success-overlay.is-open:not(.is-closing) .success-body,
+  .success-overlay.is-open:not(.is-closing) .success-actions,
+  .success-overlay.is-open:not(.is-closing) .success-card .success-card-title,
+  .success-overlay.is-open:not(.is-closing) .success-card .success-card-time,
+  .success-overlay.is-open:not(.is-closing) .success-card .fail-card-error {
+    animation: none !important;
+    opacity: 1;
+  }
+  .success-overlay.is-open:not(.is-closing) .success-card--ghost {
+    transform: translate(-50%, -50%) rotate(2deg);
+  }
+  .success-overlay.is-open:not(.is-closing) .success-card--front {
+    transform: translate(-50%, -50%) rotate(-2deg);
+  }
+  .success-overlay.is-open:not(.is-closing) .success-star--tr {
+    transform: scale(1) rotate(45deg);
+  }
+  .success-overlay.is-open:not(.is-closing) .success-star--bl {
+    transform: scale(1) rotate(-45deg);
+  }
 }
 
 /* -- Auth flow overlays (Connecting + OAuth errors) -- */
@@ -4573,26 +5601,28 @@ body.is-onb-wrong-url .onb-sched-screen {
 }
 .auth-flow-host.hidden { display: none !important; }
 #onboarding .auth-flow-host,
+#onboardingPromise .auth-flow-host,
 #onboardingPermissions .auth-flow-host,
 #popupWrapper .auth-flow-host {
   border-radius: inherit;
 }
 .auth-flow-host:not(.hidden) { pointer-events: auto; }
+.auth-flow-host.is-open .auth-flow-backdrop {
+  animation: sheetBackdropIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.auth-flow-host.is-open .auth-panel:not(.hidden) {
+  animation: sheetSlideIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.auth-flow-host.is-open.is-closing .auth-flow-backdrop {
+  animation: sheetBackdropOut var(--sheet-slide-ms) var(--motion-ease) both;
+}
+.auth-flow-host.is-open.is-closing .auth-panel:not(.hidden) {
+  animation: sheetSlideOut var(--sheet-slide-ms) var(--motion-ease) both;
+}
 .auth-flow-backdrop {
   position: absolute;
   inset: 0;
   z-index: 1;
-  /*
-   * Figma 118:1876 / 171:743 — hardcoded CSS (PNG export bakes schedule under + looks flat).
-   * Linear #282828 → #FFFFFF with each stop already @ 50% opacity + blur 1px.
-   */
-  background: linear-gradient(
-    to bottom,
-    var(--color-auth-dim-top),
-    var(--color-auth-dim-bottom)
-  );
-  backdrop-filter: blur(1px);
-  -webkit-backdrop-filter: blur(1px);
 }
 .auth-flow-live-thumb {
   position: absolute;
@@ -4628,7 +5658,7 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   margin: 0 auto var(--space-2);
   padding: 0;
   background: var(--color-surface-white);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-onb-modal); /* Figma 553:18047 radius-4 = 16 */
   box-shadow: none; /* no drop shadow on auth modals */
   display: flex;
   flex-direction: column;
@@ -4644,6 +5674,7 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   overflow: hidden;
   background: var(--color-surface-white);
   flex-shrink: 0;
+  border-radius: var(--radius-onb-modal) var(--radius-onb-modal) 0 0;
 }
 .auth-video {
   display: block;
@@ -4674,6 +5705,15 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   padding: var(--space-3); /* 12 all sides */
   background: var(--color-surface-white);
   box-sizing: border-box;
+  border-radius: 0 0 var(--radius-onb-modal) var(--radius-onb-modal);
+}
+.auth-copy--connecting {
+  gap: var(--space-2); /* Figma 553:18050 authCopy gap 8 */
+}
+.auth-warn-banner--sheet {
+  width: 100%;
+  height: auto;
+  min-height: var(--auth-warn-banner-h);
 }
 .auth-actions {
   display: flex;
@@ -4710,74 +5750,100 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   width: 100%;
 }
 .auth-panel .onb-chip {
-  transform: rotate(-1deg); /* Figma auth chips */
+  flex-shrink: 0;
 }
-.auth-heading {
-  font: var(--type-heading); /* Heading 26/28 Bold */
+.auth-heading { /* Heading 26/30 Bold */
   color: var(--color-text-primary);
   margin: 0;
   text-align: center;
   font-feature-settings: "dlig" 1;
 }
-.auth-body {
-  font: var(--type-body); /* Body Text 16/20 Semibold */
-  letter-spacing: var(--tracking-body);
+.auth-body { /* Body Text 16/20 Semibold */
   color: var(--color-text-label);
   margin: 0;
   text-align: center;
   font-feature-settings: "ordn" 1, "ornm" 1;
 }
-/* Figma authWarnBanner — PNG exports (171:800 / 171:934 / 117:1128) @ 300×34 */
+/* Figma authWarnBanner (549:17073 / 418:1083 / 545:16510) — built in CSS */
 .auth-warn-banner {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
   width: var(--auth-warn-banner-w);
   height: var(--auth-warn-banner-h);
   max-width: 100%;
-  padding: 0;
+  padding: var(--space-2) var(--auth-warn-banner-px);
   border: none;
-  background: none;
-  box-shadow: none;
-  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    to bottom,
+    var(--color-warning-bg),
+    var(--color-surface-white)
+  );
+  box-shadow: var(--shadow-auth-warn);
+  color: var(--color-warning-text);
   flex-shrink: 0;
 }
-.auth-warn-banner.hidden { display: none; }
-.auth-warn-banner-img {
-  display: block;
-  width: var(--auth-warn-banner-w);
-  height: var(--auth-warn-banner-h);
-  max-width: 100%;
-  object-fit: fill;
+.auth-warn-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--auth-warn-banner-stroke-w);
+  background: linear-gradient(
+    to bottom,
+    var(--color-warning-stroke-top),
+    var(--color-warning-stroke-bottom)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
   pointer-events: none;
-  user-select: none;
 }
-.auth-warn-live-text {
+.auth-warn-banner.hidden { display: none; }
+.auth-warn-banner-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+.auth-warn-banner--video .auth-warn-banner-icon {
+  width: 16px;
+  height: 16px;
+}
+.auth-warn-banner-text {
   margin: 0;
-  width: 100%;
-  text-align: center;
-  font: var(--type-subtext);
-  letter-spacing: var(--tracking-subtext);
-  color: var(--color-warning-text);
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.auth-warn-live-text.hidden { display: none; }
-/* Analyzing error: swap PNG for live Sub-Text on same chrome */
+.auth-warn-banner:not(.auth-warn-banner--video) .auth-warn-banner-text {
+  text-align: center;
+  flex: initial;
+}
+.auth-warn-banner-link {
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
+/* Analyzing scan error — longer copy wraps inside the same chrome */
 .auth-warn-banner.is-live {
   width: 100%;
   height: auto;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1.6px solid var(--color-warning-text);
-  background: linear-gradient(
-    to top,
-    var(--color-warning-bg) 26.79%,
-    var(--color-surface-white) 132.96%
-  );
-  box-shadow: var(--shadow-auth-warn);
 }
-.auth-warn-banner.is-live .auth-warn-banner-img { display: none; }
-.auth-warn-banner.is-live .auth-warn-live-text { display: block; }
+.auth-warn-banner.is-live .auth-warn-banner-text {
+  white-space: normal;
+}
 .auth-why-btn {
   cursor: pointer;
   width: var(--auth-warn-banner-w);
@@ -4786,7 +5852,7 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
 button.auth-warn-banner {
   cursor: pointer;
   font: inherit;
-  color: inherit;
+  color: var(--color-warning-text);
 }
 .auth-host-close {
   position: absolute;
@@ -4805,11 +5871,21 @@ button.auth-warn-banner {
   padding: 0;
 }
 .auth-host-close img { width: 20px; height: 20px; filter: brightness(0) invert(1); }
-#onboardingPermissions .onb-overlay.is-visible,
+#onboardingPermissions .onb-overlay.is-visible {
+  opacity: 1;
+  pointer-events: none;
+  z-index: 2;
+}
 #onboardingAnalyzing .onb-overlay.is-visible {
   opacity: 1;
   pointer-events: none;
   z-index: 3;
+}
+/* Analyzing dim — same black@50% + 2px blur as every sheet overlay */
+#onboardingAnalyzing .onb-overlay.is-visible {
+  background: var(--color-multi-why-backdrop);
+  backdrop-filter: blur(var(--blur-sheet-backdrop));
+  -webkit-backdrop-filter: blur(var(--blur-sheet-backdrop));
 }
 .onb-sched-screen .onb-perms-decor-sheet {
   position: relative;
@@ -4820,17 +5896,16 @@ button.auth-warn-banner {
 }
 #onboardingPermissions .auth-sheet,
 #onboardingAnalyzing .auth-sheet {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-2);
-  transform: translateX(-50%);
-  z-index: 4;
-  width: 324px;
-  max-width: calc(100% - var(--space-4));
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  z-index: auto;
+  width: 100%;
+  max-width: none;
   margin: 0;
-  /* Figma 116:2318: pt 12 / pb 8 / px 12 */
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  border-radius: var(--radius-onb-modal);
   background: var(--color-surface-white);
   box-shadow: none;
   display: flex;
@@ -4839,15 +5914,776 @@ button.auth-warn-banner {
   gap: var(--space-4);
   box-sizing: border-box;
 }
-#onboardingPermissions .auth-copy,
-#onboardingPermissions .auth-heading-stack {
+#onboardingAnalyzing .onb-modal.auth-sheet {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  right: auto;
+}
+/* Only the Permissions sheet itself — not auth error panels remounted under #onboardingPermissions */
+#onboardingPermissions > .auth-sheet .auth-copy,
+#onboardingPermissions > .auth-sheet .auth-heading-stack {
   gap: 0; /* Figma heading block: no gap between rows */
 }
 #onboardingPermissions .onb-chip,
 #onboardingAnalyzing .onb-chip {
+  flex-shrink: 0;
+}
+
+/* Calendar permissions sheet on Promise — Figma 532:2481 */
+#onbPermsSheet.auth-sheet {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  z-index: auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  box-sizing: border-box;
+}
+#onbPermsSheet .auth-heading-stack {
+  gap: 0;
+}
+#onbPermsSheet .auth-heading-row {
+  gap: 6px;
+}
+#onbPermsSheet .onb-chip {
   transform: rotate(-1deg);
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-pink), var(--color-pink)) padding-box,
+    linear-gradient(to bottom, var(--color-surface-white), var(--color-pink)) border-box;
 }
-#onboardingPermissions.is-auth-covered .auth-sheet {
-  visibility: hidden; /* Figma Connecting: schedule chrome only under dim */
+#onbPermsSheet .onb-actions {
+  gap: var(--space-2);
 }
+#onbPermsSheet .onb-info {
+  gap: var(--space-1);
+}
+#onbPermsSheet .onb-info p,
+.onb-perms-note {
+  margin: 0;
+  text-align: center;
+  font: 600 13px/18px var(--font-condensed);
+  letter-spacing: -0.01em;
+  color: var(--color-text-label);
+}
+
 body.is-auth-flow #authFlowHost { display: flex; }
+
+/* ==========================================================================
+   PROFILE MENU (218:1834 new user / 116:4508 returning) + FEEDBACK (118:1358)
+   + DELETE CONFIRM (116:5060) ? all share the history overlay shell
+   ========================================================================== */
+.profile-overlay,
+.feedback-overlay,
+.delete-overlay,
+.logout-overlay {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.profile-overlay { z-index: 56; }
+.delete-overlay { z-index: 60; }
+.feedback-overlay { z-index: 58; }
+.logout-overlay { z-index: 59; }
+
+.profile-overlay[hidden], .profile-overlay.hidden,
+.feedback-overlay[hidden], .feedback-overlay.hidden,
+.delete-overlay[hidden], .delete-overlay.hidden,
+.logout-overlay[hidden], .logout-overlay.hidden {
+  display: none !important;
+}
+.profile-overlay.is-open,
+.feedback-overlay.is-open,
+.delete-overlay.is-open,
+.logout-overlay.is-open {
+  display: block !important;
+  pointer-events: auto;
+}
+
+.profile-overlay.is-stacked-under .profile-backdrop {
+  /* Second child blur sits on top; keep profile dim locked so it never flashes
+     or re-fades while Help us improve / logout / etc. are transitioning. */
+  opacity: 1 !important;
+  pointer-events: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Hard-freeze profile while any child sheet is open — no cascade, no slide. */
+.profile-overlay.is-stacked-under .profile-panel {
+  animation: none !important;
+  transition: none !important;
+  transform: translateY(0) !important;
+}
+.profile-overlay.is-stacked-under .profile-close,
+.profile-overlay.is-stacked-under .profile-gift,
+.profile-overlay.is-stacked-under .profile-content,
+.profile-overlay.is-stacked-under .profile-actions,
+.profile-overlay.is-stacked-under .profile-stats,
+.profile-overlay.is-stacked-under .profile-star {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.profile-backdrop,
+.feedback-backdrop,
+.logout-backdrop {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+}
+
+.delete-backdrop {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  opacity: 0;
+}
+
+/* Profile sheet: uses shared sheetSlide* (see above). Content cascades separately. */
+.profile-backdrop {
+  opacity: 0;
+}
+
+/* Sheet inset: 8px left / right / bottom (--pad-screen-x/b). Host is the fixed
+   #popupWrapper frame. max-height keeps tall sheets from swallowing the bottom inset. */
+.profile-panel,
+.feedback-panel,
+.delete-panel,
+.logout-panel {
+  position: absolute;
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: auto;
+  max-height: calc(var(--frame-h-active, var(--frame-h)) - var(--pad-screen-x) - var(--pad-screen-b));
+  padding: var(--space-3);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+  overflow: hidden;
+  transform: translateY(calc(100% + var(--pad-screen-b)));
+}
+
+/* ---- profile menu · 533:3931 / 549:17399 / 560:18332 ---- */
+.profile-panel {
+  align-items: center;
+  background-color: var(--color-surface-white);
+  background-image: linear-gradient(
+    180deg,
+    var(--color-profile-grad-start) 0%,
+    var(--color-profile-grad-mid) var(--profile-grad-stop-2),
+    var(--color-surface-white) var(--profile-grad-stop-3)
+  );
+  background-size: 100% var(--profile-grad-cover);
+  background-repeat: no-repeat;
+}
+.profile-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 1px, transparent 1px);
+  background-size: 38px 38px;
+  -webkit-mask-image: linear-gradient(to bottom, #fff 0%, rgba(255, 255, 255, 0.45) 50%, transparent 75%);
+  mask-image: linear-gradient(to bottom, #fff 0%, rgba(255, 255, 255, 0.45) 50%, transparent 75%);
+  opacity: 0.85;
+}
+
+/* Enter: all chrome visible; stars scale in after sheet lands; counts are JS 0→N */
+.profile-overlay.is-entering:not(.is-stacked-under) .profile-star {
+  animation: successStarIn var(--profile-star-ms) var(--motion-ease) both;
+  animation-delay: var(--profile-enter-ms);
+}
+.profile-overlay.is-entering:not(.is-stacked-under) .profile-star--bl {
+  animation-delay: calc(var(--profile-enter-ms) + 80ms);
+}
+
+/* Exit: hold entered state — only sheet + backdrop slide down */
+.profile-overlay.is-open.is-closing .profile-star {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: scale(1) rotate(var(--star-rest-rot)) !important;
+}
+
+.profile-gift,
+.profile-close {
+  position: absolute;
+  top: var(--space-3);
+  z-index: 3;
+}
+.profile-gift {
+  left: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  isolation: isolate;
+  background: linear-gradient(to bottom, var(--color-accent-grad-start), var(--color-accent-grad-end));
+  box-shadow: var(--shadow-chip); /* Figma 549:17360 — 0 1px 12px #f9d4e8 */
+}
+/* Outside stroke white→#3B13EC (Figma 549:17360 strokeAlign OUTSIDE 0.889) */
+.profile-gift::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--btn-stroke-w-gift));
+  border-radius: var(--radius-button);
+  padding: var(--btn-stroke-w-gift);
+  background: linear-gradient(to bottom, var(--color-profile-gift-stroke), var(--color-profile-gift-stroke-end));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.profile-gift-icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+.profile-close {
+  right: var(--space-3);
+}
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.profile-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  position: relative;
+}
+.profile-avatar-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+.profile-avatar {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--color-surface-white);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: var(--shadow-chip);
+}
+.profile-star {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+  transform: scale(0) rotate(0deg);
+  transform-origin: center;
+}
+.profile-star--tr {
+  top: var(--profile-star-tr-top);
+  right: var(--profile-star-tr-right);
+  width: 16px;
+  height: 16px;
+  --star-rest-rot: 0deg; /* Figma 549:17355 — cardinal star, no rotate */
+}
+.profile-star--bl {
+  left: var(--profile-star-bl-left);
+  top: var(--profile-star-bl-top);
+  width: 12px;
+  height: 12px;
+  --star-rest-rot: 0deg; /* Figma 549:17359 */
+}
+.profile-overlay.is-open:not(.is-entering):not(.is-closing) .profile-star {
+  transform: scale(1) rotate(var(--star-rest-rot));
+}
+.profile-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.profile-greeting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--onb-heading-row-gap);
+  margin: 0;
+  min-width: 0;
+  font-feature-settings: 'dlig' 1;
+  color: var(--color-history-title);
+}
+.profile-greeting #profileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-persona {
+  flex-shrink: 0;
+}
+.profile-persona[hidden] { display: none; }
+.profile-sub {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  color: var(--color-text-label);
+}
+
+.profile-stats-wrap {
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  width: 100%;
+}
+.profile-stats {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+}
+.profile-stats-wrap:has(.profile-trend-shell:not([hidden])) .profile-stats {
+  margin-bottom: -20px;
+}
+.profile-stat {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  min-width: 0;
+  text-align: center;
+}
+.profile-stat-label {
+  color: var(--color-text-label);
+}
+.profile-stat-value {
+  font-feature-settings: 'dlig' 1;
+  color: var(--color-profile-stat-value);
+}
+.profile-stat-divider {
+  width: 1px;
+  height: 36px;
+  flex-shrink: 0;
+  align-self: center;
+  background: var(--color-stat-divider);
+}
+
+.profile-trend-shell {
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 1px;
+  border-radius: 0 0 var(--radius-onb-modal) var(--radius-onb-modal);
+  background: linear-gradient(
+    to bottom,
+    var(--color-surface-white),
+    rgba(255, 255, 255, 0)
+  );
+}
+.profile-trend-shell[hidden] { display: none; }
+.profile-trend {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 41px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 0 0 var(--radius-onb-modal) var(--radius-onb-modal);
+  background: var(--color-trend-up-bg);
+  text-align: center;
+  white-space: nowrap;
+  color: var(--color-trend-up-text);
+}
+.profile-trend > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-trend.is-down {
+  background: var(--color-trend-down-bg);
+  color: var(--color-trend-down-text);
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  padding: var(--space-3);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+  box-shadow: var(--shadow-modal);
+}
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  width: calc(100% + 2 * var(--space-2));
+  height: var(--space-7);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-feature-settings: 'ordn' 1, 'ornm' 1;
+  color: var(--color-history-title);
+  cursor: pointer;
+  transition: background-color 0.2s var(--motion-ease);
+}
+.profile-row:hover {
+  background-color: var(--color-profile-row-hover);
+}
+.profile-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--space-7);
+  height: var(--space-7);
+  border-radius: var(--radius-sm);
+  background: var(--color-profile-row-icon-bg);
+  transition: background-color 0.2s var(--motion-ease);
+}
+.profile-row-divider {
+  height: 1px;
+  width: 100%;
+  background: var(--color-menu-divider);
+}
+.profile-version {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  color: var(--color-text-label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-overlay.is-entering:not(.is-stacked-under) .profile-star {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .profile-overlay.is-open .profile-star {
+    transform: scale(1) rotate(var(--star-rest-rot));
+  }
+}
+
+/* ---- multi-session Why sheet (400:9920–400:9972) ---- */
+.multi-why-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.multi-why-overlay[hidden],
+.multi-why-overlay.hidden {
+  display: none !important;
+}
+.multi-why-overlay.is-open {
+  display: block !important;
+  pointer-events: auto;
+}
+.multi-why-backdrop {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  box-sizing: border-box;
+}
+.multi-why-panel {
+  position: absolute;
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+  border-radius: var(--radius-modal);
+  background: var(--color-surface-white);
+  overflow: hidden;
+  transform: translateY(calc(100% + var(--space-2)));
+}
+.multi-why-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1672 / 941;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
+}
+.multi-why-hero-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.multi-why-hero-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(231, 228, 229, 0) 67.892%,
+    var(--color-surface-white) 100%
+  );
+}
+.multi-why-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-3);
+}
+.multi-why-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.multi-why-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--onb-heading-row-gap);
+  width: 100%;
+  font-feature-settings: 'dlig' 1;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+.multi-why-chip {
+  flex-shrink: 0;
+}
+.multi-why-btn {
+  width: 100%;
+  max-width: 300px;
+}
+
+/* ---- logout confirm (408:915) ---- */
+.logout-panel {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: var(--color-surface-white);
+}
+.logout-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1672 / 941;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
+}
+.logout-hero-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.logout-hero-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(231, 228, 229, 0) 67.892%,
+    var(--color-surface-white) 100%
+  );
+}
+.logout-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-3);
+}
+.logout-copy-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+}
+.logout-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-feature-settings: 'dlig' 1;
+  color: var(--color-text-primary);
+}
+.logout-title .onb-chip { flex-shrink: 0; }
+.logout-copy {
+  margin: 0;
+  width: 100%;
+  font-feature-settings: 'ordn' 1, 'ornm' 1;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ---- feedback · Figma 533:4984 / 544:16195 ---- */
+.feedback-panel {
+  align-items: stretch;
+  height: auto;
+  max-height: calc(var(--frame-h-active, var(--frame-h)) - var(--pad-screen-x) - var(--pad-screen-b));
+}
+.feedback-heading-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3); /* Figma 533:4985 — 12 */
+  width: 100%;
+}
+.feedback-backdrop {
+  opacity: 0;
+}
+.feedback-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  min-height: var(--heading-line-h);
+  font-feature-settings: 'dlig' 1;
+  color: var(--color-text-primary);
+}
+.feedback-title .onb-chip {
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.feedback-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--feedback-field-h);
+  padding: var(--space-4);
+  border: 1px solid var(--color-feedback-field-border);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+}
+.feedback-field:focus-within {
+  border-color: var(--color-accent-grad-end);
+}
+.feedback-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--feedback-text-h);
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.feedback-input::placeholder { color: var(--color-input-placeholder); }
+.feedback-count {
+  margin: 0;
+  text-align: right;
+  color: var(--color-input-placeholder);
+}
+.feedback-count.is-over {
+  color: var(--color-error-text, #ff0b0f);
+}
+.feedback-btn-row {
+  width: 100%;
+  height: var(--btn-h);
+}
+.feedback-btn-row .onb-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--btn-h);
+}
+.onb-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.onb-btn[disabled]:hover { filter: none; }
+
+/* ---- history confirm sheets · 533:8163 / 545:16478 / 545:16509 ---- */
+.delete-panel {
+  gap: var(--space-4);
+  align-items: stretch;
+}
+.delete-panel .auth-warn-banner--video {
+  width: 100%;
+}
+.delete-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  text-align: center;
+}
+.delete-heading[hidden] { display: none !important; }
+.delete-heading-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: var(--heading-line-h);
+  font-feature-settings: 'dlig' 1;
+  color: var(--color-text-primary);
+}
+.delete-heading-line .onb-chip { flex-shrink: 0; }
+.delete-body {
+  margin: 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.delete-body[hidden] { display: none; }
+.delete-btn-row { width: 100%; }

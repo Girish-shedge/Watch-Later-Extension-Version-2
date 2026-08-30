@@ -376,4 +376,18 @@ for (const t of timings) {
     `${pad(t.label, 48)}${pad(t.median.toFixed(2) + ' ms', 11)}${pad(t.min.toFixed(2) + ' ms', 11)}${t.max.toFixed(2)} ms`
   );
 }
+// ── Multi-session plan stress ────────────────────────────────────────────────
+{
+  const plan166 = algo.computeSessionPlan(166, { LONG_VIDEO_THRESHOLD_MINUTES: 165 });
+  assert.ok(plan166 && plan166.sessionCount === 2 && plan166.sessionLengthMin === 83);
+  const sumSec = plan166.sessions.reduce(
+    (n, s) => n + (s.videoOffsetEndSec - s.videoOffsetStartSec),
+    0
+  );
+  assert.strictEqual(sumSec, 166 * 60);
+  const plan300 = algo.computeSessionPlan(300, { LONG_VIDEO_THRESHOLD_MINUTES: 165 });
+  assert.ok(plan300.sessionCount >= 2);
+  assert.ok(plan300.sessionLengthMin <= 165);
+}
+
 console.log('\n✅ slot-algorithm-stress passed');

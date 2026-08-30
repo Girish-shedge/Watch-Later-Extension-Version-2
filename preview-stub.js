@@ -5,6 +5,7 @@
   const path = location.pathname || '';
   const isPreview =
     /(?:^|[?&])preview=1(?:&|$)/.test(location.search || '') ||
+    /#preview=1(?:&|$)/.test(location.hash || '') ||
     /(?:^|\/)(chrome|pop-up)\.html$/i.test(path);
 
   window.__WL_PREVIEW__ = isPreview;

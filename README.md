@@ -2,7 +2,22 @@
 
 Chrome/Edge MV3 extension that schedules YouTube “Watch Later” videos into Google Calendar.
 
-**Agent handoff (Aug 2026):** auth sheets use per-state MP4s in `Icon/auth/`; warn banners are **Figma PNG exports** (`auth-warn-banner.png`, `-why`, `-privacy`) — do not rebuild in CSS except Analyzing `.is-live` error. Modals: no drop shadow, padding 12 all sides, gap 16. Auth dim over schedule is CSS gradient (not PNG). Full context for Cursor agents lives in the parent workspace `.cursor/rules/project.mdc` + `rules.mdc` + `ponytail.mdc`.
+**Agent docs:** parent workspace `.cursor/rules/project.mdc` + `rules.mdc` + `ponytail.mdc` (facts of record). This README is the short human/load map.
+
+## Layout
+
+| Path | Role |
+|------|------|
+| `popup.html` / `popup.js` / `style.css` | v2 UI (MV3 plain HTML/JS/CSS) |
+| `background.js` | Service worker — silent OAuth + token refresh |
+| `lib/google-oauth.js` | Shared `launchWebAuthFlow` + `auth_oauth_lock` |
+| `lib/slot-algorithm.js` | Calendar slot scoring / multi-session plan |
+| `lib/translate.js` | Non-Latin → English (`WLTranslate`) |
+| `lib/supabase.js` | Bundled supabase-js (only client) |
+| `fonts/` | Proxima Nova TTFs |
+| `Icon/` | UI assets (onboarding, auth, schedule, multi-session, …) |
+| `tests/` | `selfcheck.js`, `translate-stress.js`, `stress-oauth.js`, slot-algorithm checks |
+| `supabase/` | Migrations + Edge Functions (mostly undeployed helpers) |
 
 ## Load unpacked
 
@@ -10,37 +25,44 @@ Chrome/Edge MV3 extension that schedules YouTube “Watch Later” videos into G
 2. Enable Developer mode
 3. Load unpacked → select this folder
 4. Pin the extension and open it on a YouTube watch URL
+5. After auth / host_permissions changes: **Reload** the extension
 
 ## Preview (no extension needed)
 
 ```bash
 # from this folder
 npx --yes serve -p 8321
-# open http://127.0.0.1:8321/popup.html?preview=1
-# auth states: &auth=connecting|cancelled|denied|generic|interrupted
-# first-time wrong URL: &wrongurl=1
+# open http://127.0.0.1:8321/chrome.html
+# or http://127.0.0.1:8321/popup#preview=1  (hash when serve strips ? on .html)
 ```
+
+| URL / hash | Screen |
+|------------|--------|
+| `#preview=1&schedule=1` | Schedule + random sample |
+| `#preview=1&multi=1` | Multi-session schedule |
+| `#preview=1&anim=fall` | Wrong URL sheet (Figma `533:9884`) |
+| `#preview=1&wrongurl=1` | First-time Wrong URL onboarding |
+| `#preview=1&success=1` / `&fail=1` | Outcome sheets (`541:15067` / `541:15659`) |
+| `#preview=1&auth=…` | Auth / analyzing / permissions |
 
 ## Tests
 
 ```bash
-node tests/selfcheck.js                     # pure UI/history helpers
-node tests/slot-algorithm-selfcheck.js      # scoring, suggestions, resume routing
-node tests/slot-algorithm-stress.js         # jam-packed / empty / hostile / DST calendars + timings
-node tests/scanandscore-tz-selfcheck.mjs    # Edge Function timezone helpers
-node tests/stress-oauth.js                  # refresh-token rotation + reuse detection
+node tests/selfcheck.js                 # UI/auth/motion/token contracts
+node tests/translate-stress.js          # non-Latin detect + gtx cache / fail paths
+node tests/stress-oauth.js              # refresh-token rotation + OAuth lock
+node tests/slot-algorithm-selfcheck.js
+node tests/slot-algorithm-stress.js
+node tests/scanandscore-tz-selfcheck.mjs
 ```
 
 ## Slot algorithm
 
-`lib/slot-algorithm.js` is the reference implementation and runs client-side: the
-post-login calendar scan writes a 7×7 score grid to `calendar_slot_scores`, and
-suggestions only ever fill an *empty* `user_slot_preferences` — a rescan never
-overwrites days/times the user picked.
+`lib/slot-algorithm.js` is the reference implementation (client freeBusy). Scores go to `calendar_slot_scores`; suggestions fill empty `user_slot_preferences` only. `supabase/functions/scanAndScore/` mirrors scoring but is **not deployed**.
 
-`supabase/functions/scanAndScore/` mirrors the scoring server-side but is **not
-deployed**. It still needs a Google access token from the caller, so it only
-becomes worthwhile once a server-held refresh token exists (cron path).
+## Translate
+
+Non-Latin titles/channel/description → English via free Google gtx (`lib/translate.js`). Cache: `chrome.storage.local.wl_translate_cache`. Failure keeps the original language. Host: `https://translate.googleapis.com/*` in `manifest.json`.
 
 ## Stack
 
@@ -51,3 +73,5 @@ becomes worthwhile once a server-held refresh token exists (cron path).
 ## Figma
 
 https://www.figma.com/design/PrF1j2l2jxbROee7Ek6PW8/Extension---V2
+
+Key nodes: Pain `531:958` · Promise `546:16896` · schedule sheet `532:2721` · Wrong URL `533:9884` · success `541:15067` · fail `541:15659` · history `533:7243`.
