@@ -2020,53 +2020,6 @@ body.dark-mode select {
   width: 100%;
 }
 
-.skel-multi-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-height: var(--multi-session-card-h);
-  box-sizing: border-box;
-  padding: var(--multi-session-card-py) var(--space-2);
-  border: 1px solid var(--color-multi-session-card-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-white);
-}
-
-.skel-multi-card-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.skel-multi-part {
-  width: 48px;
-  height: var(--space-4);
-}
-
-.skel-multi-date {
-  width: 64px;
-  height: var(--space-4);
-}
-
-.skel-multi-divider {
-  display: block;
-  width: 100%;
-  height: 1px;
-  border-radius: 0;
-}
-
-.skel-multi-time {
-  width: 112px;
-  height: var(--space-4);
-}
-
-.skel-multi-offset {
-  width: 88px;
-  height: var(--space-4);
-}
-
 .skel-multi-btns {
   display: flex;
   gap: var(--space-3);
@@ -4618,6 +4571,7 @@ button.prefs-scan-trigger {
 #schedSheet.is-slots-empty,
 #schedSheet.is-slots-stack-1,
 #schedSheet.is-slots-stack-2,
+.skel-sheet.is-slots-empty,
 .skel-sheet.is-slots-stack-1,
 .skel-sheet.is-slots-stack-2 {
   height: var(--sched-sheet-h-compact);
@@ -4637,6 +4591,7 @@ button.prefs-scan-trigger {
 #schedSheet.is-slots-empty .sched-slots,
 #schedSheet.is-slots-stack-1 .sched-slots,
 #schedSheet.is-slots-stack-2 .sched-slots,
+.skel-sheet.is-slots-empty .sched-slots,
 .skel-sheet.is-slots-stack-1 .sched-slots,
 .skel-sheet.is-slots-stack-2 .sched-slots {
   flex: 1;

@@ -1209,6 +1209,16 @@ assert.ok(
   assert.ok(!html.includes('data-skel="offline"'), 'unused offline skeleton screen must stay gone');
   assert.ok(src.includes('function fillSlotSkeleton'), 'slot skeletons share fillSlotSkeleton');
   assert.ok(css.includes('min-height: var(--frame-h-active, var(--frame-h))'), 'skeleton layer tracks --frame-h-active');
+  assert.ok(css.includes('.skel-sheet.is-slots-empty'), 'empty skeleton uses compact sheet height');
+  assert.ok(src.includes('multiSessionCardSkeletonHtml()'), 'multi load skeleton reuses live card skeleton HTML');
+  assert.ok(!css.includes('.skel-multi-card {'), 'duplicate multi skeleton card chrome must stay gone');
+  {
+    const skeletonCountForSlots = eval(`(${extractFunction('skeletonCountForSlots')})`);
+    assert.strictEqual(skeletonCountForSlots(0), 1, '0 slots shimmer as one compact card');
+    assert.strictEqual(skeletonCountForSlots(1), 1);
+    assert.strictEqual(skeletonCountForSlots(2), 2);
+    assert.strictEqual(skeletonCountForSlots(3), 4);
+  }
   assert.ok(src.includes('function paintMultiSessionCardsSkeleton'), 'regenerate must skeletonize slot cards');
   assert.ok(src.includes('function paintScheduleMultiSkeleton'), 'multi-session load skeleton must match session count');
   assert.ok(!css.match(/\.sched-screen\.is-multi-session[\s\S]{0,120}?gap:\s*var\(--space-2\)/), 'multi schedule screen must use 16px gap like single-session');

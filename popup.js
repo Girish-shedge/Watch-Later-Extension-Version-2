@@ -202,6 +202,7 @@ function slotLayoutMode(count) {
 }
 
 function skeletonCountForSlots(count) {
+  if (count <= 0) return 1; /* compact empty card */
   if (count === 1) return 1;
   if (count === 2) return 2;
   return 4;
@@ -346,7 +347,7 @@ function fillSlotSkeleton(grid, count = 4) {
   grid.innerHTML = '';
   const n = skeletonCountForSlots(count);
   const sheet = grid.closest('#schedSheet, .skel-sheet');
-  applySchedSheetSlotLayout(slotLayoutMode(n), sheet, grid);
+  applySchedSheetSlotLayout(slotLayoutMode(count), sheet, grid);
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'sched-slot sched-slot--skeleton';
@@ -401,21 +402,7 @@ function paintMultiSessionCardsSkeleton(sessionCount = 2) {
 function paintScheduleMultiSkeleton(sessionCount = 2) {
   const host = document.getElementById('skelMultiCards');
   if (!host) return;
-  host.innerHTML = '';
-  for (let i = 0; i < sessionCount; i++) {
-    host.insertAdjacentHTML('beforeend', `
-      <div class="skel-multi-card">
-        <div class="skel-multi-card-row">
-          <span class="skeleton skel-multi-part"></span>
-          <span class="skeleton skel-multi-date"></span>
-        </div>
-        <span class="skeleton skel-multi-divider"></span>
-        <div class="skel-multi-card-row">
-          <span class="skeleton skel-multi-time"></span>
-          <span class="skeleton skel-multi-offset"></span>
-        </div>
-      </div>`);
-  }
+  host.innerHTML = Array.from({ length: sessionCount }, () => multiSessionCardSkeletonHtml()).join('');
   const shell = document.getElementById('skelMultiShell');
   if (shell) {
     const rowH = sessionCount * 59 + Math.max(0, sessionCount - 1) * 8;
@@ -1185,7 +1172,7 @@ function showSkeleton(kind = 'schedule', opts = {}) {
     paintScheduleMultiSkeleton(n);
     applyPopupFrameHeight(true, n);
   } else {
-    fillSlotSkeleton(document.getElementById('skelSlots'), opts.slots ?? 4);
+    fillSlotSkeleton(document.getElementById('skelSlots'), opts.slots ?? availableSlots?.length ?? 4);
     applyPopupFrameHeight(false);
   }
 }
@@ -7264,8 +7251,7 @@ async function refreshSlotsAfterPrefsSave(userId) {
     multiSessionState.loading = true;
     paintMultiSessionUI();
   } else {
-    const skelCount = skeletonCountForSlots(availableSlots?.length || 4);
-    paintSlotGridSkeleton(skelCount);
+    paintSlotGridSkeleton(availableSlots?.length ?? 4);
     if (scheduleBtn) scheduleBtn.disabled = true;
   }
 

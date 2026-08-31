@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Project context — Watch Later Extension v2
 
-Last updated: 2026-08-31 (skeletons track live layout, Vercel preview)
+Last updated: 2026-09-01 (skeletons track live layout, Vercel preview)
 
 Schedule YouTube "watch later" videos into Google Calendar. MV3 extension (Chrome + Edge), plain HTML/JS/CSS, Supabase backend.
 
@@ -16,7 +16,7 @@ Schedule YouTube "watch later" videos into Google Calendar. MV3 extension (Chrom
 **Resume here (new chat):** Prefs day/time sheets Figma **`643:9532`** / **`643:9616`** — `.prefs-scan-banner` (`authWarnBanner` **699:19973**, 300×34, info icon) on **both** steps; **Click here** → `startPrefsCalendarScan(step)` slides prefs down → `#onbAnalyzeOverlay` scan up → `analyzeAndSavePrefs(..., { triggeredBy: 'prefs-banner' })` **always applies algorithm suggestions** (overwrites `selected_days`/`selected_times`) → toast **Preferences updated**; fail → toast + reopen prefs on same step. CTAs: day **Save & Next** / time **Save & Close**; validation toasts **At least select one day** / **At least select one time slot** (Sunday + Night owl count). Sheet **`--prefs-panel-h: 428px`**. Schedule slot edge cases Figma **`696:19901`/`19929`/`19950`**: 0–2 slots compact **`--sched-sheet-h-compact: 234px`**; preview `#preview=1&schedule=1&slots=0|1|2`. Calendar scan sheet **`643:10839`** unchanged. Preview scan: `#preview=1&schedule=1&auth=analyzing`.
 
 **Latest completed:**
-- **Skeletons track live layout (2026-08-31):** `#skeletonLayer` follows `--frame-h-active`; `fillSlotSkeleton` paints compact/grid slots; dead wrong-url/offline skeleton screens deleted. Canonical facts: workspace `.cursor/rules/project.mdc`.
+- **Skeletons track live layout (2026-09-01):** `#skeletonLayer` follows `--frame-h-active` (multi grows the frame; compact 1–2 slot sheets use `--sched-sheet-h-compact`). `fillSlotSkeleton` paints `#skelSlots` / `#slotGrid` with the same stack/grid classes as live slots. Nav shimmer is **36×36**. Dead `wrong-url` / `offline` skeleton screens deleted (those flows use their own overlays). Preview host: Vercel static of this folder (`/` → `chrome.html`).
 - **Prefs scan banner + validation (2026-08-31):** Figma **`643:9532`** (day) / **`643:9616`** (time) / banner instance **`699:19973`**. `.prefs-scan-banner` above chip column on both steps — shared `authInfoIcon` (18×18 circle-i, not triangle). Copy: *Auto fetch slots via calendar scan. **Click here***. Flow: `closeSchedPrefsAnimated` → `mountAnalyzeOverlay` + `startOnbCalScan` → `analyzeAndSavePrefs` with **`triggeredBy: 'prefs-banner'`** (only path that overwrites user chip selection after first save). Success: prefs stay closed, `refreshSlotsAfterPrefsSave`, toast **Preferences updated**. Failure: **Calendar scan failed. Try again.** + `openSchedPrefs(resumeStep)`. Entry: `#changePrefsBtn` + `#slotPreferences`. CTAs renamed: **Save & Next** / **Save & Close**. Validation: day step requires ≥1 day (incl. Sunday toggle); time step requires ≥1 slot (incl. Night owl). Opportunistic rescan on prefs open still scores/hints-only.
 - **Schedule slot edge cases (2026-08-31):** Figma **`696:19901`** (0) / **`696:19929`** (1) / **`696:19950`** (2). `slotLayoutMode` / `applySchedSheetSlotLayout`; empty card + personalized copy; `#scheduleBtn` disabled at 0 slots; multi empty uses same card in `#multiSessionCards`. Preview `&slots=0|1|2`.
 - **Calendar scan sheet (2026-08-31):** Figma **`643:10839`**. `#onbAnalyzeSheet.analyze-sheet` — pad 12 / gap 16 / r16; `auth-copy` + `.text-heading` / `.text-body`; full-width `.auth-warn-banner--sheet` (13/18, no trailing period); side month labels gradient-faded (`--color-cal-month-fade`). Decorative grid loops via `startOnbCalScan()`. Preview `#preview=1&schedule=1&auth=analyzing` (or `&analyzing=1`) → `startAnalyzePreviewLoop()` over schedule skeleton.
@@ -432,7 +432,7 @@ Max video length 3 hours; videos longer than 165 min use multi-session split; sk
 
 **Actions:** `#regenerateSlotsBtn` → `regenerateMultiSessionSlots` (`excludeSlotKeys`); `#scheduleMultiBtn` → `scheduleMultiSessionVideo` (disabled until `complete`; note "Complete all sessions first").
 
-**Skeleton:** `showSkeleton('schedule-multi')` / `paintScheduleMultiSkeleton`; regen uses `paintMultiSessionCardsSkeleton`.
+**Skeleton:** `showSkeleton('schedule' | 'schedule-multi', { slots, sessions })` — `fillSlotSkeleton` / `paintScheduleMultiSkeleton` (reuses `multiSessionCardSkeletonHtml`) / regen `paintMultiSessionCardsSkeleton`. Frame via `applyPopupFrameHeight`.
 
 **Key JS:** `setScheduleMode`, `paintMultiSessionUI`, `wireMultiSessionUiOnce`, `loadMultiSessionSchedule`, `fetchMultiSessionSlots`, `openMultiSessionWhySheet` / `closeMultiSessionWhySheet`.
 
