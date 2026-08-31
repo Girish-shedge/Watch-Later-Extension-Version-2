@@ -3,6 +3,7 @@ let availableSlots = [];
 let selectedSlotData  = null;
 let cachedVideoTitle  = '';
 let cachedVideoUrl    = '';
+let cachedVideoDurationMin = 10;
 let currentAuthUser   = null;
 let multiSessionState = { plan: null, assigned: [], complete: false, loading: false };
 
@@ -168,17 +169,110 @@ async function getVideoDurationInMinutes() {
   return sec ? Math.ceil(sec / 60) : 0;
 }
 
-function populateDropdown(slots) {
+function slotLayoutMode(count) {
+  if (count <= 0) return 'empty';
+  if (count === 1) return 'stack-1';
+  if (count === 2) return 'stack-2';
+  return 'grid';
+}
+
+function skeletonCountForSlots(count) {
+  if (count === 1) return 1;
+  if (count === 2) return 2;
+  return 4;
+}
+
+function applySchedSheetSlotLayout(layout) {
+  const sheet = document.getElementById('schedSheet');
+  const grid = document.getElementById('slotGrid');
+  if (!sheet) return;
+  sheet.classList.remove('is-slots-empty', 'is-slots-stack-1', 'is-slots-stack-2', 'is-slots-grid');
+  if (grid) {
+    grid.classList.remove('is-stack', 'is-stack-1', 'is-grid');
+  }
+  if (layout === 'empty') {
+    sheet.classList.add('is-slots-empty');
+    grid?.classList.add('is-stack', 'is-stack-1');
+  } else if (layout === 'stack-1') {
+    sheet.classList.add('is-slots-stack-1');
+    grid?.classList.add('is-stack', 'is-stack-1');
+  } else if (layout === 'stack-2') {
+    sheet.classList.add('is-slots-stack-2');
+    grid?.classList.add('is-stack');
+  } else {
+    sheet.classList.add('is-slots-grid');
+    grid?.classList.add('is-grid');
+  }
+}
+
+function profileGreetingName() {
+  const first = (profileState.name || '').trim().split(/\s+/)[0];
+  return first ? `Hey ${first}` : 'Hey there';
+}
+
+async function resolveSlotEmptyCopy(userId) {
+  const greet = profileGreetingName();
+  if (!userId || userId === 'preview-user') {
+    return {
+      title: 'No slots available.',
+      body: `${greet}, Please change your preferences.`,
+    };
+  }
+  const prefs = await loadUserPrefs(userId);
+  const hasDays = prefs.days?.length > 0;
+  const hasSlots = prefs.slots?.length > 0;
+  if (!hasDays || !hasSlots) {
+    return {
+      title: 'No slots available.',
+      body: `${greet}, Please set your day and time preferences first.`,
+    };
+  }
+  return {
+    title: 'No slots available.',
+    body: `${greet}, We couldn't find a free window — try widening your preferences.`,
+  };
+}
+
+function paintSchedSlotEmpty(host, copy) {
+  const card = document.createElement('div');
+  card.className = 'sched-slot sched-slot--empty';
+  card.setAttribute('role', 'status');
+
+  const head = document.createElement('div');
+  head.className = 'sched-slot-head sched-slot-head--empty';
+  const title = document.createElement('span');
+  title.className = 'text-sm';
+  title.textContent = copy.title;
+  head.appendChild(title);
+
+  const time = document.createElement('div');
+  time.className = 'sched-slot-time sched-slot-time--empty';
+  const body = document.createElement('span');
+  body.className = 'text-subtext';
+  body.textContent = copy.body || '';
+  time.appendChild(body);
+
+  card.append(head, time);
+  host.appendChild(card);
+}
+
+async function populateDropdown(slots, opts = {}) {
   const grid = document.getElementById('slotGrid');
   if (!grid) return;
   grid.innerHTML = '';
 
-  // Figma schedule sheet shows 4 slot cards max.
   slots = Array.isArray(slots) ? slots.slice(0, 4) : [];
+  const count = slots.length;
+  const layout = slotLayoutMode(count);
+  applySchedSheetSlotLayout(layout);
 
-  if (!slots.length) {
-    grid.innerHTML = '<p class="sched-sheet-label">No slots available</p>';
+  const scheduleBtn = document.getElementById('scheduleBtn');
+  if (scheduleBtn) scheduleBtn.disabled = count === 0;
+
+  if (!count) {
     selectedSlotData = null;
+    const copy = opts.emptyCopy || await resolveSlotEmptyCopy(opts.userId);
+    paintSchedSlotEmpty(grid, copy);
     return;
   }
 
@@ -222,6 +316,23 @@ function populateDropdown(slots) {
   });
 
   selectedSlotData = slots[0];
+}
+
+function paintSlotGridSkeleton(count = 4) {
+  const grid = document.getElementById('slotGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  selectedSlotData = null;
+  const layout = slotLayoutMode(count === 1 ? 1 : count === 2 ? 2 : 4);
+  applySchedSheetSlotLayout(layout === 'grid' ? 'grid' : layout);
+  const n = skeletonCountForSlots(count);
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'sched-slot sched-slot--skeleton';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<span class="skeleton sched-slot-skel"></span>';
+    grid.appendChild(el);
+  }
 }
 
 function computeMultiFrameHeight(sessionCount = 3) {
@@ -371,6 +482,33 @@ function paintMultiSessionUI() {
   }
 
   cards.innerHTML = '';
+
+  if (found === 0) {
+    const wrap = document.createElement('div');
+    wrap.className = 'multi-session-empty-wrap';
+    const grid = document.createElement('div');
+    grid.className = 'sched-slots is-stack is-stack-1';
+    wrap.appendChild(grid);
+    cards.appendChild(wrap);
+    void resolveSlotEmptyCopy(window.currentUserId).then(copy => paintSchedSlotEmpty(grid, copy));
+    if (partialNote) {
+      partialNote.hidden = true;
+      partialNote.classList.toggle('hidden', true);
+    }
+    if (schedBtn) {
+      schedBtn.disabled = true;
+      schedBtn.title = '';
+    }
+    if (blockedNote) {
+      blockedNote.hidden = true;
+      blockedNote.classList.toggle('hidden', true);
+    }
+    if (document.getElementById('scheduleScreen')?.classList.contains('is-multi-session')) {
+      applyPopupFrameHeight(true);
+    }
+    return;
+  }
+
   plan.sessions.forEach((sess, idx) => {
     const row = assigned[idx];
     const card = document.createElement('div');
@@ -985,6 +1123,7 @@ function scoreCalendarPrefs(busy, timeMin, timeMax, slotRanges = SLOT_RANGES) {
 
  document.addEventListener('DOMContentLoaded', () => {
    wireSchedTitleFrameOnce();
+   wireOfflineNetworkOnce();
    // if the user has “dark” saved, apply it immediately
    if (localStorage.getItem('theme') === 'dark') {
      document.body.classList.add('dark-mode');
@@ -1017,6 +1156,39 @@ function showSkeleton(kind = 'schedule') {
 function hideSkeleton() {
   document.getElementById('skeletonLayer')?.classList.add('hidden');
   schedulePaintSchedTitleFrame();
+}
+
+/** Schedule screen load — thumb sweep → title → slots → CTA. Pairs with --sched-*-enter-ms in style.css. */
+const SCHED_THUMB_ENTER_MS = 300;
+const SCHED_TITLE_ENTER_MS = 260;
+const SCHED_SHEET_ENTER_MS = 260;
+const SCHED_ENTER_STAGGER_MS = 32;
+const SCHED_SLOT_STAGGER_MS = 32;
+const SCHED_TITLE_DELAY_MS = 160;
+const SCHED_ENTER_TOTAL_MS =
+  SCHED_TITLE_DELAY_MS +
+  SCHED_TITLE_ENTER_MS +
+  SCHED_SHEET_ENTER_MS +
+  4 * SCHED_SLOT_STAGGER_MS +
+  SCHED_SHEET_ENTER_MS +
+  120;
+
+function revealScheduleScreen() {
+  hideSkeleton();
+  const rc = document.getElementById('realContent');
+  const screen = document.getElementById('scheduleScreen');
+  if (!rc) return;
+  const animate = !(typeof prefersReducedMotion === 'function' && prefersReducedMotion());
+  screen?.classList.remove('is-sched-entering');
+  if (animate && screen) {
+    void screen.offsetWidth;
+    screen.classList.add('is-sched-entering');
+    clearTimeout(screen._schedEnterTimer);
+    screen._schedEnterTimer = setTimeout(() => {
+      screen.classList.remove('is-sched-entering');
+    }, SCHED_ENTER_TOTAL_MS);
+  }
+  rc.classList.remove('hidden');
 }
 
 function bailInitPopupSkeleton() {
@@ -1070,6 +1242,8 @@ function showToast(message, type = 'info') {
  *  ?schedule=1&fail=1 → loop the fail sheet over schedule
  *  ?wrongurl=1 → first-time Wrong URL onboarding (Pain→…→wrongURLwrongURL)
  *  ?anim=fall → Wrong URL cards BG + hardcoded overlay/modal
+ *  ?schedule=1&queue=1 → loop the queue-intercept sheet over schedule
+ *  ?schedule=1&offline=1 → no-internet sheet over schedule (fact carousel + open/close loop)
  */
 function getPreviewParams() {
   const hash = (location.hash || '').replace(/^#/, '');
@@ -1110,9 +1284,16 @@ function startPreviewMode() {
           }, 200);
         } else if (authScreen === 'analyzing') {
           setTimeout(async () => {
-            const scanName = document.getElementById('scanName');
-            if (scanName) scanName.textContent = 'Girish,';
-            if (onboardingGoTo) await onboardingGoTo(3);
+            await storageSet({
+              supabase_token: 'preview-token',
+              supabase_refresh: 'preview-refresh',
+              google_access_token: 'preview-google',
+              userId: 'preview-user',
+              [ONB_FLAG_COMPLETE]: true,
+              [ONB_FLAG_SCANNED]: false
+            });
+            paintPreviewSchedule();
+            setTimeout(() => startAnalyzePreviewLoop(), 240);
           }, 200);
         } else if (authScreen && authPanels[authScreen]) {
           setTimeout(async () => {
@@ -1158,9 +1339,17 @@ function startPreviewMode() {
             openPromisePermsSheet();
           } else if (authScreen === 'promise' && onboardingGoTo) await onboardingGoTo(1);
           else if (authScreen === 'analyzing') {
-            const scanName = document.getElementById('scanName');
-            if (scanName) scanName.textContent = 'Girish,';
-            if (onboardingGoTo) await onboardingGoTo(3);
+            await storageSet({
+              supabase_token: 'preview-token',
+              supabase_refresh: 'preview-refresh',
+              google_access_token: 'preview-google',
+              userId: 'preview-user',
+              [ONB_FLAG_COMPLETE]: true,
+              [ONB_FLAG_SCANNED]: false
+            });
+            hideOnboarding();
+            paintPreviewSchedule();
+            setTimeout(() => startAnalyzePreviewLoop(), 240);
           } else if (authScreen === 'connecting') {
             if (onboardingGoTo) await onboardingGoTo(1);
             openPromisePermsSheet();
@@ -1198,9 +1387,7 @@ function startPreviewMode() {
 
 /** Fill schedule UI with random dummy video + slots (keeps onboarding visible if open). */
 function paintPreviewSchedule() {
-  hideSkeleton();
   hideNetworkLostScreen();
-  document.getElementById('realContent')?.classList.remove('hidden');
 
   const samples = [
     {
@@ -1260,6 +1447,7 @@ function paintPreviewSchedule() {
   if (durEl) durEl.textContent = formatDurationLabel(durationSec);
 
   const durationMin = Math.ceil(durationSec / 60);
+  cachedVideoDurationMin = durationMin;
   const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
   const plan = algo?.computeSessionPlan(durationMin, { LONG_VIDEO_THRESHOLD_MINUTES: 165 });
 
@@ -1283,14 +1471,26 @@ function paintPreviewSchedule() {
   } else {
     setScheduleMode('single');
     const now = Date.now();
-    const slots = [0, 1, 2, 3].map(i => {
-      const start = new Date(now + (i + 1) * 60 * 60 * 1000);
-      start.setMinutes(0, 0, 0);
-      const end = new Date(start.getTime() + durationMin * 60 * 1000);
-      return { start: start.toISOString(), end: end.toISOString() };
-    });
-    availableSlots = slots;
-    populateDropdown(slots);
+    const slotsParam = params.get('slots');
+    let slotCount = 4;
+    if (slotsParam === '0') slotCount = 0;
+    else if (slotsParam === '1') slotCount = 1;
+    else if (slotsParam === '2') slotCount = 2;
+    if (slotsParam === '0' && !profileState.name) profileState.name = 'Girish';
+
+    if (slotCount === 0) {
+      availableSlots = [];
+      void populateDropdown([], { userId: 'preview-user' });
+    } else {
+      const slots = Array.from({ length: slotCount }, (_, i) => {
+        const start = new Date(now + (i + 1) * 60 * 60 * 1000);
+        start.setMinutes(0, 0, 0);
+        const end = new Date(start.getTime() + durationMin * 60 * 1000);
+        return { start: start.toISOString(), end: end.toISOString() };
+      });
+      availableSlots = slots;
+      void populateDropdown(slots);
+    }
   }
   cachedVideoTitle = pick.title;
   cachedVideoUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
@@ -1312,7 +1512,7 @@ function paintPreviewSchedule() {
   const scheduleMultiBtn = document.getElementById('scheduleMultiBtn');
   if (scheduleBtn) {
     scheduleBtn.style.display = plan ? 'none' : 'flex';
-    scheduleBtn.disabled = false;
+    scheduleBtn.disabled = plan ? false : !availableSlots?.length;
     if (!plan) {
       scheduleBtn.onclick = () => {
         const slot = availableSlots?.[0];
@@ -1351,6 +1551,25 @@ function paintPreviewSchedule() {
   if (outcome) setTimeout(() => startOutcomePreviewLoop(), 240);
   else if (params.get('history') === '1') setTimeout(() => startHistoryPreviewLoop(), 240);
   else if (params.get('profile') === '1') setTimeout(() => startProfilePreviewLoop(), 240);
+  else if (params.get('offline') === '1') setTimeout(() => startOfflinePreviewLoop(), 240);
+  else if (params.get('queue') === '1') setTimeout(() => startQueuePreviewLoop(), 240);
+  else if (params.get('analyzing') === '1' || params.get('auth') === 'analyzing') {
+    setTimeout(() => startAnalyzePreviewLoop(), 240);
+  }
+
+  revealScheduleScreen();
+}
+
+/** Post-auth calendar scan — skeleton under sheet, decorative grid loops until stopOnbCalScan(). */
+async function startAnalyzePreviewLoop() {
+  const scanName = document.getElementById('scanName');
+  if (scanName) scanName.textContent = 'Girish,';
+  setAnalyzeBanner('default');
+  revealPostAuthScheduleSkeleton();
+  await waitNextPaint();
+  mountAnalyzeOverlay();
+  startOnbCalScan();
+  await openOnbSheet(document.getElementById('onbAnalyzeOverlay'));
 }
 
 async function completeLoginWithGoogleTokens(id_token, access_token) {
@@ -1419,19 +1638,26 @@ async function ensureValidGoogleToken() {
   }
 }
 
-// 🚫 Offline modal (Figma 36:3008) over current screen + fact carousel
+// 🚫 Offline modal (Figma 645:13974) over current screen + fact carousel
 const OFFLINE_FACTS = [
-  'There are only 158 leap years in the entire planet and solar system!',
-  'Honey never spoils — jars from ancient tombs were still edible.',
-  'Octopuses have three hearts and blue blood.',
-  'Bananas are berries, but strawberries aren’t.',
-  'A group of flamingos is called a flamboyance.',
-  'YouTube users watch over a billion hours of video every day.',
-  'Your calendar has more free slots than you think — we checked.',
-  'Wombat poop is cube-shaped so it doesn’t roll away.',
+  "YouTube was founded on Feb 14, 2005 Valentine's Day.",
+  'Google bought YouTube for $1.65B less than 2 years in.',
+  "Gangnam Style broke YouTube's view counter back in 2012.",
+  'YouTube first began as an idea for a video-dating site.',
+  "San Diego Zoo's comment is one of YouTube's most-liked ever.",
+  'Despacito was the fastest video ever to reach 3B views.',
+  'Baby Shark Dance was the first video to hit 10B views.',
+  'In 1752, Britain skipped 11 days to switch calendars.',
+  'Leap years happen 97 times every 400 years, not 100.',
+  "Russia didn't adopt today's calendar until 1918.",
+  'Earth takes 365 days, 5 hrs, 49 min to orbit the sun.',
+  'Some years quietly have 53 weeks, not 52.',
+  'Legend says Augustus stole a day from Feb for August.',
 ];
 const OFFLINE_FACT_COUNT = 5;
-const OFFLINE_FACT_MS = 3000;
+const OFFLINE_FACT_MS = 5000;
+const OFFLINE_FACT_FADE_MS = 550;
+const OFFLINE_PROBE_MS = 3000;
 
 let offlineFactTimer = null;
 let offlineFactIndex = 0;
@@ -1459,6 +1685,10 @@ function setOfflineTicker(active) {
   });
 }
 
+function setOfflineFactTheme(index) {
+  document.querySelector('.offline-fact-shell')?.classList.toggle('is-green', index % 2 === 1);
+}
+
 function paintOfflineFact(index, { fade = true } = {}) {
   const el = document.getElementById('offlineFactText');
   if (!el || !offlineFactBatch.length) return;
@@ -1467,10 +1697,11 @@ function paintOfflineFact(index, { fade = true } = {}) {
     el.textContent = text;
     el.classList.remove('is-fading');
     setOfflineTicker(index % OFFLINE_FACT_COUNT);
+    setOfflineFactTheme(index);
   };
   if (!fade) return apply();
   el.classList.add('is-fading');
-  setTimeout(apply, 180);
+  setTimeout(apply, OFFLINE_FACT_FADE_MS);
 }
 
 function stopOfflineFacts() {
@@ -1521,16 +1752,31 @@ function closeOnbSheet(overlay) {
   if (overlay.id === 'onbPermsOverlay') resetPermsSheetEnter();
   return new Promise(resolve => {
     closeOverlay(overlay);
-    setTimeout(resolve, MODAL_ANIM_MS);
+    setTimeout(resolve, SHEET_SLIDE_MS);
   });
 }
 function openOnbSheet(overlay) {
-  if (!overlay) return;
+  if (!overlay) return Promise.resolve();
   openOverlay(overlay);
+  return new Promise(resolve => setTimeout(resolve, SHEET_SLIDE_MS));
+}
+
+/** One paint before the scan sheet slides up — skeleton lands first. */
+function waitNextPaint() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+/** Post-auth watch URL: schedule shimmer under the calendar scan sheet. */
+function revealPostAuthScheduleSkeleton() {
+  hideOnboarding();
+  showSkeleton('schedule');
+  document.getElementById('realContent')?.classList.add('hidden');
 }
 
 const PERMS_CARD_ENTER_MS = 450;
 const PERMS_CARD_STAGGER_MS = 140;
+const QUEUE_CARD_ENTER_MS = 450;
+const QUEUE_CARD_STAGGER_MS = 140;
 
 function resetPermsSheetEnter() {
   const sheet = document.getElementById('onbPermsSheet');
@@ -1585,6 +1831,59 @@ function offlineMountParent() {
     return document.getElementById('onboarding');
   }
   return document.getElementById('popupWrapper') || document.getElementById('scheduleScreen') || document.body;
+}
+
+/** Real connectivity probe — navigator.onLine alone lies on captive portals. */
+async function probeNetworkOnline() {
+  if (!navigator.onLine) return false;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    await fetch('https://www.google.com/generate_204', {
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function runOfflineProbe() {
+  if (window.__WL_PREVIEW__) return;
+  const online = await probeNetworkOnline();
+  const overlay = document.getElementById('networkLostScreen');
+  const isOpen = overlay?.classList.contains('is-open');
+  if (!online) {
+    if (!isOpen) showNetworkLostScreen();
+    return;
+  }
+  if (isOpen) {
+    hideNetworkLostScreen();
+    initPopup();
+  }
+}
+
+function wireOfflineNetworkOnce() {
+  if (wireOfflineNetworkOnce._done) return;
+  wireOfflineNetworkOnce._done = true;
+  window.addEventListener('offline', () => showNetworkLostScreen());
+  window.addEventListener('online', () => runOfflineProbe());
+  document.getElementById('tryAgainBtn')?.addEventListener('click', async () => {
+    const online = await probeNetworkOnline();
+    if (online) {
+      hideNetworkLostScreen();
+      initPopup();
+    } else {
+      showToast('Still offline… please check your connection', 'info');
+    }
+  });
+  if (!window.__WL_PREVIEW__) {
+    wireOfflineNetworkOnce._probe = setInterval(runOfflineProbe, OFFLINE_PROBE_MS);
+    runOfflineProbe();
+  }
 }
 
 function showNetworkLostScreen() {
@@ -2115,6 +2414,21 @@ const CAL_FADE_MS = 400; /* paired with --cal-fade-ms */
 const CAL_CELL_MS = 260; /* paired with --cal-cell-ms */
 const CAL_PAUSE_MS = 200;
 const CAL_TRACK_OFF = [-3, -2, -1, 0, 1, 2, 3];
+const ANALYZE_BANNER_DEFAULT = 'We never check your events or their details';
+
+function setAnalyzeBanner(mode, msg) {
+  const statusEl = document.getElementById('onbAnalyzeStatus');
+  const statusText = document.getElementById('onbAnalyzeStatusText');
+  if (!statusEl || !statusText) return;
+  if (mode === 'default') {
+    statusEl.classList.remove('is-live');
+    statusText.textContent = ANALYZE_BANNER_DEFAULT;
+  } else {
+    statusEl.classList.add('is-live');
+    statusText.textContent = msg || ANALYZE_BANNER_DEFAULT;
+  }
+}
+
 let onbCalScan = null; // { abort, timer, resolveDone }
 
 /** Mon–Sun week rows that touch `year`/`month` (0-indexed month).
@@ -2164,27 +2478,53 @@ function onbCalChunks(rows, size = ONB_CAL_ROWS) {
   return chunks.length ? chunks : [[]];
 }
 
-function paintOnbCalChunk(grid, rows) {
+function ensureCalGrid(grid) {
+  if (grid.dataset.calBuilt === '1') return;
   grid.innerHTML = '';
+  grid.dataset.calBuilt = '1';
+  for (let r = 0; r < ONB_CAL_ROWS; r++) {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'cal-week-row';
+    for (let c = 0; c < 7; c++) {
+      const el = document.createElement('div');
+      el.className = 'cal-day-cell is-empty';
+      const inner = document.createElement('div');
+      inner.className = 'cal-cell-inner';
+      el.appendChild(inner);
+      rowEl.appendChild(el);
+    }
+    grid.appendChild(rowEl);
+  }
+}
+
+function applyCalChunk(grid, rows) {
+  ensureCalGrid(grid);
   const slice = rows.slice(0, ONB_CAL_ROWS);
   while (slice.length < ONB_CAL_ROWS) {
     slice.push(Array.from({ length: 7 }, () => ({ day: '', date: '', inMonth: false, empty: true })));
   }
+  const cells = [...grid.querySelectorAll('.cal-day-cell')];
+  let i = 0;
   slice.forEach((row) => {
-    const rowEl = document.createElement('div');
-    rowEl.className = 'cal-week-row';
     row.forEach((cell) => {
-      const el = document.createElement('div');
-      el.className = 'cal-day-cell';
+      const el = cells[i++];
+      const inner = el.querySelector('.cal-cell-inner');
+      el.classList.remove('is-scanned', 'is-cell-fading-out', 'is-cell-fading-in');
       if (cell.empty || !cell.inMonth) {
         el.classList.add('is-empty');
+        if (inner) inner.innerHTML = '';
       } else {
-        el.innerHTML = `<span class="cal-day">${cell.day}</span><span class="cal-date">${cell.date}</span>`;
+        el.classList.remove('is-empty');
+        if (inner) {
+          inner.innerHTML = `<span class="cal-day">${cell.day}</span><span class="cal-date">${cell.date}</span>`;
+        }
       }
-      rowEl.appendChild(el);
     });
-    grid.appendChild(rowEl);
   });
+}
+
+function paintOnbCalChunk(grid, rows) {
+  applyCalChunk(grid, rows);
 }
 
 function stopOnbCalScan() {
@@ -2193,12 +2533,13 @@ function stopOnbCalScan() {
   if (onbCalScan.timer) clearTimeout(onbCalScan.timer);
   onbCalScan.resolveDone?.();
   onbCalScan = null;
+  document.getElementById('onbCalGrid')?.removeAttribute('data-cal-built');
 }
 
 /** Decorative scan: current → previous → next month. One in-month cell highlights at a time
- *  (left-to-right, top-to-bottom). Leftover weeks page in 3-row chunks. After a page (e.g. 1–20)
- *  the outgoing chips scale down + fade while the next page scales in with a spring overshoot —
- *  same tick as the month carousel. Loops until stopOnbCalScan(). */
+ *  (left-to-right, top-to-bottom). Leftover weeks page in 3-row chunks. After a page finishes,
+ *  cell labels fade inside the white grid shell (boxes stay), then the next dates fade in.
+ *  Loops until stopOnbCalScan(). */
 function startOnbCalScan() {
   stopOnbCalScan();
   const grid = document.getElementById('onbCalGrid');
@@ -2271,31 +2612,45 @@ function startOnbCalScan() {
     track.classList.remove('is-snap');
   };
 
-  const swapChunk = async (monthIdx, chunk, { withMonth, first }) => {
+  const fadeCalCellsIn = async () => {
+    const cells = [...grid.querySelectorAll('.cal-day-cell')];
+    if (!cells.length) return;
+    cells.forEach(c => c.classList.add('is-cell-fading-in'));
+    await delay(CAL_FADE_MS);
+    cells.forEach(c => c.classList.remove('is-cell-fading-in'));
+  };
+
+  const swapCalCellChunk = async (chunk) => {
+    const cells = [...grid.querySelectorAll('.cal-day-cell')];
+    cells.forEach(c => c.classList.add('is-cell-fading-out'));
+    await delay(CAL_FADE_MS);
+    if (state.abort) return;
+    applyCalChunk(grid, chunk);
+    cells.forEach(c => {
+      c.classList.remove('is-cell-fading-out');
+      c.classList.add('is-cell-fading-in');
+    });
+    await delay(CAL_FADE_MS);
+    cells.forEach(c => c.classList.remove('is-cell-fading-in'));
+  };
+
+  const showInitialChunk = async (monthIdx, chunk) => {
     if (state.abort) return;
     const m = months[monthIdx];
-    if (!first) {
-      const outgoing = grid.cloneNode(true);
-      outgoing.removeAttribute('id');
-      outgoing.classList.add('cal-grid-outgoing', 'is-fading-out');
-      stack.appendChild(outgoing);
-      if (withMonth) startCarousel(m.year, m.month);
-      paintOnbCalChunk(grid, chunk);
-      grid.classList.add('is-fading-in');
-      await delay(CAL_FADE_MS);
-      outgoing.remove();
-      if (state.abort) return;
-      grid.classList.remove('is-fading-in');
-      finishCarousel();
-    } else {
-      sliderYM = { year: m.year, month: m.month };
-      paintTrack(m.year, m.month);
-      paintOnbCalChunk(grid, chunk);
-      grid.classList.add('is-fading-in');
-      await delay(CAL_FADE_MS);
-      if (state.abort) return;
-      grid.classList.remove('is-fading-in');
-    }
+    sliderYM = { year: m.year, month: m.month };
+    paintTrack(m.year, m.month);
+    applyCalChunk(grid, chunk);
+    await fadeCalCellsIn();
+  };
+
+  /** After scan: fade labels inside each chip, swap, fade in — white grid stays put. */
+  const fadeToChunk = async (monthIdx, chunk, { withMonth }) => {
+    if (state.abort) return;
+    const m = months[monthIdx];
+    if (withMonth) startCarousel(m.year, m.month);
+    await swapCalCellChunk(chunk);
+    if (state.abort) return;
+    if (withMonth) finishCarousel();
   };
 
   const scanChunk = async () => {
@@ -2331,8 +2686,12 @@ function startOnbCalScan() {
         if (state.abort) return;
         for (const chunk of monthChunks[mi]) {
           if (state.abort) return;
-          await swapChunk(mi, chunk, { withMonth: first || mi !== prevMi, first });
-          first = false;
+          if (first) {
+            await showInitialChunk(mi, chunk);
+            first = false;
+          } else {
+            await fadeToChunk(mi, chunk, { withMonth: mi !== prevMi });
+          }
           prevMi = mi;
           await scanChunk();
         }
@@ -2728,34 +3087,31 @@ async function finishPostAuthScan(name) {
 
   await closeOnbSheet(document.getElementById('onbPermsOverlay'));
   await closeAuthFlowAnimated();
-  if (typeof onboardingGoTo === 'function') {
-    await onboardingGoTo(3, { openAnalyzeSheet: true });
+
+  // Wrong-URL first login: keep analyzing on onboarding chrome (no watch tab to paint).
+  if (authFlowKind === 'new-wrong-url') {
+    if (typeof onboardingGoTo === 'function') {
+      await onboardingGoTo(3, { openAnalyzeSheet: true });
+    } else {
+      document.getElementById('onboarding')?.classList.remove('hidden');
+      document.body.classList.add('onboarding-active');
+      ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'newUserWrongUrl'].forEach(id => {
+        document.getElementById(id)?.classList.add('hidden');
+      });
+      document.getElementById('onboardingAnalyzing')?.classList.remove('hidden');
+      startOnbCalScan();
+      openOnbSheet(document.getElementById('onbAnalyzeOverlay'));
+    }
   } else {
-    document.getElementById('onboarding')?.classList.remove('hidden');
-    document.body.classList.add('onboarding-active');
-    ['onboardingPain', 'onboardingPromise', 'onboardingPermissions', 'newUserWrongUrl'].forEach(id => {
-      document.getElementById(id)?.classList.add('hidden');
-    });
-    const analyzing = document.getElementById('onboardingAnalyzing');
-    analyzing?.classList.remove('hidden');
+    // Watch URL: skeleton → scan sheet (slide) → initPopup after scan.
+    revealPostAuthScheduleSkeleton();
+    await waitNextPaint();
+    mountAnalyzeOverlay();
     startOnbCalScan();
-    openOnbSheet(document.getElementById('onbAnalyzeOverlay'));
+    await openOnbSheet(document.getElementById('onbAnalyzeOverlay'));
   }
 
-  const statusEl = document.getElementById('onbAnalyzeStatus');
-  const statusText = document.getElementById('onbAnalyzeStatusText');
   const retryBtn = document.getElementById('onbAnalyzeRetry');
-  const ANALYZE_BANNER_DEFAULT = 'We never check your events or their details.';
-  const setAnalyzeBanner = (mode, msg) => {
-    if (!statusEl || !statusText) return;
-    if (mode === 'default') {
-      statusEl.classList.remove('is-live');
-      statusText.textContent = ANALYZE_BANNER_DEFAULT;
-    } else {
-      statusEl.classList.add('is-live');
-      statusText.textContent = msg || ANALYZE_BANNER_DEFAULT;
-    }
-  };
   setAnalyzeBanner('default');
   if (retryBtn) { retryBtn.classList.add('hidden'); retryBtn.hidden = true; }
 
@@ -2806,9 +3162,10 @@ async function finishPostAuthScan(name) {
       showWrongUrlFallAnim();
       return;
     }
+
     await closeOnbSheet(document.getElementById('onbAnalyzeOverlay'));
+    stopOnbCalScan();
     await initPopup();
-    hideOnboarding();
     // Field-level resume: if scan failed and prefs empty → day prefs; else schedule
     try {
       const stored = await storageGet(['userId']);
@@ -3206,26 +3563,8 @@ function updateThemeIcon() {
 }
 
 
-async function initPopup() {
+async function initPopup(opts = {}) {
   closeMultiSessionWhySheet();
-
-  // ——— Network status handlers (once) ———
-  if (!initPopup._netWired) {
-    initPopup._netWired = true;
-    window.addEventListener('offline', showNetworkLostScreen);
-    window.addEventListener('online', () => {
-      hideNetworkLostScreen();
-      initPopup();
-    });
-    document.getElementById('tryAgainBtn')?.addEventListener('click', () => {
-      if (navigator.onLine) {
-        hideNetworkLostScreen();
-        initPopup();
-      } else {
-        showToast('Still offline… please check your connection', 'info');
-      }
-    });
-  }
 
   // Offline: keep current context under the modal
   if (!navigator.onLine) {
@@ -3296,7 +3635,7 @@ async function initPopup() {
   }
 
   // Tokens present but calendar never finished scanning (mid-scan close / post-logout) → Connecting
-  {
+  if (!opts.skipCalendarScanGate) {
     const { userId } = await storageGet(['userId']);
     const flags = await migrateOnboardingFlags(userId);
     if (!flags[ONB_FLAG_SCANNED]) {
@@ -3504,6 +3843,7 @@ if (el.videoTitle) {
   }
 
   const videoDuration = await getVideoDurationInMinutes() || 10;
+  cachedVideoDurationMin = videoDuration;
   const config = await loadSlotAlgoConfig();
   const isMulti = typeof WLSlotAlgorithm !== 'undefined' &&
     WLSlotAlgorithm.computeSessionPlan(videoDuration, config);
@@ -3524,7 +3864,7 @@ if (el.videoTitle) {
       videoDuration
     );
     availableSlots = originalSlots;
-    populateDropdown(availableSlots);
+    await populateDropdown(availableSlots, { userId: authUser.id });
   }
 
   const thumbEl = document.getElementById('videoThumb');
@@ -3543,7 +3883,7 @@ if (el.videoTitle) {
 
   const duration = Math.ceil((durationSec || 0) / 60);
   setSchedVideoTitle(cachedVideoTitle);
-  if (!isMulti) el.scheduleBtn.disabled = false;
+  if (!isMulti) el.scheduleBtn.disabled = !availableSlots?.length;
   hideWrongUrlPanel();
   saveLastScheduleSnapshot();
 
@@ -3579,9 +3919,6 @@ el.scheduleBtn.onclick = async () => {
     setScheduleBtnLabel('Schedule to Google Calendar');
     return;
   }
-
-  // 5) No ad – proceed with scheduling
-  setScheduleBtnLabel('Scheduling…');
 
   // 6) Pull down the Google token (alias it to avoid redeclaration)
   const { google_access_token: googleAccessToken } = await new Promise((resolve) =>
@@ -3623,79 +3960,81 @@ el.scheduleBtn.onclick = async () => {
     return;
   }
 
-  let { google_access_token } = await new Promise(res =>
-    chrome.storage.local.get("google_access_token", res)
-  );
+  const resetScheduleBtn = () => {
+    el.scheduleBtn.disabled = false;
+    setScheduleBtnLabel('Schedule to Google Calendar');
+  };
 
-  let result = await tryScheduleEventOnce(
-    google_access_token,
-    selectedSlotData,
-    cachedVideoTitle,
-    authUser,
-    videoUrl
-  );
+  await gateQueueIntercept({
+    userId: authUser.id,
+    durationMin: cachedVideoDurationMin,
+    onAbort: resetScheduleBtn,
+    onProceed: async () => {
+      setScheduleBtnLabel('Scheduling…');
+      let { google_access_token } = await new Promise(res =>
+        chrome.storage.local.get('google_access_token', res)
+      );
 
-  // Retry once if token was invalid
-  if (!result.success && result.error?.error?.code === 401) {
-    const reauth = await ensureValidGoogleToken();
-    if (!reauth) {
-      showFeedback('Failed to re-authenticate with Google.', 'error');
-    } else {
-      google_access_token = (await new Promise(res =>
-        chrome.storage.local.get("google_access_token", res)
-      )).google_access_token;
-
-      result = await tryScheduleEventOnce(
+      let result = await tryScheduleEventOnce(
         google_access_token,
         selectedSlotData,
         cachedVideoTitle,
         authUser,
-        videoUrl // was missing → retried events lost their YouTube link
+        videoUrl
       );
+
+      if (!result.success && result.error?.error?.code === 401) {
+        const reauth = await ensureValidGoogleToken();
+        if (!reauth) {
+          showFeedback('Failed to re-authenticate with Google.', 'error');
+        } else {
+          google_access_token = (await new Promise(res =>
+            chrome.storage.local.get('google_access_token', res)
+          )).google_access_token;
+
+          result = await tryScheduleEventOnce(
+            google_access_token,
+            selectedSlotData,
+            cachedVideoTitle,
+            authUser,
+            videoUrl
+          );
+        }
+      }
+
+      if (result.success) {
+        const audio = new Audio(chrome.runtime.getURL('ding.mp3'));
+        audio.play().catch(err => console.warn('Could not play ding sound:', err));
+
+        showScheduleSuccessModal({
+          title: cachedVideoTitle,
+          start: selectedSlotData.start,
+          end: selectedSlotData.end
+        });
+
+        const thumbnailUrl = getYouTubeThumbnail(videoUrl);
+        await supabaseClient.from('videohistory').insert([{
+          user_id: authUser.id,
+          title: cachedVideoTitle,
+          video_url: videoUrl,
+          start_time: selectedSlotData.start,
+          end_time: selectedSlotData.end,
+          google_event_id: result.eventId,
+          thumbnail: thumbnailUrl,
+        }]);
+        await initStreak(authUser.id);
+      } else {
+        console.error('❌ Scheduling failed:', result.error);
+        showScheduleFailModal({
+          title: cachedVideoTitle,
+          start: selectedSlotData.start,
+          end: selectedSlotData.end
+        });
+      }
+
+      resetScheduleBtn();
     }
-  }
-
-if (result.success) {
-  // play the ding sound
-  const audio = new Audio(chrome.runtime.getURL('ding.mp3'));
-  audio.play().catch(err => console.warn('Could not play ding sound:', err));
-
-  showScheduleSuccessModal({
-    title: cachedVideoTitle,
-    start: selectedSlotData.start,
-    end: selectedSlotData.end
   });
-
-    // 2a) grab Google’s eventId
-    const newEventId = result.eventId;
-    // 2b) insert history row *with* the eventId
-    // ✅ FIX: Assign thumbnailUrl explicitly before using it
-    const thumbnailUrl = getYouTubeThumbnail(videoUrl);
-    
-    await supabaseClient.from("videohistory").insert([{      
-      user_id: authUser.id,
-      title: cachedVideoTitle,
-      video_url: videoUrl,
-      start_time: selectedSlotData.start,
-      end_time: selectedSlotData.end,
-      google_event_id: newEventId,
-      thumbnail: thumbnailUrl, // Include thumbnail in insert
-    }]);
-    await initStreak(authUser.id);
-
-  } else {
-    // Condition 2: Failure
-    console.error('❌ Scheduling failed:', result.error);
-    showScheduleFailModal({
-      title: cachedVideoTitle,
-      start: selectedSlotData.start,
-      end: selectedSlotData.end
-    });
-  }
-
-  // Re-enable button
-  el.scheduleBtn.disabled = false;
-  setScheduleBtnLabel('Schedule to Google Calendar');
 };
 
  el.thumbUp?.addEventListener("click", async () => {
@@ -3742,8 +4081,7 @@ if (result.success) {
  });
 
     // Once everything is loaded, swap back to real UI
-  hideSkeleton();
-  document.getElementById('realContent').classList.remove('hidden');
+  revealScheduleScreen();
   // 🌟 Show “New Updated” banner on login success
 const banner = document.getElementById('updateBanner');
 if (banner) {
@@ -3943,9 +4281,227 @@ function stopOutcomePreviewLoop() {
   stopOutcomePreviewLoop._open = null;
 }
 
-/** Preview `#preview=1&schedule=1&success=1` (or `&fail=1`) — success then fail on a loop. */
+function stopOfflinePreviewLoop() {
+  clearTimeout(stopOfflinePreviewLoop._close);
+  clearTimeout(stopOfflinePreviewLoop._open);
+  stopOfflinePreviewLoop._close = null;
+  stopOfflinePreviewLoop._open = null;
+  hideNetworkLostScreen();
+}
+
+function stopQueuePreviewLoop() {
+  clearTimeout(stopQueuePreviewLoop._close);
+  clearTimeout(stopQueuePreviewLoop._open);
+  stopQueuePreviewLoop._close = null;
+  stopQueuePreviewLoop._open = null;
+  closeQueueInterceptModal();
+}
+
+/** Preview `#preview=1&schedule=1&offline=1` — offline sheet open/close loop; facts rotate while open. */
+function startOfflinePreviewLoop() {
+  stopOfflinePreviewLoop();
+  stopOutcomePreviewLoop();
+  stopHistoryPreviewLoop();
+  stopProfilePreviewLoop();
+  stopQueuePreviewLoop();
+  const holdMs = OFFLINE_FACT_MS * OFFLINE_FACT_COUNT + MODAL_ANIM_MS;
+  const play = () => {
+    showNetworkLostScreen();
+    stopOfflinePreviewLoop._close = setTimeout(() => {
+      hideNetworkLostScreen();
+      stopOfflinePreviewLoop._open = setTimeout(play, MODAL_ANIM_MS + 320);
+    }, holdMs);
+  };
+  play();
+}
+
+/* ── 645:14194 Queue intercept ── */
+
+function mountQueueInterceptOverlay() {
+  const overlay = document.getElementById('queueInterceptOverlay');
+  const host = successMountParent();
+  if (!overlay || !host) return overlay;
+  if (overlay.parentElement !== host) host.appendChild(overlay);
+  return overlay;
+}
+
+function paintQueueInterceptSheet(impact, config) {
+  const Q = typeof WLQueue !== 'undefined' ? WLQueue : null;
+  if (!Q || !impact) return;
+  const copy = Q.interceptCopy(impact, config);
+  const nowFmt = Q.formatWeeksToClear(impact.beforeWeeks, config);
+  const afterFmt = Q.formatWeeksToClear(impact.afterWeeks, config);
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set('queueNowLine', nowFmt.line1);
+  set('queueNowUnit', nowFmt.unit);
+  set('queueAfterLine', afterFmt.line1);
+  set('queueAfterUnit', afterFmt.unit);
+  set('queueHeadline1', copy.line1);
+  set('queueHeadlineBefore', copy.before);
+  set('queueHeadlineChip', copy.chip);
+  const afterEl = document.getElementById('queueHeadlineAfter');
+  if (afterEl) {
+    if (copy.after) {
+      afterEl.hidden = false;
+      afterEl.textContent = copy.after;
+    } else {
+      afterEl.hidden = true;
+      afterEl.textContent = '';
+    }
+  }
+  set('queueBody', copy.body);
+}
+
+function closeQueueInterceptModal(onClosed) {
+  const overlay = document.getElementById('queueInterceptOverlay');
+  if (!overlay || overlay.hidden) {
+    if (onClosed) onClosed();
+    return;
+  }
+  overlay.setAttribute('aria-hidden', 'true');
+  clearTimeout(overlay._hideTimer);
+  overlay.classList.add('is-closing');
+  overlay._hideTimer = setTimeout(() => {
+    overlay.classList.remove('is-open', 'is-closing', 'is-cards-entering');
+    overlay.classList.add('hidden');
+    overlay.hidden = true;
+    overlay._pending = null;
+    if (onClosed) onClosed();
+  }, SHEET_SLIDE_MS);
+}
+
+function wireQueueInterceptOnce() {
+  if (wireQueueInterceptOnce._wired) return;
+  wireQueueInterceptOnce._wired = true;
+  document.getElementById('queueScheduleInsteadBtn')?.addEventListener('click', () => {
+    const pending = document.getElementById('queueInterceptOverlay')?._pending;
+    closeQueueInterceptModal(() => pending?.onProceed?.());
+  });
+  document.getElementById('queueViewPlaylistBtn')?.addEventListener('click', () => {
+    const pending = document.getElementById('queueInterceptOverlay')?._pending;
+    closeQueueInterceptModal(() => {
+      pending?.onAbort?.();
+      openHistoryModal(window.currentUserId || historyState.userId || 'preview-user');
+    });
+  });
+  document.getElementById('queueInterceptBackdrop')?.addEventListener('click', () => {
+    const pending = document.getElementById('queueInterceptOverlay')?._pending;
+    closeQueueInterceptModal(() => pending?.onAbort?.());
+  });
+}
+
+function showQueueInterceptSheet(impact, config, handlers = {}) {
+  wireQueueInterceptOnce();
+  const overlay = mountQueueInterceptOverlay();
+  if (!overlay) {
+    handlers.onProceed?.();
+    return;
+  }
+  paintQueueInterceptSheet(impact, config);
+  overlay._pending = handlers;
+  clearTimeout(overlay._hideTimer);
+  overlay.hidden = false;
+  overlay.classList.remove('hidden', 'is-closing', 'is-open', 'is-cards-entering');
+  void overlay.offsetWidth;
+  overlay.classList.add('is-open', 'is-cards-entering');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+
+async function fetchQueueHistoryRows(userId) {
+  if (!userId || userId === 'preview-user' || window.__WL_PREVIEW__) return [];
+  const { data, error } = await supabaseClient
+    .from('videohistory')
+    .select('watched_at,removed,forced')
+    .eq('user_id', userId);
+  if (error) {
+    console.error('Queue rows load failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+async function fetchQueueInterceptState(userId) {
+  if (!userId || window.__WL_PREVIEW__) return null;
+  const { data } = await supabaseClient
+    .from('queue_intercept_state')
+    .select('last_shown_at,last_shown_after_weeks')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data || null;
+}
+
+async function upsertQueueInterceptState(userId, afterWeeks) {
+  if (!userId || window.__WL_PREVIEW__) return;
+  const { error } = await supabaseClient.from('queue_intercept_state').upsert({
+    user_id: userId,
+    last_shown_at: new Date().toISOString(),
+    last_shown_after_weeks: Number(afterWeeks),
+  });
+  if (error) console.error('Queue intercept state failed:', error.message);
+}
+
+async function gateQueueIntercept({ userId, durationMin, onProceed, onAbort }) {
+  const proceed = typeof onProceed === 'function' ? onProceed : () => {};
+  const abort = typeof onAbort === 'function' ? onAbort : () => {};
+  const Q = typeof WLQueue !== 'undefined' ? WLQueue : null;
+  if (!Q || window.__WL_PREVIEW__ || !userId || userId === 'preview-user') {
+    await proceed();
+    return;
+  }
+  try {
+    const config = await loadSlotAlgoConfig();
+    const rows = await fetchQueueHistoryRows(userId);
+    const before = Q.computeQueueProjection(rows, Date.now(), config);
+    const planFn = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm.computeSessionPlan : null;
+    const added = Q.sessionsAdded(durationMin, planFn, config);
+    const impact = Q.computeQueueImpact(before, added);
+    const state = await fetchQueueInterceptState(userId);
+    if (!Q.shouldShowIntercept(impact, state, Date.now(), config)) {
+      await proceed();
+      return;
+    }
+    await upsertQueueInterceptState(userId, impact.afterWeeks);
+    showQueueInterceptSheet(impact, config, { onProceed: proceed, onAbort: abort });
+  } catch (err) {
+    console.error('Queue intercept failed:', err?.message || err);
+    await proceed();
+  }
+}
+
+/** Preview `#preview=1&schedule=1&queue=1` — cycle month / 3-month copy. */
+function startQueuePreviewLoop() {
+  stopQueuePreviewLoop();
+  stopOutcomePreviewLoop();
+  stopOfflinePreviewLoop();
+  stopHistoryPreviewLoop();
+  stopProfilePreviewLoop();
+  const Q = typeof WLQueue !== 'undefined' ? WLQueue : null;
+  const config = Q ? Q.DEFAULT_CONFIG : {};
+  const samples = [
+    { beforeWeeks: 5, afterWeeks: 5.5, weeklyPace: 4.8, queueSize: 24, sessionsAdded: 1, confidence: 'normal' },
+    { beforeWeeks: 12, afterWeeks: 14, weeklyPace: 4, queueSize: 48, sessionsAdded: 4, confidence: 'normal' },
+  ];
+  let i = 0;
+  const play = () => {
+    const impact = samples[i % samples.length];
+    i += 1;
+    showQueueInterceptSheet(impact, config, { onProceed: () => {}, onAbort: () => {} });
+    stopQueuePreviewLoop._close = setTimeout(() => {
+      closeQueueInterceptModal();
+      stopQueuePreviewLoop._open = setTimeout(play, SHEET_SLIDE_MS + 320);
+    }, SHEET_SLIDE_MS + 2200);
+  };
+  play();
+}
+
+
 function startOutcomePreviewLoop() {
   stopOutcomePreviewLoop();
+  stopOfflinePreviewLoop();
+  stopQueuePreviewLoop();
   const slot = availableSlots?.[0];
   const payload = {
     title: cachedVideoTitle,
@@ -4307,8 +4863,9 @@ function getPreviewHistoryItems() {
     // p5/p6 sit in the previous 30-day window so the profile menu trend banner
     // has something to compare against in preview.
     { id: 'p5', title: 'Wildlife Wonders: Secrets of the Jungle | 6K Nature', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-12 * 86400000), end_time: h(-12 * 86400000 + 3600000), created_at: h(-45 * 86400000), watched: false, forced: false, removed: false },
-    { id: 'p6', title: 'Mountain Light: Alpine Sunrise Timelapse', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-40 * 86400000), end_time: h(-40 * 86400000 + 3600000), created_at: h(-50 * 86400000), watched: true, watched_at: h(-45 * 86400000), forced: false, removed: false },
+    { id: 'p6', title: 'Mountain Light: Alpine Sunrise Timelapse', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-40 * 86400000), end_time: h(-40 * 86400000 + 3600000), created_at: h(-50 * 86400000), watched: true, watched_at: h(-10 * 86400000), forced: false, removed: false },
     { id: 'p7', title: 'City Rain: Night Streets Ambience', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-3 * 86400000), end_time: h(-3 * 86400000 + 3600000), created_at: h(-7000), watched: true, watched_at: h(-120000), forced: false, removed: false },
+    { id: 'p11', title: 'Quiet Library: Page-Turn Ambience', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(-8 * 86400000), end_time: h(-8 * 86400000 + 3600000), created_at: h(-9 * 86400000), watched: true, watched_at: h(-6 * 86400000), forced: false, removed: false },
     { id: 'p8', title: 'Calendar Drift Demo Video', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(86400000), end_time: h(86400000 + 3600000), created_at: h(-8000), watched: false, forced: true, removed: false, google_event_id: 'preview' },
     { id: 'p9', title: 'Forest Canopy: Soft Wind Ambience 4K', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(7 * 86400000), end_time: h(7 * 86400000 + 3600000), created_at: h(-9000), watched: false, forced: false, removed: false },
     { id: 'p10', title: 'Desert Night: Stars Over Dunes', video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', start_time: h(10 * 86400000), end_time: h(10 * 86400000 + 3600000), created_at: h(-10000), watched: false, forced: false, removed: false }
@@ -4860,7 +5417,7 @@ const SLOT_PERSONAS = {
   21: 'Prime Timer',
   0: 'Night Owl',
 };
-const TREND_WINDOW_DAYS = 7; // rolling week vs the week before, not a month
+const PROFILE_PREVIEW_STATES = ['first', 'low', 'regular', 'cleared'];
 const profileState = { name: '', wired: false };
 
 function slotBucketStart(hour) {
@@ -4871,39 +5428,15 @@ function slotBucketStart(hour) {
   return key ? SLOT_RANGES[key][0] : null;
 }
 
-/** Bucket most of their videos land in; saved time prefs cover a fresh account. */
-function personaFor(rows, selectedTimes) {
-  const tally = {};
-  (rows || []).forEach(row => {
-    const start = row.start_time && slotBucketStart(new Date(row.start_time).getHours());
-    if (start !== null && start !== undefined && start !== false) {
-      tally[start] = (tally[start] || 0) + 1;
-    }
-  });
-  const best = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0]
-    ?? (selectedTimes || []).map(time => SLOT_RANGES[time]?.[0]).find(h => h != null);
-  return best == null ? '' : SLOT_PERSONAS[best] || '';
-}
-
-/**
- * Completion rate (watched ÷ scheduled) over the last 7 days vs the 7 before.
- * Null unless BOTH windows have videos — a first week otherwise reads as a
- * 100% swing off one video. Zero delta is hidden (no "0% increase").
- */
-function completionTrend(rows, now = Date.now()) {
-  const day = 86400000;
-  const rateBetween = (from, to) => {
-    const window = (rows || []).filter(row => {
-      const at = new Date(row.created_at).getTime();
-      return at >= from && at < to;
-    });
-    return window.length ? window.filter(row => row.watched).length / window.length : null;
-  };
-  const recent = rateBetween(now - TREND_WINDOW_DAYS * day, now);
-  const prior = rateBetween(now - 2 * TREND_WINDOW_DAYS * day, now - TREND_WINDOW_DAYS * day);
-  if (recent === null || prior === null) return null;
-  const delta = Math.round((recent - prior) * 100);
-  return delta === 0 ? null : { delta: Math.abs(delta), up: delta > 0 };
+/** Persona from saved time prefs only — latest selected bucket wins (e.g. Late Night → Night Owl). */
+function personaFor(selectedTimes) {
+  const set = new Set((selectedTimes || []).filter(Boolean));
+  if (!set.size) return '';
+  let hour = null;
+  for (const key of [...PREFS_TIME_DEFS.map(d => d.key), PREFS_NIGHT_KEY]) {
+    if (set.has(key)) hour = SLOT_RANGES[key]?.[0];
+  }
+  return hour == null ? '' : SLOT_PERSONAS[hour] || '';
 }
 
 function mountOverlay(id) {
@@ -4911,6 +5444,11 @@ function mountOverlay(id) {
   const host = historyMountParent();
   if (overlay && host && overlay.parentElement !== host) host.appendChild(overlay);
   return overlay;
+}
+
+/** Calendar scan sheet — mount on #popupWrapper so it stacks over the live schedule. */
+function mountAnalyzeOverlay() {
+  return mountOverlay('onbAnalyzeOverlay');
 }
 
 function setUserAvatar(url) {
@@ -4929,12 +5467,15 @@ async function fetchProfileRows(userId) {
     return (getPreviewHistoryItems() || []).map(item => ({
       start_time: item.start_time,
       created_at: item.created_at,
-      watched: !!item.watched
+      watched: !!item.watched,
+      watched_at: item.watched_at || (item.watched ? item.start_time : null),
+      removed: !!item.removed,
+      forced: !!item.forced
     }));
   }
   const { data, error } = await supabaseClient
     .from('videohistory')
-    .select('start_time,created_at,watched')
+    .select('start_time,created_at,watched,watched_at,removed,forced')
     .eq('user_id', userId);
   if (error) {
     console.error('Profile stats load failed:', error.message);
@@ -4959,15 +5500,38 @@ async function paintProfileMenu(userId) {
   if (nameEl) nameEl.textContent = firstName ? `Hey ${firstName},` : 'Hey there,';
 
   const rows = await fetchProfileRows(userId);
-  const watched = rows.filter(row => row.watched).length;
   const isNewUser = rows.length === 0;
   panel.classList.toggle('is-new-user', isNewUser);
 
-  const plural = n => `${n} Video${n === 1 ? '' : 's'}`;
+  const config = await loadSlotAlgoConfig();
+  const Q = typeof WLQueue !== 'undefined' ? WLQueue : null;
+  const proj = Q
+    ? Q.computeQueueProjection(rows, Date.now(), config)
+    : { queueSize: 0, weeksToClear: null, weeklyPace: null, confidence: 'low' };
+  const cardState = Q ? Q.resolveProfileCardState(proj, rows, config) : 'first';
+  const card = Q ? Q.profileCardCopy(cardState, proj, config) : {
+    scheduled: '0 video',
+    toClear: '0 weeks',
+    banner: 'Schedule your first video to start tracking',
+    bannerKind: 'grey',
+  };
+
   const scheduledEl = document.getElementById('profileScheduled');
-  const watchedEl = document.getElementById('profileWatched');
-  animateProfileStatCount(scheduledEl, rows.length);
-  animateProfileStatCount(watchedEl, watched);
+  const clearEl = document.getElementById('profileClear');
+  const formatScheduled = Q ? n => Q.formatScheduledCount(n) : formatProfileSessionCount;
+  if (cardState === 'low' || cardState === 'regular' || cardState === 'over-cap') {
+    animateProfileStatCount(scheduledEl, proj.queueSize, formatScheduled);
+  } else if (scheduledEl) {
+    scheduledEl.textContent = card.scheduled;
+  }
+  if (clearEl) clearEl.textContent = card.toClear;
+
+  const bannerEl = document.getElementById('profileBanner');
+  const bannerText = document.getElementById('profileBannerText');
+  if (bannerEl && bannerText) {
+    bannerEl.classList.toggle('is-green', card.bannerKind === 'green');
+    bannerText.textContent = card.banner;
+  }
 
   const subEl = document.getElementById('profileSub');
   if (subEl) {
@@ -4976,24 +5540,11 @@ async function paintProfileMenu(userId) {
       : 'This is your journey with us so far!';
   }
 
-  const persona = personaFor(rows, await loadSelectedTimes(userId));
+  const persona = personaFor(await loadSelectedTimes(userId));
   const personaEl = document.getElementById('profilePersona');
   if (personaEl) {
     personaEl.textContent = persona;
     personaEl.hidden = !persona;
-  }
-
-  const trend = isNewUser ? null : completionTrend(rows);
-  const trendShell = document.getElementById('profileTrendShell');
-  const trendEl = document.getElementById('profileTrend');
-  const trendText = document.getElementById('profileTrendText');
-  if (trendShell && trendEl && trendText) {
-    trendShell.hidden = !trend;
-    trendEl.classList.toggle('is-down', !!trend && !trend.up);
-    if (trend) {
-      trendText.textContent =
-        `${trend.delta}% ${trend.up ? 'increase' : 'decrease'} in the completion rate since last week`;
-    }
   }
 }
 
@@ -5045,30 +5596,29 @@ const PROFILE_COUNT_MS = SUCCESS_STAR_MS;
 /* Sheet land + numbers/stars. */
 const PROFILE_CASCADE_MS = PROFILE_ENTER_MS + PROFILE_COUNT_MS + 80;
 
-function formatProfileVideoCount(n) {
-  const v = Math.max(0, Math.round(Number(n) || 0));
-  return `${v} Video${v === 1 ? '' : 's'}`;
+function formatProfileSessionCount(n) {
+  return String(Math.max(0, Math.round(Number(n) || 0)));
 }
 
 /** Ease-in-out count from 0 → target (starts after sheet lands). */
-function animateProfileStatCount(el, target) {
+function animateProfileStatCount(el, target, format = formatProfileSessionCount) {
   if (!el) return;
   cancelAnimationFrame(el._countRaf);
   clearTimeout(el._countDelay);
   el._countRaf = 0;
   el._countDelay = 0;
   const end = Math.max(0, Math.round(Number(target) || 0));
-  if (prefersReducedMotion() || end === 0) {
-    el.textContent = formatProfileVideoCount(end);
+  if (prefersReducedMotion()) {
+    el.textContent = format(end);
     return;
   }
-  el.textContent = formatProfileVideoCount(0);
+  el.textContent = format(0);
   const easeInOut = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
   el._countDelay = setTimeout(() => {
     const t0 = performance.now();
     const tick = now => {
       const t = Math.min(1, (now - t0) / PROFILE_COUNT_MS);
-      el.textContent = formatProfileVideoCount(easeInOut(t) * end);
+      el.textContent = format(easeInOut(t) * end);
       if (t < 1) el._countRaf = requestAnimationFrame(tick);
     };
     el._countRaf = requestAnimationFrame(tick);
@@ -5076,7 +5626,7 @@ function animateProfileStatCount(el, target) {
 }
 
 function stopProfileStatCounts() {
-  ['profileScheduled', 'profileWatched'].forEach(id => {
+  ['profileScheduled'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     cancelAnimationFrame(el._countRaf);
@@ -5123,7 +5673,7 @@ function closeProfileMenu() {
   }, PROFILE_SLIDE_MS);
 }
 
-/** Preview `#preview=1&schedule=1&profile=1` — cycle first / trend-up / trend-down. */
+/** Preview `#preview=1&schedule=1&profile=1` — cycle Figma journey states. */
 function paintProfilePreviewState(kind) {
   const panel = document.getElementById('profilePanel');
   if (!panel) return;
@@ -5140,31 +5690,41 @@ function paintProfilePreviewState(kind) {
     versionEl.textContent = 'V 1.1.6';
     versionEl.hidden = false;
   }
-  const isFirst = kind === 'first';
-  panel.classList.toggle('is-new-user', isFirst);
+  panel.classList.toggle('is-new-user', kind === 'first');
   const scheduledEl = document.getElementById('profileScheduled');
-  const watchedEl = document.getElementById('profileWatched');
-  animateProfileStatCount(scheduledEl, isFirst ? 0 : 12);
-  animateProfileStatCount(watchedEl, isFirst ? 0 : 9);
+  const clearEl = document.getElementById('profileClear');
+  const bannerEl = document.getElementById('profileBanner');
+  const bannerText = document.getElementById('profileBannerText');
+  const Q = typeof WLQueue !== 'undefined' ? WLQueue : null;
+  const samples = {
+    first: { queueSize: 0, weeksToClear: null, weeklyPace: null, confidence: 'low' },
+    low: { queueSize: 1, weeksToClear: null, weeklyPace: null, confidence: 'low' },
+    regular: { queueSize: 24, weeksToClear: 5.5, weeklyPace: 2, confidence: 'normal' },
+    cleared: { queueSize: 0, weeksToClear: null, weeklyPace: 4, confidence: 'normal' },
+  };
+  const rowsByKind = {
+    first: [],
+    low: [{ start_time: new Date().toISOString(), watched_at: null }],
+    regular: Array.from({ length: 24 }, () => ({ start_time: new Date().toISOString(), watched_at: null })),
+    cleared: [{ start_time: new Date().toISOString(), watched_at: new Date().toISOString() }],
+  };
+  const proj = samples[kind] || samples.first;
+  const card = Q
+    ? Q.profileCardCopy(Q.resolveProfileCardState(proj, rowsByKind[kind] || [], Q.DEFAULT_CONFIG), proj, Q.DEFAULT_CONFIG)
+    : { scheduled: '0 video', toClear: '0 weeks', banner: '', bannerKind: 'grey' };
+  if (scheduledEl) scheduledEl.textContent = card.scheduled;
+  if (clearEl) clearEl.textContent = card.toClear;
+  if (bannerEl && bannerText) {
+    bannerEl.classList.toggle('is-green', card.bannerKind === 'green');
+    bannerText.textContent = card.banner;
+  }
   const subEl = document.getElementById('profileSub');
   if (subEl) {
-    subEl.textContent = isFirst
-      ? 'Schedule your first video and track your journey here'
-      : 'This is your journey with us so far!';
-  }
-  const trendShell = document.getElementById('profileTrendShell');
-  const trendEl = document.getElementById('profileTrend');
-  const trendText = document.getElementById('profileTrendText');
-  if (trendShell && trendEl && trendText) {
-    const show = kind === 'up' || kind === 'down';
-    trendShell.hidden = !show;
-    trendEl.classList.toggle('is-down', kind === 'down');
-    if (show) {
-      trendText.textContent =
-        kind === 'up'
-          ? '12% increase in the completion rate since last week'
-          : '8% decrease in the completion rate since last week';
-    }
+    subEl.textContent = kind === 'first'
+      ? 'This is where you\'ll track your progress.'
+      : kind === 'cleared'
+        ? 'You\'re all caught up! Nothing waiting in your queue.'
+        : 'This is your journey with us so far!';
   }
 }
 
@@ -5218,6 +5778,8 @@ function startHistoryPreviewLoop() {
   stopHistoryPreviewLoop();
   stopProfilePreviewLoop();
   stopOutcomePreviewLoop();
+  stopOfflinePreviewLoop();
+  stopQueuePreviewLoop();
   const emptyFilters = ['scheduled', 'watched', 'forced'];
   const confirmKinds = ['single-delete', 'multi-delete', 'mark-watched'];
   let i = 0;
@@ -5271,7 +5833,9 @@ function startProfilePreviewLoop() {
   stopProfilePreviewLoop();
   stopHistoryPreviewLoop();
   stopOutcomePreviewLoop();
-  const states = ['first', 'up', 'down'];
+  stopOfflinePreviewLoop();
+  stopQueuePreviewLoop();
+  const states = PROFILE_PREVIEW_STATES;
   let i = 0;
   const holdMs = PROFILE_CASCADE_MS + 1400;
   const play = () => {
@@ -5548,6 +6112,7 @@ async function wipeUserRemoteData(userId) {
     del('calendar_slot_scores'),
     del('calendar_scan_runs'),
     del('feedback'),
+    del('queue_intercept_state'),
   ]);
   await del('users', 'id');
 }
@@ -5656,9 +6221,13 @@ async function saveUserPrefs(userId, { days, slots }, opts = {}) {
 }
 
 async function loadSlotAlgoConfig() {
-  const defaults = (typeof WLSlotAlgorithm !== 'undefined' && WLSlotAlgorithm.DEFAULT_CONFIG)
+  const slotDefaults = (typeof WLSlotAlgorithm !== 'undefined' && WLSlotAlgorithm.DEFAULT_CONFIG)
     ? { ...WLSlotAlgorithm.DEFAULT_CONFIG }
     : { FREE_RATIO_THRESHOLD: 0.8, SELECTION_THRESHOLD: 0.7, MIN_SAMPLE_SIZE: 3, MAX_SELECTIONS: 3, ALGORITHM_VERSION: 1, STALENESS_DAYS: 30 };
+  const queueDefaults = (typeof WLQueue !== 'undefined' && WLQueue.DEFAULT_CONFIG)
+    ? { ...WLQueue.DEFAULT_CONFIG }
+    : {};
+  const defaults = { ...slotDefaults, ...queueDefaults };
   if (window.__WL_PREVIEW__ || typeof supabaseClient === 'undefined') return defaults;
   try {
     const { data } = await supabaseClient.from('slot_algorithm_config').select('key, value');
@@ -5718,14 +6287,16 @@ async function scoresAreStale(userId, stalenessDays = 30) {
  * Scan freeBusy → write calendar_slot_scores.
  * First-time (empty prefs): also suggest + save selected + suggested snapshot.
  * Rescan: scores/hints only — never overwrite selected_days/times.
+ * Prefs-banner scan (triggeredBy 'prefs-banner'): always apply algorithm suggestions.
  */
 async function analyzeAndSavePrefs(userId, accessToken, { force = false, triggeredBy = 'onboarding' } = {}) {
   const existing = await loadUserPrefs(userId);
   const hasSelection = !!(existing.days?.length && existing.slots?.length);
+  const applySuggestions = triggeredBy === 'prefs-banner';
   const algo = typeof WLSlotAlgorithm !== 'undefined' ? WLSlotAlgorithm : null;
 
   if (window.__WL_PREVIEW__ || !accessToken || accessToken === 'preview-google' || !algo) {
-    if (!hasSelection) {
+    if (!hasSelection || applySuggestions) {
       await saveUserPrefs(userId, {
         days: DEFAULT_PREF_DAYS.slice(),
         slots: DEFAULT_PREF_SLOTS.slice(),
@@ -5733,10 +6304,16 @@ async function analyzeAndSavePrefs(userId, accessToken, { force = false, trigger
         suggestedDays: DEFAULT_PREF_DAYS.slice(),
         suggestedTimes: DEFAULT_PREF_SLOTS.slice(),
       });
+      return {
+        days: DEFAULT_PREF_DAYS.slice(),
+        slots: DEFAULT_PREF_SLOTS.slice(),
+        dayHints: Object.fromEntries(PREFS_DOW.map(k => [k, 'Free days'])),
+        slotHints: Object.fromEntries(Object.keys(SLOT_RANGES).map(k => [k, 'Free days'])),
+      };
     }
     return {
-      days: hasSelection ? existing.days : DEFAULT_PREF_DAYS.slice(),
-      slots: hasSelection ? existing.slots : DEFAULT_PREF_SLOTS.slice(),
+      days: existing.days,
+      slots: existing.slots,
       dayHints: Object.fromEntries(PREFS_DOW.map(k => [k, 'Free days'])),
       slotHints: Object.fromEntries(Object.keys(SLOT_RANGES).map(k => [k, 'Free days'])),
     };
@@ -5858,8 +6435,8 @@ async function analyzeAndSavePrefs(userId, accessToken, { force = false, trigger
     chrome.storage.local.set({ prefs_hints: { days: dayHints, slots: slotHints } }, r)
   );
 
-  // First-time only: write suggestions into selected + snapshot
-  if (!hasSelection) {
+  // First-time or prefs-banner: write suggestions into selected + snapshot
+  if (!hasSelection || applySuggestions) {
     const { suggestedDays, suggestedTimes } = algo.suggestPreferences(scores, config);
     await saveUserPrefs(userId, { days: suggestedDays, slots: suggestedTimes }, {
       suggestedDays,
@@ -6087,37 +6664,30 @@ async function scheduleMultiSessionVideo() {
     return;
   }
 
-  let { google_access_token } = await new Promise(res =>
-    chrome.storage.local.get('google_access_token', res)
-  );
+  const resetMultiBtn = () => { if (schedBtn) schedBtn.disabled = false; };
 
-  const groupId = crypto.randomUUID();
-  const thumbnailUrl = getYouTubeThumbnail(videoUrl);
-  const rows = [];
-  let firstSlot = null;
+  await gateQueueIntercept({
+    userId: authUser.id,
+    durationMin: cachedVideoDurationMin,
+    onAbort: resetMultiBtn,
+    onProceed: async () => {
+      let { google_access_token } = await new Promise(res =>
+        chrome.storage.local.get('google_access_token', res)
+      );
 
-  for (const entry of assigned) {
-    const partInfo = {
-      sessionIndex: entry.sessionIndex,
-      sessionCount: entry.sessionCount,
-      videoOffsetStartSec: entry.videoOffsetStartSec,
-      videoOffsetEndSec: entry.videoOffsetEndSec,
-    };
-    let result = await tryScheduleEventOnce(
-      google_access_token,
-      entry.slot,
-      cachedVideoTitle,
-      authUser,
-      videoUrl,
-      partInfo
-    );
-    if (!result.success && result.error?.error?.code === 401) {
-      const reauth = await ensureValidGoogleToken();
-      if (reauth) {
-        google_access_token = (await new Promise(res =>
-          chrome.storage.local.get('google_access_token', res)
-        )).google_access_token;
-        result = await tryScheduleEventOnce(
+      const groupId = crypto.randomUUID();
+      const thumbnailUrl = getYouTubeThumbnail(videoUrl);
+      const rows = [];
+      let firstSlot = null;
+
+      for (const entry of assigned) {
+        const partInfo = {
+          sessionIndex: entry.sessionIndex,
+          sessionCount: entry.sessionCount,
+          videoOffsetStartSec: entry.videoOffsetStartSec,
+          videoOffsetEndSec: entry.videoOffsetEndSec,
+        };
+        let result = await tryScheduleEventOnce(
           google_access_token,
           entry.slot,
           cachedVideoTitle,
@@ -6125,53 +6695,69 @@ async function scheduleMultiSessionVideo() {
           videoUrl,
           partInfo
         );
+        if (!result.success && result.error?.error?.code === 401) {
+          const reauth = await ensureValidGoogleToken();
+          if (reauth) {
+            google_access_token = (await new Promise(res =>
+              chrome.storage.local.get('google_access_token', res)
+            )).google_access_token;
+            result = await tryScheduleEventOnce(
+              google_access_token,
+              entry.slot,
+              cachedVideoTitle,
+              authUser,
+              videoUrl,
+              partInfo
+            );
+          }
+        }
+        if (!result.success) {
+          console.error('Multi-session schedule failed:', result.error);
+          showScheduleFailModal({
+            title: cachedVideoTitle,
+            start: entry.slot.start,
+            end: entry.slot.end,
+          });
+          resetMultiBtn();
+          return;
+        }
+        if (!firstSlot) firstSlot = entry.slot;
+        rows.push({
+          user_id: authUser.id,
+          title: cachedVideoTitle,
+          video_url: videoUrl,
+          start_time: entry.slot.start,
+          end_time: entry.slot.end,
+          google_event_id: result.eventId,
+          thumbnail: thumbnailUrl,
+          session_group_id: groupId,
+          session_index: entry.sessionIndex,
+          session_count: entry.sessionCount,
+          video_offset_start_sec: entry.videoOffsetStartSec,
+          video_offset_end_sec: entry.videoOffsetEndSec,
+          all_sessions_watched: false,
+        });
       }
-    }
-    if (!result.success) {
-      console.error('Multi-session schedule failed:', result.error);
-      showScheduleFailModal({
+
+      const { error } = await supabaseClient.from('videohistory').insert(rows);
+      if (error) {
+        console.error('videohistory insert failed:', error);
+        showToast('Could not save scheduled sessions', 'error');
+        resetMultiBtn();
+        return;
+      }
+
+      const audio = new Audio(chrome.runtime.getURL('ding.mp3'));
+      audio.play().catch(() => {});
+      showScheduleSuccessModal({
         title: cachedVideoTitle,
-        start: entry.slot.start,
-        end: entry.slot.end,
+        start: firstSlot.start,
+        end: firstSlot.end,
       });
-      if (schedBtn) schedBtn.disabled = false;
-      return;
+      await initStreak(authUser.id);
+      resetMultiBtn();
     }
-    if (!firstSlot) firstSlot = entry.slot;
-    rows.push({
-      user_id: authUser.id,
-      title: cachedVideoTitle,
-      video_url: videoUrl,
-      start_time: entry.slot.start,
-      end_time: entry.slot.end,
-      google_event_id: result.eventId,
-      thumbnail: thumbnailUrl,
-      session_group_id: groupId,
-      session_index: entry.sessionIndex,
-      session_count: entry.sessionCount,
-      video_offset_start_sec: entry.videoOffsetStartSec,
-      video_offset_end_sec: entry.videoOffsetEndSec,
-      all_sessions_watched: false,
-    });
-  }
-
-  const { error } = await supabaseClient.from('videohistory').insert(rows);
-  if (error) {
-    console.error('videohistory insert failed:', error);
-    showToast('Could not save scheduled sessions', 'error');
-    if (schedBtn) schedBtn.disabled = false;
-    return;
-  }
-
-  const audio = new Audio(chrome.runtime.getURL('ding.mp3'));
-  audio.play().catch(() => {});
-  showScheduleSuccessModal({
-    title: cachedVideoTitle,
-    start: firstSlot.start,
-    end: firstSlot.end,
   });
-  await initStreak(authUser.id);
-  if (schedBtn) schedBtn.disabled = false;
 }
 
 /* ── 36:2102 / 36:3080 Wrong URL — overlay over current screen ── */
@@ -6313,9 +6899,9 @@ async function restoreLastScheduleSnapshot() {
   } else if (snap.videoUrl) {
     setYouTubeThumbnail([thumbEl, bgEl], snap.videoUrl);
   }
-  if (Array.isArray(snap.slots) && snap.slots.length) {
+  if (Array.isArray(snap.slots)) {
     availableSlots = snap.slots;
-    populateDropdown(snap.slots);
+    void populateDropdown(snap.slots);
   }
   cachedVideoUrl = snap.videoUrl || cachedVideoUrl;
   cachedVideoTitle = snap.title || cachedVideoTitle;
@@ -6331,7 +6917,9 @@ function hideWrongUrlPanel() {
     closeOverlay(overlay);
   }
   const scheduleBtn = document.getElementById('scheduleBtn');
-  if (scheduleBtn && isYouTubeWatchUrl(cachedVideoUrl)) scheduleBtn.disabled = false;
+  if (scheduleBtn && isYouTubeWatchUrl(cachedVideoUrl)) {
+    scheduleBtn.disabled = !availableSlots?.length;
+  }
 }
 
 async function showWrongUrlPanel({ restore = true } = {}) {
@@ -6349,11 +6937,15 @@ const PREFS_CHECK_SVG =
   '<svg class="prefs-day-check" viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">' +
   '<path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
   '</svg>';
+const PREFS_CHECK_SVG_SPACER = PREFS_CHECK_SVG.replace(
+  'class="prefs-day-check"',
+  'class="prefs-day-check prefs-day-check--spacer"'
+);
 
 function prefsChipLabel(name) {
   return (
     `<span class="prefs-day-label">` +
-    `<span class="prefs-day-label-inner">${PREFS_CHECK_SVG}<span class="prefs-day-name">${name}</span></span>` +
+    `<span class="prefs-day-label-inner">${PREFS_CHECK_SVG}<span class="prefs-day-name">${name}</span>${PREFS_CHECK_SVG_SPACER}</span>` +
     `</span>`
   );
 }
@@ -6539,25 +7131,144 @@ function closeSchedPrefs() {
   releaseProfileStackAfterSlide();
 }
 
+function closeSchedPrefsAnimated() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('schedPrefsOverlay');
+    if (!overlay || overlay.hidden || !overlay.classList.contains('is-open')) {
+      resolve();
+      return;
+    }
+    closeOverlay(overlay);
+    releaseProfileStackAfterSlide();
+    setTimeout(resolve, SHEET_SLIDE_MS);
+  });
+}
+
+const PREFS_TOAST_DAY = 'At least select one day';
+const PREFS_TOAST_TIME = 'At least select one time slot';
+const PREFS_TOAST_SCAN_OK = 'Preferences updated';
+let prefsScanResumeStep = 'day';
+let prefsScanInFlight = false;
+
+function prefsScanGreetingName() {
+  const raw = document.getElementById('profileName')?.textContent?.trim() || '';
+  const name = raw.replace(/^Hey\s+/i, '').replace(/,\s*$/, '').trim();
+  return name && name !== 'there' ? name : 'there';
+}
+
+async function startPrefsCalendarScan(fromStep = 'day') {
+  if (prefsScanInFlight) return;
+  const userId = wireSchedPrefs._userId;
+  if (!userId) return;
+  prefsScanInFlight = true;
+  prefsScanResumeStep = fromStep;
+  const profileOpen = document.getElementById('profileOverlay')?.classList.contains('is-open');
+
+  try {
+    await closeSchedPrefsAnimated();
+    await waitNextPaint();
+
+    const scanName = document.getElementById('scanName');
+    if (scanName) scanName.textContent = prefsScanGreetingName() + ',';
+    setAnalyzeBanner('default');
+
+    mountAnalyzeOverlay();
+    startOnbCalScan();
+    const analyzeOverlay = document.getElementById('onbAnalyzeOverlay');
+    await openOnbSheet(analyzeOverlay);
+
+    const analyzeP = (async () => {
+      if (window.__WL_PREVIEW__) {
+        return analyzeAndSavePrefs(userId, 'preview-google', { triggeredBy: 'prefs-banner' });
+      }
+      const ok = await ensureValidGoogleToken();
+      if (!ok) return { scanFailed: true };
+      const { google_access_token } = await storageGet(['google_access_token']);
+      if (!google_access_token) return { scanFailed: true };
+      return analyzeAndSavePrefs(userId, google_access_token, { triggeredBy: 'prefs-banner' });
+    })();
+    const minP = new Promise(r => setTimeout(r, ANALYZE_MIN_MS));
+    const [result] = await Promise.all([analyzeP, minP]);
+
+    if (result?.scanFailed || result?.skipped) {
+      throw new Error('scan failed');
+    }
+
+    await closeOnbSheet(analyzeOverlay);
+    stopOnbCalScan();
+
+    await refreshSlotsAfterPrefsSave(userId);
+    if (profileOpen && userId) await paintProfileMenu(userId);
+    showToast(PREFS_TOAST_SCAN_OK, 'success');
+  } catch (_) {
+    const analyzeOverlay = document.getElementById('onbAnalyzeOverlay');
+    await closeOnbSheet(analyzeOverlay);
+    stopOnbCalScan();
+    showToast('Calendar scan failed. Try again.', 'error');
+    if (profileOpen) setProfileStackedUnder(true);
+    await openSchedPrefs(prefsScanResumeStep);
+  } finally {
+    prefsScanInFlight = false;
+  }
+}
+
 async function refreshSlotsAfterPrefsSave(userId) {
-  if (!userId || window.__WL_PREVIEW__) {
-    if (window.__WL_PREVIEW__) paintPreviewSchedule();
-    return;
-  }
-  const { google_access_token: token } = await new Promise(r =>
-    chrome.storage.local.get('google_access_token', r)
-  );
-  const duration = (await getVideoDurationInMinutes()) || 10;
-  if (multiSessionState.plan) {
-    const result = await fetchMultiSessionSlots(userId, token, multiSessionState.plan);
-    multiSessionState.assigned = result.sessions;
-    multiSessionState.complete = result.complete;
+  const isMulti = !!multiSessionState.plan;
+  const scheduleBtn = document.getElementById('scheduleBtn');
+
+  if (isMulti) {
+    multiSessionState.loading = true;
     paintMultiSessionUI();
-    return;
+  } else {
+    const skelCount = skeletonCountForSlots(availableSlots?.length || 4);
+    paintSlotGridSkeleton(skelCount);
+    if (scheduleBtn) scheduleBtn.disabled = true;
   }
-  const updatedSlots = await fetchAvailableCalendarSlots(userId, token, duration);
-  availableSlots = updatedSlots;
-  populateDropdown(updatedSlots);
+
+  try {
+    if (window.__WL_PREVIEW__) {
+      await new Promise(r => setTimeout(r, 360));
+      if (isMulti) {
+        shufflePreviewMultiSessions();
+      } else {
+        const durationMin = cachedVideoDurationMin || 30;
+        const now = Date.now();
+        const slots = [0, 1, 2, 3].map(i => {
+          const start = new Date(now + (i + 1) * 60 * 60 * 1000);
+          start.setMinutes(0, 0, 0);
+          const end = new Date(start.getTime() + durationMin * 60 * 1000);
+          return { start: start.toISOString(), end: end.toISOString() };
+        });
+        availableSlots = slots;
+        void populateDropdown(slots);
+      }
+      return;
+    }
+    if (!userId) return;
+    const { google_access_token: token } = await new Promise(r =>
+      chrome.storage.local.get('google_access_token', r)
+    );
+    const duration = (await getVideoDurationInMinutes()) || 10;
+    if (isMulti) {
+      const result = await fetchMultiSessionSlots(userId, token, multiSessionState.plan);
+      multiSessionState.assigned = result.sessions;
+      multiSessionState.complete = result.complete;
+      return;
+    }
+    const updatedSlots = await fetchAvailableCalendarSlots(userId, token, duration);
+    availableSlots = updatedSlots;
+    await populateDropdown(updatedSlots, { userId });
+  } catch (err) {
+    console.error('refreshSlotsAfterPrefsSave failed:', err);
+    showToast('Could not refresh slots', 'error');
+  } finally {
+    if (isMulti) {
+      multiSessionState.loading = false;
+      paintMultiSessionUI();
+    } else if (scheduleBtn) {
+      scheduleBtn.disabled = !availableSlots?.length;
+    }
+  }
 }
 
 function wireSchedPrefs(userId) {
@@ -6569,13 +7280,27 @@ function wireSchedPrefs(userId) {
   document.getElementById('prefsCloseBtn')?.addEventListener('click', () => closeSchedPrefs());
   document.getElementById('prefsTimeCloseBtn')?.addEventListener('click', () => closeSchedPrefs());
   document.getElementById('schedPrefsBackdrop')?.addEventListener('click', () => closeSchedPrefs());
-  document.getElementById('prefsNextBtn')?.addEventListener('click', () => showPrefsStep('time'));
+  document.getElementById('prefsNextBtn')?.addEventListener('click', () => {
+    const { days } = readPrefsFromUi();
+    if (!days.length) {
+      showToast(PREFS_TOAST_DAY, 'error');
+      return;
+    }
+    showPrefsStep('time');
+  });
   document.getElementById('prefsTimeHeaderBackBtn')?.addEventListener('click', () => showPrefsStep('day'));
+  document.getElementById('schedPrefsSheet')?.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.prefs-scan-trigger');
+    if (!trigger) return;
+    e.preventDefault();
+    const step = trigger.closest('#schedTimePrefsPanel') ? 'time' : 'day';
+    void startPrefsCalendarScan(step);
+  });
   document.getElementById('prefsSaveBtn')?.addEventListener('click', async () => {
     const id = wireSchedPrefs._userId;
     const selected = readPrefsFromUi();
-    if (!selected.days.length || !selected.slots.length) {
-      showToast('Pick at least one day and one time slot', 'info');
+    if (!selected.slots.length) {
+      showToast(PREFS_TOAST_TIME, 'error');
       return;
     }
     const btn = document.getElementById('prefsSaveBtn');
@@ -6591,6 +7316,8 @@ function wireSchedPrefs(userId) {
     }
     closeSchedPrefs();
     await refreshSlotsAfterPrefsSave(id);
+    const profileOpen = document.getElementById('profileOverlay') && !document.getElementById('profileOverlay').hidden;
+    if (profileOpen && id) await paintProfileMenu(id);
     showToast('Preferences saved', 'success');
   });
   document.getElementById('prefsSundayBtn')?.addEventListener('click', (e) => {

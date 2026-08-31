@@ -1,0 +1,217 @@
+---
+description: Working rules for Watch Later Extension v2 — auth invariants, scope, maintenance duties.
+alwaysApply: true
+---
+
+# Working rules (Watch Later Extension v2)
+
+Chrome/Edge MV3 extension. Source: `Watch Later Extension/`. Backend: Supabase project `ayzqfwtoeckgycmqzlve`. Full context lives in `project.mdc` — read it before touching auth, scheduling, or DB code.
+
+## Scope
+
+- v2 = same OAuth flow, token refresh, Calendar scheduling, history, referrals, analytics. Only the UI changes (`popup.html`, `style.css`, modal markup).
+- Keep MV3 plain HTML/JS/CSS. No React/Vite/build tooling unless explicitly requested.
+- Icons: Tabler icons only. Inline the SVG with `stroke="currentColor"` when a tint must come from CSS (`<img src>` can't be recolored).
+- No hardcoded design values in v2 UI CSS: color, spacing, typography, radius, shadows, and schedule blurs must reference the Figma-derived CSS variables in the `:root` token block of `style.css` (`--color-*`, `--space-*`, `--type-*` / `--tracking-*`, `--radius-*`, `--shadow-*`, `--blur-sched-*`, `--font-condensed`, `--btn-h`). Typography is **Proxima Nova** (bundled TTFs in `fonts/`) — use `.text-*` utility groups, not inline `font-size`/`font-weight`. Never reintroduce Be Vietnam Pro or Barlow. Add a new token (named after the Figma style/variable) rather than inlining a value; one-off layout dimensions with no Figma token (e.g. card widths) are the only exception. Do not use `corner-shape` / corner smoothing.
+- Overlay modals use the shared `.wl-modal` / `.wl-modal-panel` classes and `openOverlay()` / `closeOverlay()` — see **Motion** section for the full contract (easing, slide keyframes, exit hold rules, JS↔CSS pairs). Don't hand-roll another `is-open` + `hidden` toggle.
+- Onboarding motion follows **Motion → Onboarding** — `ease-in-out` via `--motion-ease`, no overshoot in the card loop. Pain→Promise uses `is-modal-shell-only` then `playOnbModalEnter`. Calendar permissions sheet on Promise (`532:2481`) via `openPromisePermsSheet`; Connecting stacks on top. Ticker/copy morph: animate **both** screens on Back; forward to Promise hides copy until entry.
+- Anything that appears on hover must be animatable — see **Motion → Hover**.
+- History page-turn / tab cross-fade and Pain/Promise modal entry timeouts are listed in **Motion → JS ↔ CSS pairing** — change both or `tests/selfcheck.js` fails.
+- There is exactly one primary button: `.onb-btn` + `.onb-btn-inner` (the "Yes, I allow" component). Shell height **`--btn-h: 40px`** everywhere. Button type **14/16 Bold** via `.text-btn`. Don't re-declare its gradient, padding, radius or font under an id selector to beat legacy CSS — delete the legacy rule instead. `#scheduleBtn` drifted to a 4px shell that way. Inner stroke is an **outside** gradient ring on `.onb-btn-inner::before` — primary (432:707): shell pad 4px, stroke 1.5px, white@90%→`--color-btn-inner-border-end` #3B13EC, inner sheen white@20%→transparent; secondary (541:15814): shell pad 4px, stroke 1.5px, `--color-btn-inner-border-secondary` #fff→`--color-btn-secondary-inner-end` #d9d9d9, **solid white inner** (no sheen). Inner pad is `--space-3` (12).
+- Popup frame / main screen chrome uses `--radius-screen: 0` (`html`/`body`/`#onboarding`/`.onboarding-screen`/`.popup-container`). Pain/Promise `#onbModal` sheet + cards use **`--radius-onb-modal` (16px)** per Figma `531:958` / `546:16896` — not `--radius-card` (12). Permissions/auth sheets may still be 12.
+- Heading type is **26/32 Bold** (`--type-heading` + `--heading-line-h: 32px` for `.onb-heading-row` / `.onb-heading-line`). Do not reintroduce 26/30 or 26/28.
+- Pain/Promise backgrounds are **per-screen** (`.onb-screen-bg` + `.onb-grid-wash--pain` / `--promise` + `.onb-vignette`) — pink Failed-Gradient on Pain, green Success-Linear on Promise; hide `#onboarding > .onb-grid-bg` on those screens. Card stamps: Pain **`--color-onb-unwatched` (#fa463d)** · Promise **`--color-onb-watched` (#029431)** only (Permissions keeps green watched labels).
+- Every modal / bottom sheet is `padding: var(--space-3)` — **12 on all four sides**, gap `var(--space-4)` (16). Several Figma frames still show a 12/12/8 bottom inset; ignore it, it has been rejected twice. Don't add per-side modal padding tokens (`--pad-modal-*` were deleted for this reason). Only exception: the expanded prefs sheet keeps gap 20 per Figma 36:2189.
+- One Supabase client path: `lib/supabase.js` loaded by popup + background. Never add a second client wrapper or a parallel auth/DB layer.
+- YouTube embeds in the popup need a Referer (Chrome omits it on extension sub_frames → YT error 153). Keep the `declarativeNetRequestWithHostAccess` rule in `background.js` and CSP `frame-src` for `youtube.com` / `youtube-nocookie.com`. Don't remove them when touching auth/CSP.
+- Don't revive dead stubs (favourites, `shared/`, legacy chip history modal, success same-sheet morph / `#schedSuccessSkel`, multi-session `#multiSessionWhyTip` tooltip) unless the task asks.
+- Schedule hero BG must be the live YouTube thumbnail (`#schedBgImg`), not a static asset. Pixel Stretch has no native CSS equivalent — keep the existing CSS approximation unless the user asks to redo it. The top-nav buttons are **flat `#000@25%` + white icons** — the Figma Glass emulation (frost, light rims, `#schedGlassRefract`, `--sched-glass-*`) was removed on request; don't restore it from an older Figma frame. The left button is the user's Google avatar and must keep its `onerror` fallback to `Icon/avatar-fallback-koala.png` (`lh3` photo URLs 404 when the user changes their picture).
+- Schedule video title band uses **inlined Figma SVG** frames (`513:1167` 68px / `513:1176` 46px) on `#schedTitleFrame` — not CSS `backdrop-filter` / `.sched-title-scrim` duplicate-thumb blur. `paintSchedTitleFrame()` picks 1- vs 2-line band; title truncates at **word** boundaries only (`setSchedVideoTitle` / `schedTitleTruncateToLines`; never mid-word). Do not paint while skeleton/`#realContent` is hidden (`schedTitleCanMeasure`) — an rAF retry on 0 width freezes the popup. Do not revive `syncSchedTitleScrimImg`, letter-level `break-all`, or `sched-title-scrim-stress.js`.
+- **Multi-session schedule** (Figma `380:7315`): `#multiSessionBanner` is its own `.multi-session-banner` (Figma `380:7407`) — do not restyle it as `.auth-warn-banner`. Banner z-index 0 behind `.multi-session-cards-shell`. Frame grows via `applyPopupFrameHeight` — no inner scroll on cards. **Why?** opens `#multiSessionWhyOverlay` (Figma `400:9920`–`400:9955`), not a tip. Heroes: `Icon/multi-session/why-{2..5}.png`.
+- **Change preferences** (`#schedPrefsOverlay`, Figma **643:9532** / **643:9616**): chips match `.sched-slot` chrome; sheet **`--prefs-panel-h: 428px`**. **Both** steps: `.prefs-scan-banner` (`authWarnBanner` **699:19973**, 300×34, **authInfoIcon** circle-i) — *Auto fetch slots via calendar scan. **Click here*** → `startPrefsCalendarScan` → prefs down → `#onbAnalyzeOverlay` up → `analyzeAndSavePrefs({ triggeredBy: 'prefs-banner' })` overwrites chip selection; success toast **Preferences updated**; fail reopens prefs. CTAs: day **Save & Next** (toast if no day incl. Sunday); time **Save & Close** (toast if no slot incl. Night owl). Busy hints from `prefs_hints` only. Day header back **0% opacity**; time: `#prefsTimeHeaderBackBtn` only. Header icons **28**. Sheet backdrop `--gradient-sheet-backdrop` + **2px** blur.
+- History UI is `#historyOverlay` (Figma **533:7243** / actions **545:16306** / empty **545:16530**/`16612`/`16646`) over profile/schedule — panel **436** lock, radius **16**, segmented tabs Scheduled/Watched/**Forced**, no search, text-only rows, hover actions, max 5 rows/page, pager `start-end of total rows | Page X of Y`, newest-first. Mark-watched must set `videohistory.watched_at`. Don't rebuild the old favourite-modal chips or search dropdown.
+- Profile menu (`#profileOverlay`), feedback (`#feedbackOverlay` · **`.feedback-overlay`**, not `.wl-modal`) and delete confirm (`#deleteConfirmOverlay`) are one layout each, not per-state screens: stats card + journey banner copy changes by queue state (`WLQueue.resolveProfileCardState` — first / low / regular / over-cap / cleared). Persona badges are keyed by **bucket start hour**, never by the `SLOT_RANGES` label — those labels use en dashes and string keys fail silently. Every history Delete must go through `deleteHistoryItem` → confirm sheet; nothing calls `performHistoryDelete` directly. **All profile child sheets** (history, preferences, feedback, logout) open over the profile with their own blurred backdrop; closing a child reveals the still-open, stationary profile. Feedback: **250 chars** (`FEEDBACK_MAX`); success Send closes sheet then toasts (`finishFeedbackSend`).
+- The referral UI is deleted on purpose (no entry point in the new menu, and the enter-code modal used to auto-pop over it). Don't re-add it from `referral_codes` / `sendreferralnotification` still existing — those are backend-only now. `tests/selfcheck.js` fails if the modals come back.
+- Wrong URL surfaces (don't conflate): first-time never-logged-in → full onboarding → `#wrongUrlFallAnim`; returning logged-out non-watch → `#newUserWrongUrl`; logged-in non-watch → `#wrongUrlFallAnim` (Figma 444:7885, same sheet — not `#wrongUrlOverlay` / schedule snapshot). Fall anim = onboarding grid + dim + browser-mock sheet.
+- Auth warn banners: built in CSS from Figma `authWarnBanner` (418:1083 / 171:800 / 171:934) — inline info icon + text, not PNG exports. **`#onbAnalyzeStatus`** on scan sheet uses **full-width** `.auth-warn-banner--sheet` (643:10839); connecting/denied stay **300×34**. **`setAnalyzeBanner()`** is module-level in `popup.js`. Deleted `Icon/auth/auth-warn-banner*.png`; selfcheck fails if HTML references them.
+- **Calendar scan sheet (`#onbAnalyzeSheet`, Figma `643:10839`):** `.analyze-sheet` pad 12 / gap 16 / r16; decorative grid via `startOnbCalScan()` (does not gate `analyzeAndSavePrefs`). Post-auth watch URL: `mountAnalyzeOverlay()` on `#popupWrapper` over schedule skeleton — **not** `#onboardingAnalyzing` mock chrome. Preview `#preview=1&schedule=1&auth=analyzing`.
+- Popup frame is locked to 340×486 (`--frame-w`/`--frame-h`) on `html`/`body`/`.popup-container`/`#popupWrapper`/`#onboarding`, plus an inline `<style>` in `popup.html` head. Never use `height: 100%` on html/body in extension mode — that caused the intermittent tiny cropped popup. Preview unlocks via `body.wl-preview`. Main screen corner radius is always `--radius-screen` (`0`). Multi-session grows height via `applyPopupFrameHeight` / `--frame-h-active` / `html.is-multi-session-frame` — single-session must stay 486.
+
+## Motion (v2 contract)
+
+**Default easing:** `--motion-ease: ease-in-out` on every enter, exit, cascade, and transition in v2 UI. No bounce, spring, or overshoot `cubic-bezier` unless the user explicitly asks. New motion must use `var(--motion-ease)`, not hardcoded `ease-out` / `ease-in`.
+
+**Reduced motion:** `@media (prefers-reduced-motion: reduce)` — skip decorative loops; snap to end states.
+
+### Bottom sheets / modals (slide up + backdrop fade)
+
+| Pattern | Keyframes | Duration token | JS constant | JS helpers |
+|---|---|---|---|---|
+| Standard sheet | `sheetSlideIn` / `sheetSlideOut` + `sheetBackdropIn` / `sheetBackdropOut` | `--sheet-slide-ms` (420) | `SHEET_SLIDE_MS`, `MODAL_ANIM_MS`, `PROFILE_SLIDE_MS` | `openOverlay()` / `closeOverlay()` |
+| Outcome (success/fail) | same slide keyframes | `--success-enter-ms` (550) | `SUCCESS_ENTER_MS`, `SUCCESS_SLIDE_MS` | `openOutcomeOverlay()`, `closeScheduleSuccessModal()`, `closeScheduleFailModal()` |
+| Profile menu | same slide keyframes | `--profile-enter-ms` (= success enter) | `PROFILE_ENTER_MS`, `PROFILE_SLIDE_MS` | `openProfileMenu()` / `closeProfileMenu()` |
+| Profile enter | all sections visible; stars + JS 0→N count-up after sheet lands | reuses `--success-*` via `--profile-*` / `--profile-count-ms` | `PROFILE_CASCADE_MS` (= enter + count) | `.is-entering` on overlay; `animateProfileStatCount` |
+
+**Open:** remove `hidden` + `is-closing`, reflow, add `is-open`. **Close:** add `is-closing`, wait for slide duration, then remove `is-open` and set `hidden`. Never hide synchronously on close — the exit animation never plays.
+
+**Enter vs exit keyframes:** always separate `@keyframes` for in and out. `animation-direction: reverse` on a finished animation snaps to the end.
+
+**Exit rule (all sheets):** only the **panel + backdrop** animate on close. Inner content holds its entered state (outcome sheets: `.success-overlay.is-open.is-closing` hold rules for cards/copy/stars). Do not reverse inner cascades on exit.
+
+**Uses standard slide:** `.wl-modal` (history, wrong URL, offline, delete confirm, mark-watched), `#schedPrefsOverlay`, `#profileOverlay`, `#multiSessionWhyOverlay`, `#logoutOverlay`, **`#onbPermsOverlay`**, **`#onbAnalyzeOverlay`**, **`#authFlowHost`**. **`#feedbackOverlay`** uses `.feedback-overlay` + its own slide helpers — not `.wl-modal`.
+
+**Do not** fold success/fail or profile back into scale+fade `.wl-modal` morph, or morph `#schedSheet` into success.
+
+### Schedule success / fail (`#successOverlay` / `#failOverlay`)
+
+1. Sheet + backdrop slide in (`--success-enter-ms`, `--motion-ease`).
+2. After sheet lands (`animation-delay: var(--success-enter-ms)`): both white cards fade **0→100% opacity** + rotate (ghost **+2°** / front **−2°**, `--success-card-ms`).
+3. After cards finish (`delay: enter + card`): card text fades in (`successCardTextIn`, `--success-card-text-ms`) — title/time/error only, not visible during shell fade.
+4. Copy cascade: heading → body → buttons (`successCopyIn`, `--success-copy-ms`, `--success-copy-stagger`).
+5. Stars scale+rotate in on **success only** (`successStarIn`, `--success-star-ms`); fail has no stars.
+5. Exit: sheet slides down only; inner state frozen via `.is-closing` hold rules.
+
+Preview loop: `#preview=1&schedule=1&success=1` (or `&fail=1`) alternates success → fail. Tokens pair with `SUCCESS_*_MS` in `popup.js`; `tests/selfcheck.js` guards pairs.
+
+### Toast (`#toast`)
+
+Bottom center (`--toast-bottom-inset: 40px`): slides **up then down** — `toastSlideIn` / `toastSlideOut`, `--toast-slide-ms` ↔ `TOAST_SLIDE_MS`, hold **`--toast-hold-ms`: 1500ms** ↔ `TOAST_MS`.
+
+### Onboarding
+
+- **Pain/Promise card carousel:** `ease-in-out`, fade + 90%↔100% scale via `onb1CardSlot`; no bounce. Recycled card slot 3 rest = slot 0 end.
+- **Ticker + copy morph:** animate **both** outgoing and incoming screens (`setOnbTickerActive`, `paintOnbCopySlots`). **Pain→Promise forward:** Promise uses `is-modal-shell-only` during crossfade (white modal only), then `playOnbModalEnter` — do not morph Promise copy in during fade.
+- **Modal entry (Pain/Promise only):** `playOnbModalEnter` — lines rise → chip land → CTA slide. `--onb-modal-enter-ms` / `--onb-modal-enter-stagger` ↔ `ONB_MODAL_ENTER_MS` / `ONB_MODAL_STAGGER_MS`.
+- **Calendar permissions sheet (`532:2481`):** on `#onboardingPromise` — `#onbPermsOverlay` / `#onbPermsSheet`. Promise **Next** → `openPromisePermsSheet()`. Black blur backdrop. Cards stagger (`--onb-perm-enter-ms` / `--onb-perm-stagger-ms` ↔ `PERMS_CARD_ENTER_MS` / `PERMS_CARD_STAGGER_MS`). **Allow** → Connecting stacks on open perms sheet (no close first). Standard `--sheet-slide-ms` slide.
+- **Pink in-text chips:** `.onb-chip` is **`rotate(-2deg)`** globally — Pain/Promise onboarding chips use `--onb-chip-rot`; perms sheet chip **−1°**.
+
+### History
+
+- Tab/page repaint: opacity cross-fade `HISTORY_SWAP_MS`.
+- Row delete/mark: slide left + height collapse (~350ms each phase).
+- Hover actions: `max-width` + `margin-left`, never `display: none` → `flex`.
+
+### Hover / layout animations
+
+Anything that appears on hover must be animatable — collapse with `max-width` and animatable gap as `margin-left`.
+
+### JS ↔ CSS pairing (selfcheck enforced)
+
+| CSS token | JS constant |
+|---|---|
+| `--sheet-slide-ms` | `SHEET_SLIDE_MS`, `MODAL_ANIM_MS`, `PROFILE_SLIDE_MS` |
+| `--success-enter-ms` | `SUCCESS_ENTER_MS`, `SUCCESS_SLIDE_MS` |
+| `--profile-enter-ms` | `PROFILE_ENTER_MS`, `PROFILE_SLIDE_MS` |
+| `--success-card-ms` | `SUCCESS_CARD_MS` |
+| `--success-card-text-ms` | `SUCCESS_CARD_TEXT_MS` |
+| `--success-copy-ms` | `SUCCESS_COPY_MS` |
+| `--success-copy-stagger` | `SUCCESS_COPY_STAGGER_MS` |
+| `--success-star-ms` | `SUCCESS_STAR_MS` |
+| `--toast-slide-ms` / `--toast-hold-ms` | `TOAST_SLIDE_MS` / `TOAST_MS` |
+| `--onb-modal-enter-ms` / `--onb-modal-enter-stagger` | `ONB_MODAL_ENTER_MS` / `ONB_MODAL_STAGGER_MS` |
+| `--onb-perm-enter-ms` / `--onb-perm-stagger-ms` | `PERMS_CARD_ENTER_MS` / `PERMS_CARD_STAGGER_MS` |
+
+Change both sides or `node tests/selfcheck.js` fails.
+
+### Figma motion workflow
+
+Dump durations from Figma → map to existing tokens above → add a token only when the surface is genuinely new → live preview loop / CDP for pass/fail. Do not guess from screenshot captions.
+
+## Figma → code (token-efficient UI workflow)
+
+Decided 2026-08-27 after a slow Pain-screen pass burned tokens on the wrong tools. Follow this for every design tweak.
+
+### Tool choice
+
+| Change type | Do | Don't |
+|---|---|---|
+| 1–3 token tweaks (radius / stroke / type / spacing / color) | One focused Plugin dump (`use_figma` / Desktop Bridge) of the target node props → edit `:root` tokens → selfcheck → **measured** verify | `get_design_context` / design-to-code React+Tailwind dumps |
+| New screen / layout rebuild | design-to-code skill + `get_design_context` OK, then **adapt** to existing tokens/components | Paste MCP React/Tailwind into this repo |
+| Motion | Dump durations + live loop / CDP | Screenshot-caption parity as the pass/fail |
+
+- Prefer Desktop Bridge / Plugin API property dumps over `get_design_context` for v2 UI tweaks.
+- **Never** paste Figma MCP React/Tailwind output into this MV3 plain HTML/CSS/JS repo.
+- Map to existing `:root` tokens in `style.css`; add a named token before hardcoding.
+- Touch only files needed for the asked surface. No drive-by refactors.
+- Optional: split into **inspect turn** (dump + proposed token diffs, no code) then **apply turn** (implement + selfcheck + measure).
+
+### Scope contract (user prompts + agents)
+
+Numbered ask is the contract. Do not expand into related "parity" fixes unless the user asks. Prefer this prompt shape:
+
+```text
+Scope (ONLY these):
+1) …
+2) …
+3) …
+
+Do NOT: rebuild the screen; change unrelated tokens; run get_design_context;
+update docs unless a token/rule changed.
+
+Parity = measured (computed style / selfcheck), not screenshot prose.
+```
+
+### Measure-first parity (before any screenshot)
+
+1. Edit tokens / minimal CSS.
+2. `node tests/selfcheck.js` from `Watch Later Extension/`.
+3. Preview `http://localhost:8321/popup?preview=1` (+ flags). Prefer **one** static server on `:8321`.
+4. CDP / `getComputedStyle` — assert radius, `fontSize`/`lineHeight`, borders, etc.
+5. Screenshot only after measurements pass (optional visual sanity). **Do not** treat vision captions as ground truth when they contradict computed styles.
+
+### Depth rule
+
+- 1–3 token tweaks → dump → edit → measure → done.
+- New screen / layout restructure → design context + dump + screenshot OK.
+- Motion → dump durations + live loop only.
+
+### Docs ritual
+
+- Update `project.mdc` (facts + Last updated) and this file when a rule/token contract changes — **once at the end**, not mid-exploration.
+- Grep tokens/selectors first; don't re-read whole `style.css` / `popup.js` unless needed.
+
+## Auth invariants (breaking these caused the v1 re-login bug)
+
+- `chrome.storage.local` is the ONLY source of truth for tokens. Both supabase-js clients must keep `persistSession: false, autoRefreshToken: false`.
+- After EVERY successful refresh (background alarm or popup `setSession`), write the rotated token pair back via `persistSupabaseSession()`. Refresh tokens are single-use; a stale copy revokes the whole session.
+- Never hard-logout on token expiry or a missing profile row — refresh/upsert first; logout only when every silent path fails or the user asks.
+- **OAuth split (2026-08-30):** **Silent** Google OAuth runs in **background** only (`{ action: 'login', silent: true }`). **Interactive** consent runs in **popup** only (`lib/google-oauth.js` → `launchGoogleWebAuthFlow({ silent: false })` → `{ action: 'completeLogin', id_token, access_token }`). Never route interactive login through background — Chrome allows only one `launchWebAuthFlow` at a time.
+- **`auth_oauth_lock`** in `lib/google-oauth.js` serializes every `launchWebAuthFlow` across popup + background (incl. 50-min alarm Google refresh via `enqueueOAuthFlow`). Popup retry once on `flow_busy`.
+- Google token renewal: `launchWebAuthFlow` with `prompt=none, interactive:false` first; interactive consent is the last resort. Never use `chrome.identity.getAuthToken` (Chrome-only, breaks Edge).
+- Client ships the anon key only; service role stays inside Edge Functions.
+
+## Domain rules
+
+- Max video length 3 hours; skip scheduling during YouTube ads.
+- Video duration for the pill / slot math: prefer `.ytp-time-duration` and `ytInitialPlayerResponse.videoDetails.lengthSeconds` over `<video>.duration` (ads make `video.duration` lie).
+- Referral email goes to the referrer only, never the redeemer.
+- Table names are exact: `users`, `videohistory` (incl. `watched_at`, `forced`, `removed`, multi-session `session_group_id` / `session_index` / `session_count` / `video_offset_*` / `all_sessions_watched`), `feedback`, `button_clicks`, `referral_codes`, `referral_redemptions`, `user_slot_preferences` (the only prefs table), `calendar_slot_scores`, `calendar_scan_runs`, `slot_algorithm_config`, `queue_intercept_state`. `UserTokens` and `UserSlots` were removed; never recreate token backups or prefs dual-writes. The old `Users` typo shipped a production bug.
+- Public schema security: every table must keep RLS enabled; extension policies are explicitly `TO authenticated` and use `(select auth.uid())`; `anon` has no public-table grants. Preserve the column-limited `users` grants so other users' email/avatar cannot be fetched. Reporting views are dashboard/service-role only.
+- Slot prefs: never overwrite `selected_days`/`selected_times` on rescan — only first empty selection gets algorithm suggestions, **except** `triggeredBy: 'prefs-banner'` (prefs scan banner **Click here**). Scores live in `calendar_slot_scores`.
+- Calendar scan: a freeBusy call that fails must throw, never return `[]` — an empty busy array is scored as "free all week", so a swallowed 403 hands the user invented slots. Only score ranges that actually came back (`coveredRanges`). After changing `lib/slot-algorithm.js` or the scan path, run `node tests/slot-algorithm-stress.js` as well as the selfchecks.
+
+## Edge Function invariants (a 2026-08-05 pass found four live, exploitable orphans)
+
+- **`verify_jwt: true` is not authentication.** It only proves the caller sent a JWT signed by this project, and the anon key ships inside the extension. Every function must call `auth.getUser()` itself and act on `user.id`.
+- **Never trust the request body for identity or authorisation.** Derive the actor from the JWT and everything else from rows that belong to that actor. `sendreferralnotification` took `referrerId`/`friendName` from the body and became a "mail anyone arbitrary HTML from our domain" endpoint.
+- **Escape every interpolated value in outbound email HTML.** Display names come from Google profiles.
+- **Anything that sends mail needs an idempotency key** (e.g. `referral_redemptions.notified_at`), or a caller can replay it and mailbomb a user on our Resend quota.
+- **CORS**: return `Access-Control-Allow-Origin` only for `chrome-extension://hkekbdlgnmjpbaijipkanenaeabhegfk` (+ `Vary: Origin`). Never reflect the request Origin, never `*`.
+- **Don't leave orphan functions deployed.** An unused slug is still a public route: retire the body and delete the slug. Never deploy anything holding the Google client secret or a service-role key behind `verify_jwt: false`.
+
+## Extension-page invariants
+
+- The popup is a privileged page. Anything from another user, the DB, or a YouTube page goes in via `textContent`, or through `escapeHistoryHtml` if it must be `innerHTML`. CSP blocks injected script but not injected markup.
+- URLs rendered into an `href` go through `safeExternalUrl` — escaping does not stop a `javascript:` URL firing on click.
+- `chrome.runtime.onMessage` must reject foreign senders (`sender.id !== chrome.runtime.id`); without `externally_connectable`, web pages can't reach us but other extensions can.
+- Auth parameters (nonce/state) use `crypto.randomUUID()`, never `Math.random()`.
+- No `web_accessible_resources` unless a web page genuinely needs the file; extension pages load their own assets via `chrome.runtime.getURL` without it, and a WAR entry lets every site fingerprint the extension.
+
+- `scanAndScore` is written but **not deployed** — don't deploy it, and don't "simplify" its timezone handling. Edge Functions run in UTC, so bucket boundaries must go through `tz.mjs`; `setHours()` there silently writes every score into the wrong bucket. `lib/slot-algorithm.js` is the reference implementation — change it first, then mirror into the function.
+- The 2 open Supabase security warnings (leaked password protection, Postgres patch level) are **platform settings, not code**. They cannot be fixed by a migration or MCP call — see the table in `project.mdc`. Don't re-investigate them as bugs.
+
+## Maintenance duty
+
+- When you change the schema, auth flow, file layout, Edge Functions, or fix a notable bug: update `project.mdc` (facts) and, if a rule changed, this file — in the same task, not later.
+- Bump the "Last updated" line in `project.mdc` whenever you edit it.
+- After changing non-trivial logic, run `node tests/selfcheck.js` and `node tests/stress-oauth.js` from `Watch Later Extension/`.

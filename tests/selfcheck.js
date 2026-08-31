@@ -99,6 +99,12 @@ assert.deepStrictEqual(shuffleCopy([1]).slice().sort(), [1]);
   assert.deepStrictEqual(src, [1, 2, 3, 4, 5]); // input untouched
   assert.deepStrictEqual(out.slice().sort((a, b) => a - b), src);
 }
+const OFFLINE_FACTS = (() => {
+  const m = src.match(/const OFFLINE_FACTS = (\[[\s\S]*?\]);/);
+  assert(m, 'OFFLINE_FACTS not found in popup.js');
+  return eval(`(${m[1]})`);
+})();
+assert.ok(OFFLINE_FACTS.length >= 13, 'offline facts pool must hold at least 13 entries');
 
 // slide-1/2 carousel slots: 3 visible at full size; the leaving card (0) and the
 // arriving card (3) swap between 100%/opaque and 90%/transparent.
@@ -211,15 +217,21 @@ assert.ok(src.includes('is-empty'), 'out-of-month cells render as empty chips');
     'scanned cell drop shadows must match Figma 418:976');
   assert.ok(css.includes('--shadow-cal-cell: 0 2px 0 0 #d9d9d9, 0 4px 6px 0 rgba(102, 71, 240, 0)'),
     'not-scanned ledge shadow (transparent glow so box-shadow can interpolate)');
-  assert.ok(css.includes('--shadow-cal-date-inset: 0 -1px 1px #adadad'), 'date INNER_SHADOW');
+  assert.ok(!css.includes('--shadow-cal-date-inset'), 'cal date inner shadow removed');
   assert.ok(css.includes('--cal-fade-ms: 400ms'), '--cal-fade-ms must pair with CAL_FADE_MS');
   assert.ok(css.includes('--cal-cell-ms: 260ms'), '--cal-cell-ms must pair with CAL_CELL_MS');
-  assert.ok(css.includes('--color-cal-scanned-stroke-end: #e0c2ff'), 'scanned stroke end');
-  assert.ok(css.includes('calGridIn'), 'page turn scales in with spring overshoot');
-  assert.ok(css.includes('--cal-bounce-peak'), 'incoming grid spring peak token');
+  assert.ok(css.includes('--cal-cell-scan-scale'), 'active scan cell scales up');
+  assert.ok(css.includes('calCellIn'), 'cell label swap fades in');
+  assert.ok(css.includes('.cal-cell-inner'), 'day cells swap inner content only');
+  assert.ok(!css.includes('calGridOut'), 'white grid shell must not fade out');
+  assert.ok(css.includes('--gradient-auth-warn-banner'), 'shared auth warn banner fill gradient');
+  assert.ok(css.includes('.auth-warn-banner::before'), 'auth banner gradient inner stroke (643:10880)');
   assert.ok(css.includes('cal-month-track'), 'month slider is a translating carousel track');
-  assert.ok(!/^\s*border:\s*1px solid white/m.test(css.slice(css.indexOf('.cal-day-cell {'), css.indexOf('.cal-day-cell .cal-day'))),
-    'day cells use a gradient stroke, not solid white');
+  assert.ok(css.includes('--type-cal-date: 800 16px/20px'), 'cal day date is 16/20 Extrabold (643:10849)');
+  assert.ok(css.includes('#onbAnalyzeSheet .auth-heading-row') && css.includes('flex-wrap: nowrap'),
+    'scan sheet heading stays one row like Figma headingLine3');
+  assert.ok(!/^\s*border:\s*1px solid white/m.test(css.slice(css.indexOf('.cal-day-cell {'), css.indexOf('.cal-day-cell .cal-date'))),
+    'day cells use tokenized white border');
   assert.ok(html.includes('calMonthTrack'), 'carousel track lives in the analyzing sheet');
   assert.ok(html.includes('cal-grid-stack'), 'date crossfade clones into .cal-grid-stack');
   assert.ok(!html.includes('cal-test'), 'calendar lives in the analyzing modal, not a separate test page');
@@ -377,6 +389,32 @@ assert.deepStrictEqual(
     );
   }
 
+  // Offline modal · Figma 645:13974 — burgundy fact card, secondary CTA, 13-fact pool.
+  assert.ok(css.includes('--offline-hero-h: 170.5px'), 'offline hero height token');
+  assert.ok(css.includes('--offline-fact-fade-ms: 550ms'), 'offline fact fade token');
+  assert.ok(css.includes('--color-offline-fact-start: #9f5750'), 'offline burgundy fact gradient start');
+  assert.ok(css.includes('--color-offline-fact-end: #663833'), 'offline brown fact gradient end');
+  assert.ok(css.includes('--color-offline-fact-green-start: #a5bfb1'), 'offline green fact gradient start');
+  assert.ok(css.includes('.offline-fact-shell.is-green'), 'offline green fact shell variant');
+  assert.ok(src.includes('function setOfflineFactTheme'), 'offline fact theme alternates');
+  assert.ok(css.includes('--type-offline-badge: 600 13px/18px'), 'offline badge Sub-Text 13/18 token');
+  assert.ok(html.includes('DO YOU KNOW ?'), 'offline badge copy');
+  assert.ok(!html.includes('<img class="offline-hero-bg"'), 'offline hero must not use baked PNG (grid only)');
+  assert.ok(html.includes('class="offline-hero-bg"'), 'offline hero grid layer');
+  assert.ok(/OFFLINE_FACT_MS = 5000/.test(src), 'offline fact hold must be 5s');
+  assert.ok(/OFFLINE_FACT_FADE_MS = 550/.test(src), 'offline fact fade ms must pair with CSS');
+  assert.ok(src.includes('function probeNetworkOnline'), 'offline connectivity probe');
+  assert.ok(src.includes('function wireOfflineNetworkOnce'), 'offline network wiring');
+  {
+    const tryBtn = html.indexOf('id="tryAgainBtn"');
+    assert.ok(tryBtn > 0, 'offline Try again button');
+    assert.ok(
+      html.slice(Math.max(0, tryBtn - 80), tryBtn + 40).includes('onb-btn-secondary'),
+      'offline Try again uses secondary button'
+    );
+  }
+  assert.ok(/\.offline-panel[\s\S]*box-shadow:\s*var\(--shadow-modal\)/.test(css), 'offline panel modal shadow');
+
   // Typography: Figma set via tokens; old Be Vietnam Pro must not return.
   assert.ok(
     !/Be\+Vietnam|Be Vietnam Pro|Be Vitenam/i.test(css),
@@ -399,6 +437,7 @@ assert.deepStrictEqual(
     assert.ok(css.includes(tok), `missing type token ${tok}`);
   }
   assert.ok(css.includes('--type-body: 600 16px/22px'), 'Body Text is 16/22 per Figma');
+  assert.ok(css.includes('--type-subtext: 600 13px/18px'), 'Sub-Text is 13/18 per Figma text style');
   assert.ok(css.includes("@font-face"), 'Proxima Nova must be bundled via @font-face');
   assert.ok(css.includes('fonts/Proxima-Nova-Regular.ttf'), 'Proxima Nova Regular font file referenced');
   assert.ok(!css.includes('Barlow Semi Condensed'), 'Barlow fallback removed after Proxima Nova bundle');
@@ -430,10 +469,13 @@ assert.deepStrictEqual(
   assert.ok(/\.onb-btn-secondary \.onb-btn-inner[\s\S]*background:\s*linear-gradient/.test(css),
     'secondary inner uses sheen gradient like primary (541:15814)');
   assert.ok(css.includes('.onb-btn-secondary:hover'), 'secondary hover matches primary');
-  assert.ok(css.includes('--auth-warn-banner-stroke-w'), 'auth banner outside stroke token (549:17073)');
-  assert.ok(css.includes('.auth-warn-banner::before'), 'auth banner gradient outside stroke');
+  assert.ok(css.includes('--auth-warn-banner-stroke-w: 1.6px'), 'auth banner border 1.6px (643:10880)');
+  assert.ok(css.includes('--type-auth-banner'), 'auth banner Sub-Text 13/18 token');
+  assert.ok(css.includes('--auth-warn-banner-grad-stop'), 'auth banner fill gradient stop (643:10880)');
+  assert.ok(css.includes('.auth-warn-banner::before'), 'auth banner gradient inner stroke');
   assert.ok(css.includes('.delete-heading[hidden]'), 'multi delete must hide single heading');
-  assert.ok(css.includes('.profile-stats-wrap:has(.profile-trend-shell:not([hidden]))'), 'stats overlap only when trend visible');
+  assert.ok(/\.profile-stats\s*\{[^}]*margin-bottom:\s*-20px/.test(css),
+    'stats card overlaps journey banner');
   assert.ok(css.includes('--icon-stroke-w: 1.2px'), 'global icon stroke token');
   assert.ok(css.includes('auth-warn-banner--video'), 'video title banner variant (545:16510)');
   assert.ok(css.includes('--btn-h: 40px'), 'button outer height is 40px');
@@ -448,7 +490,7 @@ assert.deepStrictEqual(
   );
   assert.ok(
     typoUtils.includes('.onb-label,') && typoUtils.includes('font: var(--type-subtext)'),
-    'card stamp is Sub-Text 14/18 via .text-subtext utility group'
+    'card stamp is Sub-Text 13/18 via .text-subtext utility group'
   );
   assert.ok(html.includes('your time'), 'Promise chip copy is “your time”');
   assert.ok(html.includes('>matters,</p>') && html.includes('>on</p>'), 'Promise row splits matters/on per Figma 546:16896');
@@ -506,13 +548,23 @@ assert.deepStrictEqual(
   assert.ok(css.includes('--onb-perm-enter-ms: 450ms') && css.includes('--onb-perm-stagger-ms: 140ms'),
     'permissions card cascade CSS tokens');
   assert.ok(css.includes('is-perms-entering'), 'permissions cards stagger in after sheet lands');
+  assert.ok(src.includes('QUEUE_CARD_ENTER_MS') && src.includes('QUEUE_CARD_STAGGER_MS'),
+    'queue intercept card cascade has JS timing constants');
+  assert.ok(css.includes('--queue-card-enter-ms: 450ms') && css.includes('--queue-card-stagger-ms: 140ms'),
+    'queue intercept card cascade CSS tokens');
+  assert.ok(css.includes('is-cards-entering'), 'queue cards stagger in after sheet lands');
+  assert.ok(css.includes('--queue-grad-now') && css.includes('--queue-grad-adding'),
+    'queue card gradients from Figma 645:14322 / 645:14327');
+  assert.ok(css.includes('--queue-cal-now-left') && css.includes('--queue-cal-add-top'),
+    'queue calendar placement tokens from Figma');
+  assert.ok(css.includes('queueCardSlideIn'), 'queue cards slide in with ease-in-out');
   assert.ok(html.includes('onb-info-icon') && html.includes('stroke="currentColor"'),
     'permissions info icon matches revoke subtext color');
   assert.ok(css.includes('#onbPermsSheet.auth-sheet'), 'permissions sheet uses Figma 532:2481 layout');
   assert.ok(html.includes('onb-perm-label text-sm'), 'permission cards use Label 12/16 type');
   assert.ok(/\.onb-perm-label b[\s\S]*?font-weight:\s*700/.test(css),
     'permission card keywords (FIND TIME / SCHEDULE / REMIND) must be Bold');
-  assert.ok(css.includes('color-multi-why-backdrop'), 'permissions / all sheets share black@50% blur');
+  assert.ok(css.includes('--gradient-sheet-backdrop'), 'all sheets share #3A3A3A→#fff @75% blur');
   {
     const allowBlock = src.slice(src.indexOf('if (permsAllow)'), src.indexOf("document.querySelectorAll('[data-onb-goto]')"));
     const realAllow = allowBlock.slice(allowBlock.indexOf('if (transitioning)'));
@@ -522,6 +574,11 @@ assert.deepStrictEqual(
       'Allow must not close permissions before connecting');
   }
   assert.ok(css.includes('.onb-sheet-overlay.is-open .onb-sheet-slot'), 'onboarding sheets slide in like other modals');
+  assert.ok(/revealPostAuthScheduleSkeleton/.test(src),
+    'post-auth watch path shows schedule skeleton before calendar scan');
+  assert.ok(/finishPostAuthScan[\s\S]{0,3200}await initPopup\(\)/.test(src),
+    'post-auth loads schedule after scan sheet closes');
+  assert.ok(src.includes('function mountAnalyzeOverlay'), 'analyze sheet stacks on schedule frame');
   assert.ok(css.includes('.auth-flow-host.is-open .auth-panel'), 'auth panels slide in on open');
   assert.ok(css.includes('border-radius: var(--radius-onb-modal) var(--radius-onb-modal) 0 0'), 'auth video uses 16px top radius');
   assert.ok(html.includes('onb-grid-bg'), 'onboarding grid overlay per Figma 432:528');
@@ -561,7 +618,7 @@ assert.deepStrictEqual(
   assert.ok(css.includes('--frame-h: 499px'), 'single-session frame for 8/8/8 pad');
   assert.ok(src.includes('8 + 44 + 16 + 172.514'), 'multi frame height uses 8px top pad');
   assert.ok(css.includes('--blur-sheet-backdrop: 2px'), 'sheet backdrop blur is 2px');
-  assert.ok(css.includes('var(--color-multi-why-backdrop)'), 'sheet backdrop black@50%');
+  assert.ok(css.includes('var(--gradient-sheet-backdrop)'), 'sheet backdrop uses gradient overlay');
   assert.ok(css.includes('--prefs-nav-icon-size: 28px'), 'prefs header icons 28');
   assert.ok(css.includes('#prefsDayHeader .prefs-header-back'), 'day prefs back stays at 0% opacity');
   assert.ok(html.includes('prefsTimeHeaderBackBtn'), 'time prefs uses header back');
@@ -619,6 +676,16 @@ assert.deepStrictEqual(
       Math.round(parseFloat((css.match(/--onb-modal-enter-stagger:\s*([\d.]+)ms/) || [])[1])),
     'ONB_MODAL_STAGGER_MS must match --onb-modal-enter-stagger'
   );
+  assert.ok(
+    jsMs(/QUEUE_CARD_ENTER_MS = (\d+)/, 'QUEUE_CARD_ENTER_MS') ===
+      Math.round(parseFloat((css.match(/--queue-card-enter-ms:\s*([\d.]+)ms/) || [])[1])),
+    'QUEUE_CARD_ENTER_MS must match --queue-card-enter-ms'
+  );
+  assert.ok(
+    jsMs(/QUEUE_CARD_STAGGER_MS = (\d+)/, 'QUEUE_CARD_STAGGER_MS') ===
+      Math.round(parseFloat((css.match(/--queue-card-stagger-ms:\s*([\d.]+)ms/) || [])[1])),
+    'QUEUE_CARD_STAGGER_MS must match --queue-card-stagger-ms'
+  );
   {
     const html = fs.readFileSync(path.join(__dirname, '..', 'popup.html'), 'utf8');
     assert.ok(/id="schedPrefsOverlay"/.test(html), 'prefs must be a separate overlay sheet');
@@ -646,6 +713,12 @@ assert.deepStrictEqual(
       !/SUCCESS_SLIDE_MS = SHEET_SLIDE_MS/.test(src),
       'success/fail outcome sheets use --success-enter-ms, not shared sheet slide'
     );
+    assert.ok(css.includes('--sched-thumb-enter-ms: 300ms'), 'schedule thumb enter token');
+    assert.ok(/SCHED_THUMB_ENTER_MS = 300/.test(src), 'schedule thumb enter JS constant');
+    assert.ok(css.includes('schedThumbSweep'), 'schedule thumb sweep keyframes');
+    assert.ok(css.includes('.is-sched-entering .sched-thumb'), 'schedule enter targets thumb');
+    assert.ok(css.includes('.is-sched-entering .multi-session-card'), 'schedule enter animates multi session cards');
+    assert.ok(/function revealScheduleScreen/.test(src), 'revealScheduleScreen helper');
   }
   assert.ok(
     /function animateProfileStatCount/.test(src),
@@ -659,14 +732,27 @@ assert.deepStrictEqual(
   assert.ok(!/is-entering[^\n]*profile-stat-value/.test(css), 'stat numbers use JS count-up, not CSS fade');
   assert.ok(!css.includes('profileCardIn'), 'profile must not cascade section fades');
   assert.ok(css.includes('--profile-grad-cover: 75%'), 'profile gradient cover ends at 75%');
-  assert.ok(css.includes('--profile-star-tr-right'), 'profile star positions from Figma tokens');
-  assert.ok(css.includes('--color-profile-row-hover'), 'profile row hover token');
-  assert.ok(/\.profile-row:hover\s*\{[^}]*background-color/.test(css), 'profile rows hover with background');
+  assert.ok(html.includes('id="profileCloseBtn"') && html.includes('profile-close-icon'), 'profile close is Figma 643:3336 grey glass btn + inline X');
+  assert.ok(css.includes('--color-profile-close-bg: #e6e6e6'), 'profile close fill token');
+  assert.ok(css.includes('--blur-profile-close: 40px'), 'profile close backdrop blur token');
+  assert.ok(!/\.profile-row:hover\s*\{/.test(css), 'profile rows must not hover wash — Figma 643:3311');
+  assert.ok(/\.profile-row-icon[\s\S]*?background:\s*transparent/.test(css), 'profile row icons have no bg');
+  assert.ok(css.includes('#historyBackBtn') && /#historyBackBtn[\s\S]{0,80}opacity:\s*0/.test(css), 'history back is layout-only at 0% opacity');
+  assert.ok(src.includes('function paintSlotGridSkeleton'), 'prefs save must skeletonize single-session slots');
+  assert.ok(css.includes('--sched-sheet-h-compact: 234px'), '1-slot / no-slot sheet height token');
+  assert.ok(css.includes('--sched-slot-area-h: 116px'), 'compact slot list height');
+  assert.ok(css.includes('.is-slots-stack-2'), '2-slot compact sheet height');
+  assert.ok(css.includes('.sched-slots.is-stack'), '1–2 slot stack layout');
+  assert.ok(css.includes('.sched-slot--empty'), 'no-slot empty card chrome');
+  assert.ok(src.includes('function resolveSlotEmptyCopy'), 'context-specific no-slot copy');
+  assert.ok(!/greet\},\\nPlease/.test(src), 'empty slot body must not force line break after greeting');
+  assert.ok(src.includes("params.get('slots')"), 'preview slots=0|1|2|4 flag');
   assert.ok(css.includes('--btn-stroke-w-gift'), 'gift outside stroke token');
   assert.ok(css.includes('profile-gift'), 'profile gift button styles');
   assert.ok(css.includes('--blur-profile-backdrop'), 'profile black blur backdrop token');
   assert.ok(src.includes('Referrals coming soon!'), 'gift toast copy');
   assert.ok(src.includes('function startProfilePreviewLoop'), 'profile preview loop');
+  assert.ok(src.includes('function startOfflinePreviewLoop'), 'offline preview loop');
   {
     const html = fs.readFileSync(path.join(__dirname, '..', 'popup.html'), 'utf8');
     assert.ok(!/id="profileOverlay"\s+class="[^"]*\bwl-modal\b/.test(html), 'profile must not use .wl-modal');
@@ -771,32 +857,22 @@ assert.deepStrictEqual(
   );
 }
 {
-  // Trend banner window: weekly, not the old 30-day compare (matches Figma copy "since last week").
+  // Profile journey banner — Figma 643:3182 / 643:3790 / 671:18962 / 671:19188 (replaces completion-rate trend).
   const html = fs.readFileSync(path.join(__dirname, '..', 'popup.html'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
-  assert.ok(src.includes('TREND_WINDOW_DAYS = 7'), 'trend window must be 7 days');
-  assert.ok(src.includes('since last week'), 'trend copy must say "since last week"');
-  assert.ok(!/since last month/.test(src), 'stale "since last month" trend copy must be gone');
-  assert.ok(html.includes('id="profileTrendShell"'), 'trend banner shell wrapper required');
-  assert.ok(html.includes('class="profile-content"'), 'profile menu must group head+stats in profile-content');
-  assert.ok(css.includes('--color-nav-icon-bg'), 'nav icon uses Figma 575:199 grey fill');
-  // completionTrend: both windows need rows; delta is rounded percentage-point swing.
-  const day = 86400000;
-  const now = Date.UTC(2026, 7, 27);
-  const rows = [
-    { created_at: new Date(now - 3 * day).toISOString(), watched: true },
-    { created_at: new Date(now - 3 * day).toISOString(), watched: false },
-    { created_at: new Date(now - 10 * day).toISOString(), watched: false },
-    { created_at: new Date(now - 10 * day).toISOString(), watched: false },
-  ];
-  const trendFn = new Function('rows', 'now', `
-    const TREND_WINDOW_DAYS = 7;
-    ${src.match(/function completionTrend[\s\S]*?^}/m)[0]}
-    return completionTrend(rows, now);
-  `);
-  const up = trendFn(rows, now);
-  assert.deepStrictEqual(up, { delta: 50, up: true }, 'recent 50% vs prior 0% → 50pt increase');
-  assert.strictEqual(trendFn([], now), null, 'empty history → no trend banner');
+  const qSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'queue-projection.js'), 'utf8');
+  assert.ok(html.includes('id="profileScheduled"') && html.includes('id="profileBannerText"'),
+    'profile stats use Scheduled + journey banner');
+  assert.ok(!html.includes('id="profileWaiting"') && !html.includes('id="profileTrendShell"'),
+    'old Waiting / completion-trend banner must stay gone');
+  assert.ok(css.includes('.profile-banner.is-green'), 'cleared queue uses green celebration banner');
+  assert.ok(css.includes('--profile-trend-shell-end'), 'trend banner outer shell matches Figma 671:18895');
+  assert.ok(html.includes('id="profileBannerText"') && html.includes('text-sm'), 'trend banner copy uses Label 12/16');
+  assert.ok(css.includes('--profile-stats-w: 300px'), 'stats card width from Figma');
+  assert.ok(!src.includes('function completionTrend'), 'completion-rate trend removed from profile');
+  assert.ok(qSrc.includes('function resolveProfileCardState'), 'profile card state lives in WLQueue');
+  assert.ok(qSrc.includes('function profileCardCopy'), 'profile card copy lives in WLQueue');
+  assert.ok(src.includes('PROFILE_PREVIEW_STATES'), 'profile preview cycles journey states');
 }
 {
   // Feedback modal stacks over profile; writes to existing public.feedback table.
@@ -864,12 +940,14 @@ assert.deepStrictEqual(
   assert.ok(/type:\s*'text'/.test(src), 'feedback modal insert must set type text');
   assert.ok(!css.includes('top: 58px'), 'prefs sheet must bottom-anchor without a top pin');
   assert.ok(css.includes('--prefs-chip-rot: -1deg'), 'prefs day/time chip rotation is -1deg');
-  assert.ok(css.includes('--color-sunday-title:'), 'sunday/night-owl banner title token');
-  assert.ok(css.includes('--color-sunday-sub:'), 'sunday/night-owl banner sub token');
+  assert.ok(css.includes('--color-prefs-banner-bg:'), 'prefs sunday/night-owl banner bg token');
+  assert.ok(css.includes('--shadow-prefs-banner:'), 'prefs banner shadow token');
   assert.ok(!src.includes("hint.textContent = 'Occupied'"), 'prefs busy hints must not flip on selection');
   assert.ok(html.includes('prefs-day-chip">Day</'), 'day prefs uses pink Day chip');
   assert.ok(html.includes('prefs-day-chip">Time</'), 'time prefs uses pink Time chip');
-  assert.ok(css.includes('width: 80px'), 'prefs slot name width is 80px');
+  assert.ok(css.includes('--prefs-day-name-w: 80px'), 'prefs chip label width token');
+  assert.ok(css.includes('width: var(--prefs-day-name-w)'), 'prefs chip label uses 80px token');
+  assert.ok(css.includes('--prefs-banner-check-size: 32px'), 'prefs banner toggle is 32px');
   assert.ok(css.includes('min-height: 24px'), 'sched sheet header is 24px');
   assert.ok(css.includes('width: 78.755px'), 'sched logo matches Figma 628:1314');
   assert.ok(css.includes('justify-content: center'), 'prefs slot label inner is centered');
@@ -878,7 +956,18 @@ assert.deepStrictEqual(
   assert.ok(css.includes('--history-nav-icon-size: 28px'), 'history nav icons 28');
   assert.ok(css.includes('--color-history-row-sub: #808080'), 'history row sub Text-Secondary');
   assert.ok(!src.includes('setPrefsHeaderBackVisible'), 'prefs no longer hide back from schedule');
-  assert.ok(!src.includes('${PREFS_CHECK_SVG}<span class="prefs-day-name">${name}</span>${PREFS_CHECK_SVG}'), 'prefs chip uses one check only');
+  assert.ok(src.includes('PREFS_CHECK_SVG_SPACER'), 'prefs chip has invisible right check spacer');
+  assert.ok(css.includes('.prefs-day-check--spacer'), 'prefs chip spacer check is hidden');
+  assert.ok(!css.includes('.prefs-banner-inner'), 'prefs banner is a single row shell');
+  assert.ok(html.includes('Save &amp; Next'), 'day prefs CTA is Save & Next');
+  assert.ok(html.includes('prefs-scan-banner'), 'prefs calendar scan banner on day/time steps');
+  assert.ok(html.includes('Auto fetch slots via calendar scan'), 'prefs scan banner copy');
+  assert.ok(html.includes('prefs-scan-trigger'), 'prefs scan banner click target');
+  assert.ok(src.includes("triggeredBy: 'prefs-banner'"), 'prefs banner scan applies algorithm suggestions');
+  assert.ok(src.includes("'At least select one day'"), 'day prefs validation toast');
+  assert.ok(src.includes("'At least select one time slot'"), 'time prefs validation toast');
+  assert.ok(src.includes('startPrefsCalendarScan'), 'prefs banner opens calendar scan flow');
+  assert.ok(css.includes('--prefs-panel-h: 428px'), 'prefs sheet height matches Figma 643:9532');
   assert.ok(src.includes("finishFeedbackSend('Feedback sent'"), 'feedback success closes modal then toasts Feedback sent');
   assert.ok(html.includes('girishshedge54@gmail.com'), 'feedback placeholder must include support email');
   assert.ok(src.includes('feedbackState.overLimitToasted'), 'over-limit toast fires once per overflow');
@@ -1113,6 +1202,43 @@ assert.ok(
   assert.ok(src.includes('function openHistoryConfirmPreview'), 'history confirm preview must exist');
   assert.ok(src.includes("confirmKinds = ['single-delete', 'multi-delete', 'mark-watched']"), 'history preview must cycle confirm sheets');
   assert.ok(src.includes('No forced videos here'), 'Forced empty heading from Figma');
+  assert.ok(html.includes('lib/queue-projection.js'), 'popup loads shared queue projection helper');
+  assert.ok(html.includes('id="queueInterceptOverlay"'), 'queue intercept overlay must exist');
+  assert.ok(html.includes('Schedule instead') && html.includes('View playlist'), 'queue intercept CTAs');
+  assert.ok(html.includes('queue-cal-art') && html.includes('Icon/queue/queue-cal-now.png'),
+    'queue cards use Figma-exported calendar art at measured positions');
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'Icon/queue/queue-cal-now.png')), 'queue now calendar PNG');
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'Icon/queue/queue-cal-adding.png')), 'queue adding calendar PNG');
+  assert.ok(!html.includes('queue-card-now.png') && !html.includes('queue-card-adding.png'),
+    'queue card PNG exports must stay gone');
+  assert.ok(!html.includes('queue-koala-now') && !html.includes('queue-koala-adding'),
+    'cropped koala card art must stay gone');
+  assert.ok(html.includes('id="profileScheduled"') && html.includes('id="profileClear"') && html.includes('id="profileBannerText"'),
+    'profile stats are Scheduled + To clear + journey banner');
+  assert.ok(!html.includes('id="profileWaiting"') && !html.includes('id="profilePace"'),
+    'old waiting/pace cells must stay gone');
+  assert.ok(!html.includes('id="profileWatched"'),
+    'old watched profile cell must stay gone');
+  assert.ok(src.includes('function gateQueueIntercept'), 'queue intercept gate must exist');
+  assert.strictEqual((src.match(/gateQueueIntercept/g) || []).length, 3,
+    'gateQueueIntercept = 1 def + single + multi schedule only');
+  {
+    const i = src.indexOf('async function rescheduleHistoryGroup');
+    const j = src.indexOf('\nasync function ', i + 1);
+    assert.ok(i >= 0 && !src.slice(i, j > i ? j : i + 4000).includes('gateQueueIntercept'),
+      'Forced-tab reschedule must not fire the queue intercept');
+  }
+  assert.ok(!src.includes("needs_attention"), 'queue must not use a status column');
+  assert.ok(!src.match(/computeSessionPlan\([^)]*\)\.length/), 'session count is plan.sessionCount, not .length');
+  assert.ok(src.includes("del('queue_intercept_state')"), 'full logout must wipe queue intercept cooldown');
+  {
+    const qSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'queue-projection.js'), 'utf8');
+    assert.ok(!qSrc.includes("chip: 'days'") && !qSrc.includes('few extra') && !qSrc.includes("chip: 'past'"),
+      'days/past copy tiers must stay gone');
+    assert.ok(qSrc.includes("chip: 'a month'") && qSrc.includes("chip: '3 months'"),
+      'month and 3-month intercept chips must exist');
+    assert.ok(qSrc.includes('plan.sessionCount'), 'sessionsAdded must read sessionCount');
+  }
   assert.ok(src.includes('function restoreSupabaseSession'), 'session restore must use shared refresh lock');
   assert.ok(src.includes('auth_refresh_lock'), 'refresh lock key must exist');
   assert.ok(src.includes('showReturningConnecting()'), 'session expiry must reconnect via showReturningConnecting');

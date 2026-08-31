@@ -47,7 +47,7 @@
   --type-highlight: 800 18px/22px var(--font-condensed); /* Highlight Text 18/22 Extrabold */
   --type-button: 700 14px/16px var(--font-condensed);    /* Button 14/16 Bold */
   --type-body: 600 16px/22px var(--font-condensed);      /* Body Text 16/22 Semibold */
-  --type-subtext: 600 14px/18px var(--font-condensed);   /* Sub-Text 14/18 Semibold */
+  --type-subtext: 600 13px/18px var(--font-condensed);   /* Sub-Text 13/18 Semibold */
   --type-label: 600 12px/16px var(--font-condensed);     /* Label 12/16 Semibold */
   --type-timestamp: 600 12px/16px var(--font-condensed); /* timestamp (snapped to Label) */
   --type-date: 800 14px/18px var(--font-condensed);      /* calendar date number — Extrabold */
@@ -86,15 +86,26 @@
   --onb-cards-gap: var(--space-4); /* 16 ? Figma onbCards 143:4413 */
   --onb-cards-pad-y: var(--space-2); /* 8 top/bottom; 0 left/right */
   --onb-card-max-w: 324px; /* Pain/Promise card max width */
-  --auth-warn-banner-w: 300px; /* Figma authWarnBanner 545:16510 / 418:1083 */
-  --auth-warn-banner-h: 34px;
-  --auth-warn-banner-px: var(--space-4); /* Figma 545:16510 horizontal pad 16 */
-  --auth-warn-banner-stroke-w: 1.5px; /* Figma 549:17073 outside stroke */
-  --color-warning-stroke-top: rgba(133, 77, 14, 0.1); /* #854D0E @10% */
-  --color-warning-stroke-bottom: rgba(254, 249, 195, 0.1); /* #FEF9C3 @10% */
+  --auth-warn-banner-w: 300px; /* Figma authWarnBanner 643:10880 */
+  --auth-warn-banner-h: 34px; /* 8 + 18 line + 8 */
+  --auth-warn-banner-px: var(--space-3); /* Figma spacing-4 = 12 */
+  --auth-warn-banner-py: var(--space-2); /* Figma spacing-3 = 8 */
+  --auth-warn-banner-stroke-w: 1.6px; /* Figma 643:10880 border */
+  --type-auth-banner: 600 13px/18px var(--font-condensed); /* Figma Sub-Text 13/18 */
+  --tracking-auth-banner: -0.01em; /* Figma −1% */
+  --color-warning-stroke-top: rgba(133, 77, 14, 0.1); /* authWarnBanner 643:10880 inner stroke */
+  --color-warning-stroke-bottom: rgba(254, 249, 195, 0.1);
+  --auth-warn-banner-grad-stop: 26.786%; /* Figma 643:10880 fill stop */
+  --gradient-auth-warn-banner: linear-gradient(
+    to bottom,
+    var(--color-warning-bg) 0%,
+    var(--color-warning-bg) var(--auth-warn-banner-grad-stop),
+    var(--color-surface-white) 100%
+  );
   --icon-stroke-w: 1.2px; /* Tabler icons global */
   --nav-icon-size: 32px; /* history / profile shared nav chrome */
   --prefs-nav-icon-size: 28px; /* prefs sheet header back/close */
+  --prefs-panel-h: 428px; /* Figma 643:9532 / 643:9616 prefsDayPanelContent */
   --nav-icon-stroke-w: 2px;
   --color-nav-icon-bg: #e6e6e6;
   --color-nav-icon-stroke-start: #ffffff;
@@ -103,6 +114,8 @@
   --feedback-text-h: 176px; /* 8 lines @ 22px — ~250 chars without scroll */
   --feedback-field-h: 240px; /* 16 pad + 176 text + 16 count + 32 pad */
   --sched-slot-selected-stroke-w: 1.6px; /* Figma 532:2742 selected time body */
+  --sched-sheet-h-compact: 234px; /* Figma 696:19901 / 696:19929 / 696:19950 */
+  --sched-slot-area-h: 116px; /* compact sheet slot list / single card */
   --color-accent-grad-start: #6647f0; /* primary purple button gradient */
   --color-accent-grad-end: #3b13ec;
   --color-ticker-active: #d9d9d9;
@@ -123,6 +136,11 @@
   /* Figma Failed-Gradient (531:958) / Success-Linear (546:16896) */
   --color-overlay-dark: rgba(58, 58, 58, 0.75); /* sheet backdrop top #3A3A3A @75% */
   --color-overlay-light: rgba(255, 255, 255, 0.75); /* sheet backdrop bottom @75% */
+  --gradient-sheet-backdrop: linear-gradient(
+    to bottom,
+    var(--color-overlay-dark),
+    var(--color-overlay-light)
+  );
   /* Auth dim — same sheet backdrop as modals */
   --color-auth-dim-top: var(--color-overlay-dark);
   --color-auth-dim-bottom: var(--color-overlay-light);
@@ -145,20 +163,19 @@
   --color-cal-scanned-fill-end: #faf4ff;
   --color-cal-scanned-stroke-end: #e0c2ff;
   --color-cal-scanned-ledge: #eddbff;
-  --color-cal-date-inset: #adadad;
   --shadow-cal-cell: 0 2px 0 0 #d9d9d9, 0 4px 6px 0 rgba(102, 71, 240, 0);
   --shadow-cal-scanned: 0 2px 0 0 #eddbff, 0 4px 6px 0 rgba(102, 71, 240, 0.35);
-  --shadow-cal-date-inset: 0 -1px 1px #adadad;
-  --shadow-cal-date-scanned-inset: 0 -1px 1px #6647f0;
   --blur-cal-month-fade: 1px;    /* LAYER_BLUR radius 1 on prev/next month labels */
-  --blur-cal-dim: 2px;           /* Figma 380:2883 BACKGROUND_BLUR */
+  --blur-cal-dim: var(--blur-sheet-backdrop); /* aligned with sheet overlays */
   --cal-dim-fill: 75%;           /* Figma 380:2883 gradient fill opacity */
   --cal-fade-ms: 400ms;          /* paired with CAL_FADE_MS — medium page/month swap */
   --cal-cell-ms: 260ms;          /* paired with CAL_CELL_MS */
-  --cal-bounce-peak: 1.08;       /* incoming grid spring overshoot */
-  --color-cal-dim-top: #4f4f4f;  /* Figma 380:2883 overlay stop 0 */
+  --cal-cell-scan-scale: 1.08;   /* active scan cell scale-up */
+  --color-cal-dim-top: var(--color-overlay-dark);
   --cal-cell-w: 36px;
   --cal-cell-h: 40px;
+  --type-cal-date: 800 16px/20px var(--font-condensed); /* Figma calDayCell date 643:10849 */
+  --tracking-cal-date: 0.02em; /* Figma +0.32px on 16 */
   --cal-month-label-w: 75px;
   --cal-month-div-w: 37.5px;     /* Figma 422:1597 / 422:1599 */
   --cal-month-step: calc(var(--cal-month-label-w) + var(--cal-month-div-w));
@@ -177,16 +194,16 @@
   --color-prefs-hint: #707070;           /* day busy label */
   --color-prefs-close-bg: rgba(0, 0, 0, 0.09);
   --prefs-chip-rot: -1deg; /* Figma 380:3664 / 380:4034 day/time chip */
-  --color-sunday-grad-start: #ffdbe7;
-  --color-sunday-grad-end: #ffc0d5;
-  --color-sunday-text: #df004a;
-  --color-sunday-title: #df004a; /* Figma 516:1251 / 499:1795 banner title */
-  --color-sunday-sub: rgba(223, 0, 74, 0.75); /* Figma 516:1252 / 499:1796 */
-  --color-sunday-btn: #ff3479;
-  --color-sunday-btn-border: #da004a;
-  --color-sunday-check-bg: #ff3479;
-  --color-sunday-check-border: #da004a;
-  --color-sunday-glass: rgba(255, 255, 255, 0.2);
+  --color-prefs-banner-bg: var(--color-sched-prefs-bg); /* Figma 643:9601 / 643:9685 Primary 5% */
+  --color-prefs-banner-border: #f2f2f2;
+  --shadow-prefs-banner: 0 -2px 8px rgba(0, 0, 0, 0.05); /* Figma Modal @5% */
+  --color-prefs-banner-check-border: #666666;
+  --color-prefs-banner-check-unchecked-start: #f2f2f2;
+  --color-prefs-banner-check-unchecked-end: #ffffff;
+  --prefs-banner-check-size: 32px; /* Figma 643:9609 / 643:9700 */
+  --prefs-banner-check-radius: 10.667px;
+  --prefs-banner-check-border-w: 1.244px;
+  --prefs-day-name-w: 80px; /* Figma prefs chip label width */
   --color-sched-dim: #000000; /* Figma 36:1908 fill; soft-light blend */
   --color-sched-noise: rgba(0, 0, 0, 0.25); /* Figma noise mono @ 25% */
   /* Profile menu 533:3931 / 549:17399 / 560:18332 */
@@ -201,6 +218,17 @@
   --color-profile-row-icon-bg: #f3f1fe; /* Primary 5% */
   --color-profile-row-hover: #f3f1fe; /* same lavender wash as row icons */
   --color-profile-stat-value: rgba(19, 19, 19, 0.75);
+  --profile-stats-w: 300px; /* Figma statsCard 671:18886 */
+  --profile-banner-h: 41px;
+  --color-profile-banner-text: #808080;
+  --color-profile-banner-green-text: #029431;
+  --profile-trend-shell-end: rgba(255, 255, 255, 0.5); /* Figma 671:18895 @147.52% */
+  --profile-trend-grey-start: rgba(229, 229, 229, 0.5);
+  --profile-trend-grey-mid: rgba(242, 242, 242, 0.5);
+  --shadow-profile-trend-inset: inset 0 1px 6px rgba(229, 229, 229, 0.75); /* Slot Inner Shadow */
+  --profile-banner-green-grad-1: #c9ffa3;
+  --profile-banner-green-grad-2: #9bff9d;
+  --profile-banner-green-grad-3: #c2ffce;
   --color-profile-gift-stroke: #ffffff;
   --color-profile-gift-stroke-end: var(--color-accent-grad-end); /* #3B13EC */
   --btn-stroke-w-gift: 0.889px; /* Figma 549:17360 OUTSIDE stroke */
@@ -216,7 +244,11 @@
   --color-trend-up-text: #008f11;
   --color-trend-down-bg: #ffddde;
   --color-trend-down-text: #ff0b0f;
-  --color-profile-close-bg: rgba(0, 0, 0, 0.1);
+  --color-profile-close-bg: #e6e6e6; /* Figma 643:3336 iconBtnWrap fill */
+  --color-profile-close-stroke-end: #d9d9d9; /* Figma 643:3336 stroke gradient end */
+  --profile-close-stroke-w: 2px;
+  --blur-profile-close: 40px;
+  --profile-close-icon-size: 16px;
   --blur-sheet-backdrop: 2px;
   --blur-profile-backdrop: var(--blur-sheet-backdrop);
   --profile-enter-ms: var(--success-enter-ms);
@@ -247,7 +279,22 @@
   --multi-session-banner-overlap: 20px;
   --multi-session-banner-pt: 6px;
   --multi-session-banner-pb: 8px;
-  --color-multi-why-backdrop: rgba(0, 0, 0, 0.5); /* Why sheet dim — Figma 400:9920 */
+  --color-multi-why-backdrop: var(--gradient-sheet-backdrop); /* #3A3A3A→#fff @75% + 2px blur */
+  /* Queue intercept 645:14322 / 645:14327 — CSS card shells + Figma calendar art */
+  --queue-card-h: 120px;
+  --queue-card-w: 144px;
+  --queue-grad-now: linear-gradient(-50.19deg, #e5e0fc 0%, #fbfaff 50%);
+  --queue-grad-adding: linear-gradient(129.81deg, #fffafa 50%, #ffdada 100%);
+  --queue-cal-now-left: 84.885px;
+  --queue-cal-now-top: 52px;
+  --queue-cal-add-left: 85.555px;
+  --queue-cal-add-top: 57px;
+  --queue-card-enter-ms: 450ms;
+  --queue-card-stagger-ms: 140ms;
+  --color-queue-now: var(--color-accent-selected); /* #3b13ec */
+  --color-queue-now-label: rgba(59, 19, 236, 0.75);
+  --color-queue-adding: #c60000;
+  --color-queue-adding-label: rgba(198, 0, 0, 0.75);
   --multi-session-card-h: 59px; /* Figma 533:5985 session card */
   --multi-session-card-py: var(--space-2);
   --multi-session-area-h: 170px; /* Figma 533:5979 (2 sessions) */
@@ -258,8 +305,16 @@
   --sched-title-frame-h-1: 46px; /* Figma 513:1176 — 1-line title band */
   --sched-title-frame-h-2: 68px; /* Figma 513:1167 — 2-line title band */
   --color-wrong-url-fade: rgba(255, 255, 255, 0.19); /* 36:2103 art sheen */
-  --color-offline-fact-start: #ec2ef8; /* 36:3013 fact card */
-  --color-offline-fact-end: #e435d9;
+  --offline-hero-h: 170.5px; /* Figma 645:13966 */
+  --offline-fact-shell-radius: 20px; /* Figma 645:13970 */
+  --offline-fact-fade-ms: 550ms; /* slow crossfade ↔ OFFLINE_FACT_FADE_MS */
+  --type-offline-badge: 600 13px/18px var(--font-condensed); /* Figma 645:13969 Sub-Text */
+  --tracking-offline-badge: -0.01em;
+  --color-offline-fact-start: #9f5750; /* Figma 645:13970 brown */
+  --color-offline-fact-end: #663833;
+  --color-offline-fact-green-start: #a5bfb1; /* Figma 645:14168 green */
+  --color-offline-fact-green-end: #82a492;
+  --color-offline-tick: #e6e6e6; /* Figma 645:14171 Stroke-Grey */
   /* 533:7243 View history playlist */
   --color-history-title: #131313;
   --color-history-tabs-bg-start: #f2f2f2; /* Figma 533:7258 S-Btn gradient */
@@ -360,6 +415,15 @@
   --blur-prefs-backdrop: var(--blur-sheet-backdrop);
   --sched-bg-pos-y: 11.41%;  /* Pixel stretch Transform Y */
   --sched-noise-size: 0.5;   /* Figma noise size X/Y */
+  --sched-thumb-enter-ms: 300ms;
+  --sched-title-enter-ms: 260ms;
+  --sched-sheet-enter-ms: 260ms;
+  --sched-enter-stagger: 32ms;
+  --sched-slot-stagger-ms: 32ms;
+  --sched-title-delay: 160ms; /* overlap thumb sweep tail */
+  --sched-head-delay: calc(var(--sched-title-delay) + var(--sched-title-enter-ms) - 72ms);
+  --sched-slots-delay: calc(var(--sched-head-delay) + var(--sched-sheet-enter-ms) - 48ms);
+  --sched-btn-delay: calc(var(--sched-slots-delay) + 4 * var(--sched-slot-stagger-ms) + var(--sched-sheet-enter-ms) - 40ms);
 
   /* Spacing ? 4-point scale (4 / 8 / 12 / 16 / 20 / 24 / 28 / 32) */
   --space-1: 4px;
@@ -458,6 +522,7 @@
 .profile-row,
 .success-body,
 .success-card-title,
+.queue-body,
 .text-body,
 .feedback-input,
 .toast-msg,
@@ -465,7 +530,6 @@
   font: var(--type-body);
   letter-spacing: var(--tracking-body);
 }
-.auth-warn-banner-text,
 .dropdown-list li,
 .menu-dropdown li,
 .fail-card-error,
@@ -478,7 +542,6 @@
 .label-text,
 .manual-text,
 .modal-subheading,
-.offline-fact-badge,
 .onb-info p,
 .onb-label,
 .prefs-night-copy,
@@ -530,7 +593,11 @@
   font: var(--type-onb-duration);
   letter-spacing: var(--tracking-label);
 }
-.cal-day-cell .cal-date,
+.cal-day-cell .cal-date {
+  font: var(--type-cal-date);
+  letter-spacing: var(--tracking-cal-date);
+  font-feature-settings: "ordn" 1, "ornm" 1;
+}
 .text-date {
   font: var(--type-date);
   letter-spacing: var(--tracking-date);
@@ -2597,8 +2664,9 @@ body.onboarding-active .popup-container {
   transform: none;
 }
 
-/* Shared sheet backdrop — black @50% + 2px blur (all overlays) */
+/* Shared sheet backdrop — #3A3A3A→#fff @75% + 2px blur (all overlays) */
 .onb-overlay,
+.onb-sheet-backdrop,
 .prefs-backdrop,
 .wrong-url-backdrop,
 .wua-dim,
@@ -2610,8 +2678,9 @@ body.onboarding-active .popup-container {
 .logout-backdrop,
 .multi-why-backdrop,
 .success-backdrop,
+.queue-backdrop,
 .auth-flow-backdrop {
-  background: var(--color-multi-why-backdrop); /* rgba(0,0,0,0.5) */
+  background: var(--gradient-sheet-backdrop);
   backdrop-filter: blur(var(--blur-sheet-backdrop)); /* 2px */
   -webkit-backdrop-filter: blur(var(--blur-sheet-backdrop));
 }
@@ -2986,6 +3055,16 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
     transform: translateY(0);
   }
 }
+@keyframes queueCardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 #onbPermsSheet.is-perms-entering .onb-perm {
   opacity: 0;
   transform: translateY(20px);
@@ -3035,15 +3114,54 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   color: var(--color-text-label);
 }
 
-/* ?? Screen 5: post-login "scanning your calendar" (Figma 58:6541) ?? */
-#onboardingAnalyzing .onb-modal {
+/* Calendar scan sheet — Figma 643:10839 (was 422:1593) */
+#onbAnalyzeSheet.analyze-sheet {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  z-index: auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-4);
+  box-sizing: border-box;
 }
-#onboardingAnalyzing .onb-text-block {
-  gap: var(--space-2); /* Figma 422:1626 authCopy gap 8 */
+#onbAnalyzeSheet .auth-heading-stack {
+  gap: 0;
 }
-#onboardingAnalyzing .onb-heading-row.tall {
-  height: 28px; /* Figma 422:1628 headingLine3 */
+#onbAnalyzeSheet .analyze-copy {
+  gap: var(--space-2); /* Figma authCopy spacing-3 = 8 */
+}
+#onbAnalyzeSheet .text-heading {
+  margin: 0;
+  text-align: center;
+}
+#onbAnalyzeSheet .auth-heading-row {
+  flex-wrap: nowrap; /* Figma headingLine3 — single row */
+  align-items: center;
+  gap: 6px;
+  min-height: var(--heading-line-h);
+}
+#onbAnalyzeSheet .auth-heading-row .text-heading {
+  white-space: nowrap;
+}
+#onbAnalyzeSheet .auth-body {
+  color: var(--color-text-label);
+}
+#onbAnalyzeSheet .onb-chip {
+  flex-shrink: 0;
+}
+#onbAnalyzeSheet .auth-warn-banner--sheet .auth-warn-banner-text {
+  text-align: center;
+  white-space: normal;
 }
 
 /* ---------------------------------------------------------------------------
@@ -3114,7 +3232,23 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   white-space: nowrap;
 }
 .cal-month-label-inner {
+  font: var(--type-highlight);
+  letter-spacing: var(--tracking-highlight);
   color: var(--color-cal-month);
+}
+.cal-month-label[data-cal-off="-1"] .cal-month-label-inner {
+  background: linear-gradient(to right, var(--color-cal-header-bg), var(--color-cal-month-fade));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: blur(0.5px);
+}
+.cal-month-label[data-cal-off="1"] .cal-month-label-inner {
+  background: linear-gradient(to right, var(--color-cal-month-fade), var(--color-cal-header-bg));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: blur(0.5px);
 }
 .cal-month-divider {
   flex: 0 0 var(--cal-month-div-w);
@@ -3141,12 +3275,6 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   overflow: hidden;
   transform-origin: 50% 50%;
 }
-.cal-grid-outgoing {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
 .cal-week-row {
   display: flex;
   align-items: center;
@@ -3154,7 +3282,6 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   width: 100%;
 }
 .cal-day-cell {
-  --cal-cell-opacity: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3163,70 +3290,67 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   width: var(--cal-cell-w);
   height: var(--cal-cell-h);
   padding: 2px 0;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-surface-white);
   border-radius: var(--radius-sm);
-  background:
-    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-cell-fill-end)) padding-box,
-    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-cell-stroke-end)) border-box;
+  background: linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-cell-fill-end));
   color: var(--color-cal-cell-text);
   text-align: center;
   overflow: hidden;
   box-shadow: var(--shadow-cal-cell);
+  transform: scale(1);
   transform-origin: 50% 50%;
-  transition: box-shadow var(--cal-cell-ms) ease-in-out,
-              background var(--cal-cell-ms) ease-in-out,
-              color var(--cal-cell-ms) ease-in-out,
-              filter var(--cal-cell-ms) ease-in-out,
-              opacity var(--cal-cell-ms) ease-in-out;
-}
-.cal-day-cell .cal-day { }
-.cal-day-cell .cal-date {
-  text-shadow: var(--shadow-cal-date-inset); /* Figma INNER_SHADOW 0 -1 / 1 #adadad */
+  transition: transform var(--cal-cell-ms) var(--motion-ease),
+              box-shadow var(--cal-cell-ms) var(--motion-ease),
+              background var(--cal-cell-ms) var(--motion-ease),
+              color var(--cal-cell-ms) var(--motion-ease);
 }
 .cal-day-cell.is-scanned {
-  background:
-    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-scanned-fill-end)) padding-box,
-    linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-scanned-stroke-end)) border-box;
+  transform: scale(var(--cal-cell-scan-scale));
+  background: linear-gradient(to bottom, var(--color-surface-white), var(--color-cal-scanned-fill-end));
   box-shadow: var(--shadow-cal-scanned);
 }
 .cal-day-cell.is-scanned .cal-day { color: var(--color-cal-scanned-day); }
 .cal-day-cell.is-scanned .cal-date {
   color: var(--color-cal-month);
-  text-shadow: var(--shadow-cal-date-scanned-inset);
 }
 .cal-day-cell.is-empty {
   /* visible empty chip — no overflow dates */
   pointer-events: none;
 }
-.cal-grid.is-fading-out,
-.cal-grid-outgoing.is-fading-out {
-  animation: calGridOut var(--cal-fade-ms) ease-in-out both;
+.cal-cell-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: opacity var(--cal-fade-ms) var(--motion-ease);
 }
-.cal-grid.is-fading-in {
-  overflow: visible;
-  animation: calGridIn var(--cal-fade-ms) ease-in-out both;
+.cal-day-cell.is-cell-fading-out .cal-cell-inner {
+  opacity: 0;
 }
-@keyframes calGridOut {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.9); }
+.cal-day-cell.is-cell-fading-in .cal-cell-inner {
+  opacity: 0;
+  animation: calCellIn var(--cal-fade-ms) var(--motion-ease) both;
 }
-@keyframes calGridIn {
-  0% { opacity: 0; transform: scale(0.9); }
-  58% { opacity: 1; transform: scale(var(--cal-bounce-peak)); }
-  100% { opacity: 1; transform: scale(1); }
+@keyframes calCellIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cal-day-cell,
-  .cal-grid,
   .cal-month-track {
     animation: none !important;
     transition: none !important;
   }
-  .cal-grid.is-fading-out,
-  .cal-grid.is-fading-in,
-  .cal-grid-outgoing.is-fading-out {
-    opacity: 1;
+  .cal-day-cell.is-scanned {
     transform: none;
+  }
+  .cal-day-cell.is-cell-fading-out .cal-cell-inner,
+  .cal-day-cell.is-cell-fading-in .cal-cell-inner {
+    opacity: 1;
+    animation: none !important;
   }
 }
 
@@ -3445,6 +3569,109 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   clip-path: url(#schedThumbClip);
 }
 
+/* Schedule screen load — thumb sweep → title → sheet head → slots → CTA */
+@keyframes schedThumbSweep {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes schedBlockIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+#scheduleScreen.is-sched-entering .sched-thumb {
+  clip-path: inset(0 0 100% 0);
+  animation: schedThumbSweep var(--sched-thumb-enter-ms) var(--motion-ease) forwards;
+}
+#scheduleScreen.is-sched-entering .sched-title-frame,
+#scheduleScreen.is-sched-entering .sched-duration {
+  opacity: 0;
+  animation: schedBlockIn var(--sched-title-enter-ms) var(--motion-ease) forwards;
+  animation-delay: var(--sched-title-delay);
+}
+#scheduleScreen.is-sched-entering .sched-sheet-head {
+  opacity: 0;
+  animation: schedBlockIn var(--sched-sheet-enter-ms) var(--motion-ease) forwards;
+  animation-delay: var(--sched-head-delay);
+}
+#scheduleScreen.is-sched-entering .sched-slot {
+  opacity: 0;
+  animation: schedBlockIn var(--sched-sheet-enter-ms) var(--motion-ease) forwards;
+}
+#scheduleScreen.is-sched-entering .sched-slot:nth-child(1) {
+  animation-delay: var(--sched-slots-delay);
+}
+#scheduleScreen.is-sched-entering .sched-slot:nth-child(2) {
+  animation-delay: calc(var(--sched-slots-delay) + var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .sched-slot:nth-child(3) {
+  animation-delay: calc(var(--sched-slots-delay) + 2 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .sched-slot:nth-child(4) {
+  animation-delay: calc(var(--sched-slots-delay) + 3 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .sched-slot:nth-child(5) {
+  animation-delay: calc(var(--sched-slots-delay) + 4 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .sched-slot:nth-child(6) {
+  animation-delay: calc(var(--sched-slots-delay) + 5 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .multi-session-card {
+  opacity: 0;
+  animation: schedBlockIn var(--sched-sheet-enter-ms) var(--motion-ease) forwards;
+}
+#scheduleScreen.is-sched-entering .multi-session-card:nth-child(1) {
+  animation-delay: calc(var(--sched-slots-delay) + var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .multi-session-card:nth-child(2) {
+  animation-delay: calc(var(--sched-slots-delay) + 2 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .multi-session-card:nth-child(3) {
+  animation-delay: calc(var(--sched-slots-delay) + 3 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .multi-session-card:nth-child(4) {
+  animation-delay: calc(var(--sched-slots-delay) + 4 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .multi-session-card:nth-child(5) {
+  animation-delay: calc(var(--sched-slots-delay) + 5 * var(--sched-slot-stagger-ms));
+}
+#scheduleScreen.is-sched-entering .sched-single-home > .onb-btn,
+#scheduleScreen.is-sched-entering .sched-multi-btn-row,
+#scheduleScreen.is-sched-entering .multi-session-banner {
+  opacity: 0;
+  animation: schedBlockIn var(--sched-sheet-enter-ms) var(--motion-ease) forwards;
+}
+#scheduleScreen.is-sched-entering .multi-session-banner {
+  animation-delay: var(--sched-slots-delay);
+}
+#scheduleScreen.is-sched-entering .sched-multi-btn-row {
+  animation-delay: var(--sched-btn-delay);
+}
+#scheduleScreen.is-sched-entering .sched-single-home > .onb-btn {
+  animation-delay: var(--sched-btn-delay);
+}
+@media (prefers-reduced-motion: reduce) {
+  #scheduleScreen.is-sched-entering .sched-thumb,
+  #scheduleScreen.is-sched-entering .sched-title-frame,
+  #scheduleScreen.is-sched-entering .sched-duration,
+  #scheduleScreen.is-sched-entering .sched-sheet-head,
+  #scheduleScreen.is-sched-entering .sched-slot,
+  #scheduleScreen.is-sched-entering .multi-session-card,
+  #scheduleScreen.is-sched-entering .sched-single-home > .onb-btn,
+  #scheduleScreen.is-sched-entering .sched-multi-btn-row,
+  #scheduleScreen.is-sched-entering .multi-session-banner {
+    animation: none !important;
+    clip-path: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* 380:3596 schedDuration — 53×20 white pill, Label 12/16 */
 .sched-duration {
   position: absolute;
@@ -3616,7 +3843,8 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   gap: var(--space-4);
   box-sizing: border-box;
   width: auto;
-  height: auto;
+  height: var(--prefs-panel-h);
+  min-height: var(--prefs-panel-h);
   max-height: calc(var(--frame-h-active, var(--frame-h)) - var(--pad-screen-x) - var(--pad-screen-b));
   padding: var(--space-3);
   border-radius: var(--radius-modal);
@@ -3852,7 +4080,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 .wua-panel .onb-chip {
   flex-shrink: 0;
 }
-/* 36:3008 No internet modal */
+/* 645:13974 No internet modal */
 .offline-overlay {
   position: absolute;
   inset: 0;
@@ -3884,9 +4112,9 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   box-sizing: border-box;
   width: auto;
   padding: var(--space-3);
-  border-radius: var(--radius-modal);
+  border-radius: var(--radius-onb-modal);
   background: var(--color-surface-white);
-  box-shadow: none;
+  box-shadow: var(--shadow-modal);
 }
 .offline-hero {
   position: relative;
@@ -3895,8 +4123,8 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   justify-content: center;
   box-sizing: border-box;
   width: 100%;
-  height: 204px;
-  border-radius: var(--radius-modal);
+  height: var(--offline-hero-h);
+  padding: var(--space-2);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -3905,8 +4133,11 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   pointer-events: none;
+  /* Figma 645:13966 IMAGE fill only — badge + fact card are live HTML (645:13967) */
+  background-color: var(--color-surface-white);
+  background-image: url('../Icon/onb/onb-grid-tile.svg');
+  background-size: 38px 38px;
 }
 .offline-fact {
   position: relative;
@@ -3927,7 +4158,9 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   background: var(--color-surface-white);
   color: rgba(0, 0, 0, 0.75);
   text-align: center;
-  text-transform: uppercase;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+  font: var(--type-offline-badge);
+  letter-spacing: var(--tracking-offline-badge);
 }
 .offline-fact-shell {
   z-index: 1;
@@ -3937,8 +4170,12 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   box-sizing: border-box;
   width: 100%;
   padding: var(--space-1);
-  border-radius: 20px;
+  border-radius: var(--offline-fact-shell-radius);
   background: linear-gradient(to bottom, var(--color-offline-fact-start), var(--color-offline-fact-end));
+  transition: background var(--offline-fact-fade-ms) var(--motion-ease);
+}
+.offline-fact-shell.is-green {
+  background: linear-gradient(to bottom, var(--color-offline-fact-green-start), var(--color-offline-fact-green-end));
 }
 .offline-fact-inner {
   display: flex;
@@ -3950,7 +4187,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   min-height: 64px;
   padding: var(--space-3);
   border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: var(--radius-modal);
+  border-radius: var(--radius-onb-modal);
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.2),
@@ -3963,7 +4200,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   color: var(--color-text-inverse);
   text-align: center;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
-  transition: opacity 0.35s ease-in-out;
+  transition: opacity var(--offline-fact-fade-ms) var(--motion-ease);
 }
 .offline-fact-text.is-fading {
   opacity: 0;
@@ -3980,31 +4217,35 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   width: var(--size-tick);
   height: var(--size-tick);
   border-radius: var(--radius-pill);
-  background: rgba(217, 217, 217, 0.5);
+  background: var(--color-offline-tick);
   flex-shrink: 0;
-  transition: width 0.35s ease-in-out, background 0.35s ease-in-out;
+  transition: width 0.35s var(--motion-ease), background 0.35s var(--motion-ease);
 }
 .offline-tick.active {
   width: 28px;
-  background: #d9d9d9;
+  background: var(--color-offline-tick);
 }
 .offline-copy {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
 }
 .offline-title {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   gap: 6px;
   width: 100%;
+  min-height: var(--heading-line-h);
   color: var(--color-text-primary);
   font-feature-settings: 'dlig' 1;
   text-align: center;
+}
+.offline-title > span {
+  white-space: nowrap;
 }
 .offline-body {
   margin: 0;
@@ -4016,6 +4257,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 .offline-panel .onb-btn {
   width: 100%;
   flex-shrink: 0;
+  align-self: stretch;
 }
 
 .sched-prefs-panel {
@@ -4034,7 +4276,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   display: none !important;
 }
 .prefs-night-copy {
-  color: var(--color-sunday-text);
+  color: var(--color-text-label);
 }
 
 .prefs-slot-column {
@@ -4044,6 +4286,24 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   width: 100%;
   flex: 1;
   min-height: 0;
+}
+.prefs-scan-banner.auth-warn-banner {
+  width: var(--auth-warn-banner-w);
+  align-self: center;
+  flex-shrink: 0;
+}
+.prefs-scan-banner .auth-warn-banner-text {
+  white-space: normal;
+  line-height: 18px;
+}
+button.prefs-scan-trigger {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .prefs-header {
@@ -4169,12 +4429,18 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   color: var(--color-accent-grad-end);
   visibility: hidden;
 }
-.prefs-day.is-selected .prefs-day-check {
+.prefs-day.is-selected .prefs-day-check:not(.prefs-day-check--spacer) {
   visibility: visible;
+}
+.prefs-day-check--spacer {
+  visibility: visible;
+  opacity: 0;
 }
 .prefs-day-name {
   box-sizing: border-box;
-  width: 80px;
+  width: var(--prefs-day-name-w);
+  min-width: var(--prefs-day-name-w);
+  max-width: var(--prefs-day-name-w);
   flex-shrink: 0;
   text-align: center;
   white-space: nowrap;
@@ -4184,41 +4450,36 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 
 .prefs-banner {
   box-sizing: border-box;
-  width: 100%;
-  padding: var(--space-1);
-  border-radius: var(--radius-card);
-  background: linear-gradient(to bottom, var(--color-sunday-grad-start), var(--color-sunday-grad-end));
-  flex-shrink: 0;
-}
-.prefs-banner-inner {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  box-sizing: border-box;
   width: 100%;
-  min-height: 42px;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-surface-white);
-  border-radius: var(--radius-sm);
-  background: var(--color-sunday-glass);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-prefs-banner-border);
+  border-radius: var(--radius-card);
+  background: var(--color-prefs-banner-bg);
+  box-shadow: var(--shadow-prefs-banner);
+  flex-shrink: 0;
 }
 .prefs-banner-copy {
-  flex: 1;
+  flex: 1 0 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   text-align: left;
+  line-height: 16px;
 }
 .prefs-banner-title {
   margin: 0;
-  color: var(--color-sunday-title);
+  color: var(--color-slot-time);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .prefs-banner-sub {
   margin: 0;
-  color: var(--color-sunday-sub);
+  color: var(--color-text-label);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4228,17 +4489,31 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: var(--prefs-banner-check-size);
+  height: var(--prefs-banner-check-size);
   padding: 0;
-  border: 1.6px solid var(--color-sunday-check-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-sunday-check-bg);
+  border: var(--prefs-banner-check-border-w) solid var(--color-prefs-banner-check-border);
+  border-radius: var(--prefs-banner-check-radius);
+  background: linear-gradient(
+    to bottom,
+    var(--color-prefs-banner-check-unchecked-start),
+    var(--color-prefs-banner-check-unchecked-end)
+  );
   color: var(--color-surface-white);
   cursor: pointer;
 }
 .prefs-banner-check svg {
+  width: 20px;
+  height: 20px;
   opacity: 0;
+}
+.prefs-banner-check[aria-pressed="true"] {
+  border-color: var(--color-accent-grad-end);
+  background: linear-gradient(
+    to bottom,
+    var(--color-accent-grad-start),
+    var(--color-accent-grad-end)
+  );
 }
 .prefs-banner-check[aria-pressed="true"] svg {
   opacity: 1;
@@ -4333,8 +4608,59 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 .sched-slots {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3); /* 12 — Figma 434:1179 row + col */
+  gap: var(--space-3); /* 12 — Figma 434:1179 row + col; 696:* stack */
   width: 100%;
+}
+
+/* Figma 696:19718 / 696:19779 — 1–2 slots full-width stack */
+.sched-slots.is-stack {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+.sched-slots.is-stack .sched-slot {
+  width: 100%;
+}
+.sched-slots.is-stack.is-stack-2 .sched-slot {
+  flex: 0 0 auto;
+}
+.sched-slots.is-stack.is-stack-1 .sched-slot,
+.sched-slot--empty {
+  flex: 1;
+  min-height: 0;
+}
+.sched-slots.is-stack.is-stack-1 .sched-slot-time {
+  flex: 1;
+  height: auto;
+  min-height: 28px;
+}
+
+.sched-slots.is-grid .sched-slot {
+  width: calc((100% - var(--space-3)) / 2);
+}
+
+#schedSheet.is-slots-empty,
+#schedSheet.is-slots-stack-1,
+#schedSheet.is-slots-stack-2 {
+  height: var(--sched-sheet-h-compact);
+  min-height: var(--sched-sheet-h-compact);
+}
+#schedSheet.is-slots-empty .sched-sheet-home,
+#schedSheet.is-slots-stack-1 .sched-sheet-home,
+#schedSheet.is-slots-stack-2 .sched-sheet-home {
+  height: 100%;
+}
+#schedSheet.is-slots-empty .sched-single-home,
+#schedSheet.is-slots-stack-1 .sched-single-home,
+#schedSheet.is-slots-stack-2 .sched-single-home {
+  flex: 1;
+  min-height: 0;
+}
+#schedSheet.is-slots-empty .sched-slots,
+#schedSheet.is-slots-stack-1 .sched-slots,
+#schedSheet.is-slots-stack-2 .sched-slots {
+  flex: 1;
+  min-height: 0;
+  max-height: var(--sched-slot-area-h);
 }
 
 .sched-slot {
@@ -4404,6 +4730,61 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   cursor: not-allowed;
 }
 
+.sched-slot--skeleton {
+  pointer-events: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* Figma 696:19840 — no slots (prefs nudge) */
+.sched-slot--empty {
+  cursor: default;
+  pointer-events: none;
+}
+.sched-slot-head--empty {
+  justify-content: center;
+}
+.sched-slot-head--empty span {
+  width: 100%;
+  text-align: center;
+}
+.sched-slot-time--empty {
+  flex: 1;
+  height: auto;
+  min-height: 28px;
+  border-color: transparent;
+  background: var(--color-surface-white);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.sched-slot-time--empty .text-subtext {
+  display: block;
+  text-align: center;
+  max-width: 100%;
+}
+
+.multi-session-empty-wrap {
+  width: 100%;
+}
+.multi-session-empty-wrap .sched-slots {
+  width: 100%;
+}
+
+.sched-slot-skel {
+  display: block;
+  width: 100%;
+  height: 52px;
+  border-radius: var(--radius-card);
+}
+.sched-slots.is-stack.is-stack-1 .sched-slot--skeleton .sched-slot-skel {
+  height: 100%;
+  min-height: 52px;
+}
+
 .sched-sheet .onb-btn {
   width: 100%;
 }
@@ -4468,11 +4849,7 @@ html.is-multi-session-frame #popupWrapper {
   margin-bottom: calc(-1 * var(--multi-session-banner-overlap));
   border: none;
   border-radius: var(--radius-card);
-  background: linear-gradient(
-    to bottom,
-    var(--color-warning-bg),
-    var(--color-surface-white)
-  );
+  background: var(--gradient-auth-warn-banner);
   box-shadow: var(--shadow-auth-warn);
   color: var(--color-warning-text);
   position: relative;
@@ -4710,15 +5087,22 @@ html.is-multi-session-frame #popupWrapper {
 .success-overlay.is-open .success-panel {
   animation: sheetSlideIn var(--success-enter-ms) var(--motion-ease) both;
 }
+.queue-overlay.is-open .queue-panel {
+  animation: sheetSlideIn var(--sheet-slide-ms) var(--motion-ease) both;
+}
 .success-overlay.is-open.is-closing .success-panel {
   animation: sheetSlideOut var(--success-enter-ms) var(--motion-ease) both;
+}
+.queue-overlay.is-open.is-closing .queue-panel {
+  animation: sheetSlideOut var(--sheet-slide-ms) var(--motion-ease) both;
 }
 
 .wl-modal.is-open > [class*="backdrop"],
 .prefs-overlay.is-open .prefs-backdrop,
 .feedback-overlay.is-open .feedback-backdrop,
 .logout-overlay.is-open .logout-backdrop,
-.multi-why-overlay.is-open .multi-why-backdrop {
+.multi-why-overlay.is-open .multi-why-backdrop,
+.queue-overlay.is-open .queue-backdrop {
   animation: sheetBackdropIn var(--sheet-slide-ms) var(--motion-ease) both;
 }
 /* Profile backdrop: fade once on entry, then hold opacity so stacking a child
@@ -4734,7 +5118,8 @@ html.is-multi-session-frame #popupWrapper {
 .profile-overlay.is-open.is-closing .profile-backdrop,
 .feedback-overlay.is-open.is-closing .feedback-backdrop,
 .logout-overlay.is-open.is-closing .logout-backdrop,
-.multi-why-overlay.is-open.is-closing .multi-why-backdrop {
+.multi-why-overlay.is-open.is-closing .multi-why-backdrop,
+.queue-overlay.is-open.is-closing .queue-backdrop {
   animation: sheetBackdropOut var(--sheet-slide-ms) var(--motion-ease) both;
 }
 
@@ -4857,6 +5242,10 @@ html.is-multi-session-frame #popupWrapper {
 .history-icon-btn {
   width: var(--history-nav-icon-size);
   height: var(--history-nav-icon-size);
+}
+#historyBackBtn {
+  opacity: 0;
+  pointer-events: none;
 }
 .history-pager .history-icon-btn {
   background: var(--color-history-icon-bg-strong); /* Figma 533:7304 */
@@ -5764,26 +6153,22 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   text-align: center;
   font-feature-settings: "ordn" 1, "ornm" 1;
 }
-/* Figma authWarnBanner (549:17073 / 418:1083 / 545:16510) — built in CSS */
+/* Figma authWarnBanner (643:10880) — built in CSS */
 .auth-warn-banner {
   position: relative;
   isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   box-sizing: border-box;
   width: var(--auth-warn-banner-w);
-  height: var(--auth-warn-banner-h);
+  min-height: var(--auth-warn-banner-h);
   max-width: 100%;
-  padding: var(--space-2) var(--auth-warn-banner-px);
+  padding: var(--auth-warn-banner-py) var(--auth-warn-banner-px);
   border: none;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(
-    to bottom,
-    var(--color-warning-bg),
-    var(--color-surface-white)
-  );
+  border-radius: var(--radius-card);
+  background: var(--gradient-auth-warn-banner);
   box-shadow: var(--shadow-auth-warn);
   color: var(--color-warning-text);
   flex-shrink: 0;
@@ -5815,6 +6200,11 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   width: 18px;
   height: 18px;
 }
+.auth-warn-banner--video {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
 .auth-warn-banner--video .auth-warn-banner-icon {
   width: 16px;
   height: 16px;
@@ -5823,6 +6213,8 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
   margin: 0;
   min-width: 0;
   flex: 1;
+  font: var(--type-auth-banner);
+  letter-spacing: var(--tracking-auth-banner);
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -5846,7 +6238,7 @@ body.is-auth-wrong-url .auth-flow-live-thumb { display: none !important; }
 }
 .auth-why-btn {
   cursor: pointer;
-  width: var(--auth-warn-banner-w);
+  width: 100%;
   max-width: 100%;
 }
 button.auth-warn-banner {
@@ -5881,9 +6273,9 @@ button.auth-warn-banner {
   pointer-events: none;
   z-index: 3;
 }
-/* Analyzing dim — same black@50% + 2px blur as every sheet overlay */
+/* Analyzing dim — same gradient + 2px blur as every sheet overlay */
 #onboardingAnalyzing .onb-overlay.is-visible {
-  background: var(--color-multi-why-backdrop);
+  background: var(--gradient-sheet-backdrop);
   backdrop-filter: blur(var(--blur-sheet-backdrop));
   -webkit-backdrop-filter: blur(var(--blur-sheet-backdrop));
 }
@@ -5913,12 +6305,6 @@ button.auth-warn-banner {
   align-items: center;
   gap: var(--space-4);
   box-sizing: border-box;
-}
-#onboardingAnalyzing .onb-modal.auth-sheet {
-  position: relative;
-  bottom: auto;
-  left: auto;
-  right: auto;
 }
 /* Only the Permissions sheet itself — not auth error panels remounted under #onboardingPermissions */
 #onboardingPermissions > .auth-sheet .auth-copy,
@@ -6173,6 +6559,44 @@ body.is-auth-flow #authFlowHost { display: flex; }
 }
 .profile-close {
   right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-button);
+  background: var(--color-profile-close-bg);
+  backdrop-filter: blur(var(--blur-profile-close));
+  -webkit-backdrop-filter: blur(var(--blur-profile-close));
+  color: var(--color-text-primary);
+  cursor: pointer;
+  isolation: isolate;
+}
+.profile-close::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--profile-close-stroke-w));
+  border-radius: inherit;
+  padding: var(--profile-close-stroke-w);
+  background: linear-gradient(to bottom, var(--color-surface-white), var(--color-profile-close-stroke-end));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.profile-close-icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: var(--profile-close-icon-size);
+  height: var(--profile-close-icon-size);
 }
 
 .profile-content {
@@ -6265,21 +6689,28 @@ body.is-auth-flow #authFlowHost { display: flex; }
 .profile-stats-wrap {
   display: flex;
   flex-direction: column;
+  align-items: center;
   isolation: isolate;
   width: 100%;
 }
 .profile-stats {
   z-index: 2;
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
   box-sizing: border-box;
+  width: var(--profile-stats-w);
+  max-width: 100%;
+  margin-bottom: -20px;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-onb-modal);
   background: var(--color-surface-white);
 }
-.profile-stats-wrap:has(.profile-trend-shell:not([hidden])) .profile-stats {
-  margin-bottom: -20px;
+.profile-stats-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .profile-stat {
   display: flex;
@@ -6295,6 +6726,9 @@ body.is-auth-flow #authFlowHost { display: flex; }
   font-feature-settings: 'dlig' 1;
   color: var(--color-profile-stat-value);
 }
+#profileClear {
+  white-space: normal;
+}
 .profile-stat-divider {
   width: 1px;
   height: 36px;
@@ -6303,40 +6737,55 @@ body.is-auth-flow #authFlowHost { display: flex; }
   background: var(--color-stat-divider);
 }
 
-.profile-trend-shell {
+.profile-banner-shell {
   z-index: 1;
   box-sizing: border-box;
-  width: 100%;
+  width: var(--profile-stats-w);
+  max-width: 100%;
   padding: 1px;
   border-radius: 0 0 var(--radius-onb-modal) var(--radius-onb-modal);
   background: linear-gradient(
     to bottom,
     var(--color-surface-white),
-    rgba(255, 255, 255, 0)
+    var(--profile-trend-shell-end) 147.52%
   );
 }
-.profile-trend-shell[hidden] { display: none; }
-.profile-trend {
+.profile-banner {
   display: flex;
   align-items: flex-end;
   justify-content: center;
   box-sizing: border-box;
-  height: 41px;
+  width: 100%;
+  height: var(--profile-banner-h);
   padding: var(--space-1) var(--space-3);
   border-radius: 0 0 var(--radius-onb-modal) var(--radius-onb-modal);
-  background: var(--color-trend-up-bg);
+  background: linear-gradient(
+    90deg,
+    var(--profile-trend-grey-start) 0%,
+    var(--profile-trend-grey-mid) 50%,
+    var(--profile-trend-grey-start) 100%
+  );
+  box-shadow: var(--shadow-profile-trend-inset);
   text-align: center;
   white-space: nowrap;
-  color: var(--color-trend-up-text);
+  color: var(--color-profile-banner-text);
 }
-.profile-trend > span {
+.profile-banner > span {
+  flex: 1 0 0;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.profile-trend.is-down {
-  background: var(--color-trend-down-bg);
-  color: var(--color-trend-down-text);
+.profile-banner.is-green {
+  background: linear-gradient(
+    180deg,
+    var(--profile-banner-green-grad-1) 24.3%,
+    var(--profile-banner-green-grad-2) 56.5%,
+    var(--profile-banner-green-grad-3) 104.5%,
+    var(--color-surface-white) 140.1%
+  );
+  box-shadow: none;
+  color: var(--color-profile-banner-green-text);
 }
 
 .profile-actions {
@@ -6351,7 +6800,7 @@ body.is-auth-flow #authFlowHost { display: flex; }
 .profile-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-2); /* Figma 643:3311 spacing-3 = 8 */
   box-sizing: border-box;
   padding: var(--space-3);
   border-radius: var(--radius-onb-modal);
@@ -6361,22 +6810,18 @@ body.is-auth-flow #authFlowHost { display: flex; }
 .profile-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3); /* Figma 643:3312 gap 12 */
   box-sizing: border-box;
-  width: calc(100% + 2 * var(--space-2));
-  height: var(--space-7);
-  margin: 0 calc(-1 * var(--space-2));
-  padding: 0 var(--space-2);
+  width: 100%;
+  height: var(--space-7); /* 28 */
+  margin: 0;
+  padding: 0;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: transparent;
   font-feature-settings: 'ordn' 1, 'ornm' 1;
   color: var(--color-history-title);
   cursor: pointer;
-  transition: background-color 0.2s var(--motion-ease);
-}
-.profile-row:hover {
-  background-color: var(--color-profile-row-hover);
 }
 .profile-row-icon {
   display: flex;
@@ -6385,9 +6830,8 @@ body.is-auth-flow #authFlowHost { display: flex; }
   flex-shrink: 0;
   width: var(--space-7);
   height: var(--space-7);
-  border-radius: var(--radius-sm);
-  background: var(--color-profile-row-icon-bg);
-  transition: background-color 0.2s var(--motion-ease);
+  border-radius: 0;
+  background: transparent;
 }
 .profile-row-divider {
   height: 1px;
@@ -6687,3 +7131,157 @@ body.is-auth-flow #authFlowHost { display: flex; }
 }
 .delete-body[hidden] { display: none; }
 .delete-btn-row { width: 100%; }
+
+/* 645:14194 / 645:14320 Queue intercept — over schedule, before Calendar insert */
+.queue-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 56;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.queue-overlay[hidden],
+.queue-overlay.hidden {
+  display: none !important;
+}
+.queue-overlay.is-open {
+  display: block !important;
+  pointer-events: auto;
+}
+.queue-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  opacity: 0;
+}
+.queue-panel {
+  position: absolute;
+  left: var(--pad-screen-x);
+  right: var(--pad-screen-x);
+  bottom: var(--pad-screen-b);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-onb-modal);
+  background: var(--color-surface-white);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  transform: translateY(calc(100% + var(--pad-screen-b)));
+}
+.queue-cards {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+.queue-card {
+  position: relative;
+  flex: 1 0 0;
+  min-width: 0;
+  max-width: var(--queue-card-w);
+  height: var(--queue-card-h);
+  padding: var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  border: 1px solid #e5e5e5;
+  box-sizing: border-box;
+}
+.queue-card--now {
+  background: var(--queue-grad-now);
+}
+.queue-card--adding {
+  background: var(--queue-grad-adding);
+}
+.queue-overlay.is-cards-entering .queue-card {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: queueCardSlideIn var(--queue-card-enter-ms) var(--motion-ease) forwards;
+}
+.queue-overlay.is-cards-entering .queue-card--now {
+  animation-delay: var(--sheet-slide-ms);
+}
+.queue-overlay.is-cards-entering .queue-card--adding {
+  animation-delay: calc(var(--sheet-slide-ms) + var(--queue-card-stagger-ms));
+}
+@media (prefers-reduced-motion: reduce) {
+  .queue-overlay.is-cards-entering .queue-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+.queue-cal-art {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  pointer-events: none;
+  z-index: 0;
+}
+.queue-card--now .queue-cal-art {
+  left: var(--queue-cal-now-left);
+  top: var(--queue-cal-now-top);
+}
+.queue-card--adding .queue-cal-art {
+  left: var(--queue-cal-add-left);
+  top: var(--queue-cal-add-top);
+}
+.queue-card-label,
+.queue-card-value {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+}
+.queue-card-label {
+  color: var(--color-queue-now-label);
+}
+.queue-card--adding .queue-card-label {
+  color: var(--color-queue-adding-label);
+}
+.queue-card-value {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+  color: var(--color-queue-now);
+}
+.queue-card--adding .queue-card-value {
+  color: var(--color-queue-adding);
+}
+.queue-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.queue-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  text-align: center;
+}
+.queue-heading-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--heading-line-h);
+  color: var(--color-text-primary);
+}
+.queue-heading-line .onb-chip { flex-shrink: 0; }
+.queue-body {
+  margin: 0;
+  color: var(--color-text-label);
+  text-align: center;
+}
+.queue-actions { width: 100%; }

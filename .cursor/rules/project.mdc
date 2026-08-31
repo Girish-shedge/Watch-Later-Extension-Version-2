@@ -1,0 +1,648 @@
+---
+description: Project context for Watch Later Extension v2 — architecture, schema, auth flow, UI status, history of fixes.
+alwaysApply: true
+---
+
+# Project context — Watch Later Extension v2
+
+Last updated: 2026-08-31 (Prefs scan banner Figma 643:9532 / 643:9616)
+
+Schedule YouTube "watch later" videos into Google Calendar. MV3 extension (Chrome + Edge), plain HTML/JS/CSS, Supabase backend.
+
+**Canonical docs for agents:** this file + `rules.mdc` + `ponytail.mdc`. Root `Watch_Later_Extension_PROJECT.md` is legacy overview — prefer this file when they disagree.
+
+## New chat quick start (Aug 2026)
+
+**Resume here (new chat):** Prefs day/time sheets Figma **`643:9532`** / **`643:9616`** — `.prefs-scan-banner` (`authWarnBanner` **699:19973**, 300×34, info icon) on **both** steps; **Click here** → `startPrefsCalendarScan(step)` slides prefs down → `#onbAnalyzeOverlay` scan up → `analyzeAndSavePrefs(..., { triggeredBy: 'prefs-banner' })` **always applies algorithm suggestions** (overwrites `selected_days`/`selected_times`) → toast **Preferences updated**; fail → toast + reopen prefs on same step. CTAs: day **Save & Next** / time **Save & Close**; validation toasts **At least select one day** / **At least select one time slot** (Sunday + Night owl count). Sheet **`--prefs-panel-h: 428px`**. Schedule slot edge cases Figma **`696:19901`/`19929`/`19950`**: 0–2 slots compact **`--sched-sheet-h-compact: 234px`**; preview `#preview=1&schedule=1&slots=0|1|2`. Calendar scan sheet **`643:10839`** unchanged. Preview scan: `#preview=1&schedule=1&auth=analyzing`.
+
+**Latest completed:**
+- **Prefs scan banner + validation (2026-08-31):** Figma **`643:9532`** (day) / **`643:9616`** (time) / banner instance **`699:19973`**. `.prefs-scan-banner` above chip column on both steps — shared `authInfoIcon` (18×18 circle-i, not triangle). Copy: *Auto fetch slots via calendar scan. **Click here***. Flow: `closeSchedPrefsAnimated` → `mountAnalyzeOverlay` + `startOnbCalScan` → `analyzeAndSavePrefs` with **`triggeredBy: 'prefs-banner'`** (only path that overwrites user chip selection after first save). Success: prefs stay closed, `refreshSlotsAfterPrefsSave`, toast **Preferences updated**. Failure: **Calendar scan failed. Try again.** + `openSchedPrefs(resumeStep)`. Entry: `#changePrefsBtn` + `#slotPreferences`. CTAs renamed: **Save & Next** / **Save & Close**. Validation: day step requires ≥1 day (incl. Sunday toggle); time step requires ≥1 slot (incl. Night owl). Opportunistic rescan on prefs open still scores/hints-only.
+- **Schedule slot edge cases (2026-08-31):** Figma **`696:19901`** (0) / **`696:19929`** (1) / **`696:19950`** (2). `slotLayoutMode` / `applySchedSheetSlotLayout`; empty card + personalized copy; `#scheduleBtn` disabled at 0 slots; multi empty uses same card in `#multiSessionCards`. Preview `&slots=0|1|2`.
+- **Calendar scan sheet (2026-08-31):** Figma **`643:10839`**. `#onbAnalyzeSheet.analyze-sheet` — pad 12 / gap 16 / r16; `auth-copy` + `.text-heading` / `.text-body`; full-width `.auth-warn-banner--sheet` (13/18, no trailing period); side month labels gradient-faded (`--color-cal-month-fade`). Decorative grid loops via `startOnbCalScan()`. Preview `#preview=1&schedule=1&auth=analyzing` (or `&analyzing=1`) → `startAnalyzePreviewLoop()` over schedule skeleton.
+- **Post-auth schedule-first flow (2026-08-31):** After OAuth on a watch URL: auth sheet down → **`revealPostAuthScheduleSkeleton()`** → **`#onbAnalyzeOverlay`** slides up (`openOnbSheet` / `SHEET_SLIDE_MS`) over shimmer → scan → sheet down → **`initPopup()`** reveals live schedule. Wrong-URL first login still uses `#onboardingAnalyzing` mock chrome. Profile **`trendBanner`** Figma **`671:18895`** — 1px white shell (`147.52%` fade), grey horizontal slot gradient + inset shadow, Label 12/16 `#808080` (`.text-sm`); green cleared state unchanged (`682:19377`). **All** sheet backdrops → `--gradient-sheet-backdrop` (**#3A3A3A @75% → #fff @75%**, top→bottom) + **`--blur-sheet-backdrop: 2px`** (profile, history, prefs, success/fail, queue, offline, wrong URL, auth, onboarding sheets).
+- **Profile journey card (2026-08-31):** Figma **`643:3182`** / **`643:3790`** / **`671:18962`** / **`671:19188`**. Stats **`Scheduled`** + **`To clear`** (`#profileScheduled`, `#profileClear`) + bottom **`#profileBanner`** (always visible; grey pace/context or green cleared). States in `lib/queue-projection.js`: `resolveProfileCardState` + `profileCardCopy` (`first` / `low` / `regular` / `over-cap` / `cleared`). Completion-rate trend **removed**. Scheduled labels: `0 video` / `1 Video` / `N Videos`. Preview `#preview=1&schedule=1&profile=1` cycles four states. Copy spec: `profile-card-copy-states.md`.
+- **Queue impact intercept (2026-08-31):** Figma **`645:14194` / overlay `645:14320`**. Before Calendar insert (after ads/dup/token), `#scheduleBtn` and `#scheduleMultiBtn` call `gateQueueIntercept`. Fires only on **new saves** — Forced **Reschedule** skips it. Pace = watched sessions in last 28d; need ≥3 (`QUEUE_PACE_MIN_SAMPLE`) or fail-open (no sheet). Copy: pink chip **`a month`** `[MIN, 13)` / **`3 months`** `[13, ∞)` — no “few extra days” line. Cards = CSS gradients (645:14322 / 645:14327) + Figma-exported calendar art (`Icon/queue/queue-cal-{now,adding}.png` @ measured x/y, −10° baked in export); Display nearest **0.5** week (`5` / `5.5`); ≥26w → `"Over N months"`. Cooldown in `queue_intercept_state` (re-show if tier worsens **or** ≥30d). Config = flat numeric keys on `slot_algorithm_config`. CTAs: **Schedule instead** proceeds; **View playlist** aborts + history; backdrop aborts (shared black@50% + 2px blur). Preview `#preview=1&schedule=1&queue=1` cycles month / 3-month. Lib `lib/queue-projection.js` (`WLQueue`); tests `node tests/queue-projection-selfcheck.js`. Fail-open on fetch/upsert errors.
+- **Offline modal redesign (2026-08-31):** Figma **`645:13974`** (brown) / **`645:14145`** (green). `#networkLostScreen` — grid tile hero only (`Icon/onb/onb-grid-tile.svg`; deleted baked `offline-fact-bg.png`). **13** facts in `OFFLINE_FACTS`; **5** random per open; **5s** hold / **550ms** fade ↔ `OFFLINE_FACT_MS` / `--offline-fact-fade-ms`. Brown/green shells alternate by slide index (`.offline-fact-shell.is-green`). Auto probe `google.com/generate_204` every **3s** (`OFFLINE_PROBE_MS`); Try again = same probe. Preview: `#preview=1&offline=1`.
+- **Wrong URL center + title ellipsis + outcome copy + translate lib (2026-08-30):** `#wrongUrlFallAnim` panel/copy `align-items: center` (Figma `533:10012`/`10013`). Schedule title keeps full string; CSS `text-overflow: ellipsis` + `-webkit-line-clamp: 2` (no JS word-drop). Success **`[Scheduled] successfully`** / fail **`[Scheduling] failed`** (Figma `541:15067` / `541:15659`). Translate extracted to **`lib/translate.js`** (`WLTranslate`); stress: `node tests/translate-stress.js`.
+- **Wrong URL unified + non-Latin→EN (2026-08-30):** All wrong-URL paths (logged-in / first-time / returning) use **`#wrongUrlFallAnim`** = Figma **`533:9884`** — fall cards `.wua-fall`, browser **324×194.4**, sheet pad 12 / copy gap **8** / panel gap 16 / r16 + `--shadow-modal`, Body 16/22 `#666`. `#newUserWrongUrl` is an empty host. Preview: `#preview=1&anim=fall` (sheet) / `#preview=1&wrongurl=1` (full onboarding). **Translate:** `translateToEnglish` via free `translate.googleapis.com` gtx; detect non-Latin (`NON_LATIN_RE`); cache `wl_translate_cache`; fail → original. Wired: schedule title, Calendar summary + channel + About, history paint, oEmbed rename compare (`liveEn !== storedEn`). Manifest host `https://translate.googleapis.com/*` — **reload unpacked extension**.
+- **Prefs chips + history parity (2026-08-30):** Prefs titles **`Day`/`Time` pink chips** + “preference”; slot names **80px** centered. History **`533:7243`**: panel 324×436 pad 12 gap 16 r16 + modal shadow; nav/pager icons **28**; tabs gradient `#f2f2f2→#d9d9d9` pad 4; active tab white + `0 -2px 8px`; Label 12/16 −1.4%; rows Body 16/22 + Sub-Text 13/18 `#808080`; list 268.
+- **Schedule nav + prefs + overlay (2026-08-30):** Figma **`532:2708` Option A** — screen pad **8/8/8**, nav icons **36×36**, **16** gap to thumb; frame **`--frame-h: 499px`** / multi `computeMultiFrameHeight` top **8**. Prefs chips match `.sched-slot` (pad 2, radius 12, 1.6 selected stroke, Sub-Text 13/18, fixed half-width). Prefs header icons **28**; Day back always present at **0% opacity**; Time header back works; bottom `#prefsTimeBackBtn` removed. All sheet backdrops: **`rgba(0,0,0,0.5)` + blur 2px**. Multi sheet **`533:5969`**. Preview `#preview=1&schedule=1` / `&multi=1`.
+- **Schedule sheet parity (2026-08-30):** Figma **`532:2721`** — pad 12 / gap 16 / radius **16** (`--radius-onb-modal`) + `--shadow-modal`. Label Grey `#666` Label 12/16. **Change Preferences** Primary 5% `#f3f1fe` + Primary `#3b13ec` text/icon (inline SVG `currentColor`); was muted grey + missing `--color-sched-prefs-bg`. Slot date Text-Primary@75% Label 12/16; time **Sub-Text 13/18** `#131313` (`--type-slot-time`); selected 1.6px Primary on lavender. Unselected time body no stroke. CTA stays `--btn-h: 40px` (Figma instance still 38). Preview `#preview=1&schedule=1`.
+- **Onboarding sheet motion + calendar permissions (2026-08-30):** Figma **`532:2481`** calendar permissions sheet lives on **`#onboardingPromise`** as `#onbPermsOverlay` / `#onbPermsSheet` (not a full-screen jump to `#onboardingPermissions` in the happy path). **Pain→Promise:** crossfade uses `is-modal-shell-only` — empty white `#onbModal` only, then `playOnbModalEnter` (lines → chip → CTA); Pain copy slides left on exit via `paintOnbCopySlots`. **Promise Next:** `openPromisePermsSheet()` slides sheet up with black blur (`--color-multi-why-backdrop`). **Perms cards:** stagger up after sheet lands (`is-perms-entering`, `--onb-perm-enter-ms` 450 / `--onb-perm-stagger-ms` 140 ↔ `PERMS_CARD_ENTER_MS` / `PERMS_CARD_STAGGER_MS`). Keywords **FIND TIME / SCHEDULE / REMIND** = Label 12/16 body + **Bold 700** purple `#4b0090`. Revoke `.onb-perms-note` **13/18** `#666`; info icon `currentColor`. **Allow:** `#authFlowHost` stacks **on top** of open perms sheet (do not `closeOnbSheet` first). **Auth OK:** close perms → close auth → `goTo(3)` + `#onbAnalyzeOverlay` → scan → schedule. Helpers: `openOnbSheet` / `closeOnbSheet`, `openPromisePermsSheet`, `playPermsSheetEnter`, `closeAuthFlowAnimated`. Preview: `#preview=1&auth=permissions|connecting`. `#onboardingPermissions` screen kept for wrong-URL card stack only.
+- **OAuth login / re-login fix (2026-08-30):** Chrome error `"Only one web auth flow is allowed at a time"` — interactive login had been routed to background's **silent-only** path (consent never opened). **Fixed:** silent OAuth → background (`{ action: 'login', silent: true }`); **interactive** OAuth → popup (`lib/google-oauth.js` + user gesture) → `{ action: 'completeLogin', id_token, access_token }`. Shared **`auth_oauth_lock`** in `lib/google-oauth.js` serializes all `launchWebAuthFlow` across popup + background; background alarm Google refresh uses `enqueueOAuthFlow`. Returning reconnect: silent first, then interactive. Key JS: `runGoogleOAuthFlow`, `completeLoginWithGoogleTokens`, `startConnectingAndLogin`, `authLoginInFlight`. **Reload unpacked extension** after auth changes. Tests: `node tests/selfcheck.js` + `node tests/stress-oauth.js`.
+- **Typography + Proxima Nova (2026-08-30):** Figma text styles now **Proxima Nova** (not Condensed). Bundled TTFs in `fonts/` (Light/Regular/Semibold/**Bold**/Extrabold). Negative `--tracking-*` matches Figma (−2% Heading/Highlight, −0.4% Button, −0.8% Body, −1% Sub-Text, −1.4% Label). **Button 14/16 Bold**; shell **`--btn-h: 40px`** (was 38). Typography via **`.text-*` utility groups** at top of `style.css` (`.text-heading`, `.text-highlight`, `.text-body`, `.text-subtext`, `.text-sm`, `.text-btn`, `.text-date`) — do not inline `font-size`/`font-weight` on v2 surfaces. Barlow fallback removed.
+- **Feedback modal (2026-08-30):** Figma **`533:4984`** / **`544:16195`**. Title **"Give us your feedback"** center-aligned. Field **250 chars** (`FEEDBACK_MAX = 250`), no scrollbar (`--feedback-field-h: 240px`). Over-limit: allow typing past cap, red count, one toast, Send disabled. **Send success:** sheet slides down → then toast (`finishFeedbackSend`). Stacks over profile with blur. Preview: `#preview=1&schedule=1&profile=1` → feedback.
+- **Toast global (2026-08-30):** Bottom center, **`--toast-bottom-inset: 40px`**, slide up/down. Hold **`TOAST_MS` / `--toast-hold-ms`: 1500ms** ↔ `TOAST_SLIDE_MS` / `--toast-slide-ms`. All `showToast()` calls use this path.
+- **History confirm sheets (2026-08-29):** Figma **`533:8163`** (single delete) / **`545:16478`** (multi delete) / **`545:16509`** (mark all watched). Yellow title banner first (YouTube icon + truncated title), two-line heading rows with pink chips, pad 12 / gap 16 / radius 16. Single delete keeps body subtext; multi delete + mark-watched omit body. Mark-watched shows on **every** multi-session check tap; cancel **“No, I missed few”** verbatim. Black blur backdrop over history. Preview loop cycles all three confirms. `#deleteConfirmOverlay` branches single vs multi; `#markWatchedConfirmOverlay` unchanged id.
+- **History playlist redesign (2026-08-29):** Figma **`533:7243`** (list) / **`545:16306`** (hover actions) / empty **`545:16530`** / **`16612`** / **`16646`**. Panel **324×436** lock (`--history-panel-h`), radius **16**. Segmented tabs Scheduled / Watched / **Forced** (search + dropdown removed). Text-only rows (no thumbs); hover reveals check+trash. Empty: grey skeleton art + Figma copy (Forced includes “renamed”). Black blur backdrop; stacks over profile. Preview: `#preview=1&schedule=1&history=1` loops profile→playlist (+ empty tabs). Keeps multi-session groups, mark-watched confirm, Upcoming swap, pager.
+- **Profile menu rebuild (2026-08-29):** Figma **`533:3931`** / **`549:17399`** / **`560:18332`**. Wash `@75%`; gift outside stroke; avatar stars Figma-aligned; **0→N count-up**; row hover wash; numbers+stars enter only. Preview `#preview=1&schedule=1&profile=1`.
+- **Success/fail sheets rebuilt (2026-08-29):** Figma **`541:15067`** (`#successOverlay`) / **`541:15659`** (`#failOverlay`) — supersedes `380:5065` / `380:5204`. Motion contract: `--motion-ease` ease-in-out; sheet `--success-enter-ms` 550 ↔ `SUCCESS_ENTER_MS` / `SUCCESS_SLIDE_MS` (not shared 420). Black blur backdrop (`--color-multi-why-backdrop` + `--blur-success-backdrop` 8px). Panel hug, pad 12, gap 16, radius 16. Gradient mid-panel cover (`--success-grad-cover` 56% / `--fail-grad-cover` 62%). Cards: fade **0→100%** + rotate ghost **+2°** / front **−2°** (`--success-card-ms` 650), then card text fades (`--success-card-text-ms` 450). Heading → body → buttons (`--success-copy-ms` 550 / stagger 200). Stars scale+rotate on **success only**; fail has none. Exit: sheet slides down only; inner holds. Secondary btn restyled to Figma **`541:15814`** (pad 4, stroke 1.5, white→`#d9d9d9`, solid white inner). Pink chips global **−2°**. Preview: `#preview=1&schedule=1&success=1` alternates success→fail. **Do not** revive topo PNG, sparkles, fail stars, or same-sheet morph.
+- **Pain/Promise onboarding rebuild (2026-08-29):** Figma **`531:958`** (`#onboardingPain`) / **`546:16896`** (`#onboardingPromise`) — supersedes older `432:527` / `434:268` frames for screens 1–2. Per-screen `.onb-screen-bg`: pink **Failed-Gradient** wash (Pain) / green **Success-Linear** wash (Promise) + grid tile + bottom vignette; parent `#onboarding > .onb-grid-bg` hidden on Pain/Promise. `#onbModal` + cards **radius 16** (`--radius-onb-modal`). Heading **26/32** Bold. Stamps: Pain **`#fa463d`** (Alert) · Promise **`#029431`** (Success). Modal entry on **every visit**: `.onb-heading-line` rise → chip **0°→1°** → `.onb-modal-cta` slide (`playOnbModalEnter`, `--onb-modal-enter-ms` 650 / stagger 200 / travel 18 ↔ `ONB_MODAL_ENTER_MS` / `ONB_MODAL_STAGGER_MS`). Promise copy: “Stop saving everything and start watching what actually” / row `matters,` + `on` + chip **your time**. Figma layer roots renamed to `onboardingPain` / `onboardingPromise`. Preview: `chrome.html` or `#preview=1` (hash when `serve` strips query); `#preview=1&auth=promise` via `getPreviewParams()`.
+- **Auth load failures (2026-08-29):** Empty schedule shell (avatar + “Select Time Slot” + black title band, no slots) was the failed-session path leaving chrome up after `Invalid Refresh Token: Already Used`. Fixed with shared `auth_refresh_lock` in popup (`restoreSupabaseSession`) + background (`refreshSupabaseSessionLocked`); on unrecovered failure clear dead tokens and route to onboarding / returning Connecting (not empty schedule). Restored dropped `authenticated` grants on `public.users` (column-limited SELECT + INSERT/UPDATE) and `button_clicks` INSERT — root of `Failed to upsert user: [object Object]`. Removed unused `youtube.readonly` scope (broke silent Google re-auth). `fetchMultiSessionSlots` is present and top-level; reload unpacked extension if an older build threw `ReferenceError`.
+- **Multi-session scheduling (Figma `380:7315` / `380:7379`) — current:** videos `> LONG_VIDEO_THRESHOLD_MINUTES` (165) split via `computeSessionPlan()` in `lib/slot-algorithm.js`; per-session slots from `fetchMultiSessionSlots()` (expanding 7→56d window, `excludeDates`, chronological `notBefore`, `validateSessionPlan` duplicate gate). Schedule sheet swaps `#schedSingleHome` ↔ `#schedMultiHome`; multi mode retitles `#schedSheetLabel` to **Select Slot** and **`applyPopupFrameHeight()`** grows the popup (`computeMultiFrameHeight` from Figma 380:7315 — ~592px for 3 sessions, ~529px for 2; single stays 486px). **Banner** `#multiSessionBanner` / `.multi-session-banner` (Figma `380:7407`) is its **own** component — **not** `.auth-warn-banner`: 300×48, pad 6/12/8, radius 12, Label 12/16, `space-between`, −20px overlap, **z-index 0 behind shell**. Left: `Video split in N sessions. ` + underlined **Why?**; right: `{N} mins each`. **Why?** opens `#multiSessionWhyOverlay` (Figma `400:9920` 2 / `400:9938` 3 / `400:9972` 4 / `400:9955` 5) — blurred black backdrop (`--color-multi-why-backdrop`) + slide sheet (shared `sheetSlide*`); koala hero `Icon/multi-session/why-{2..5}.png`; heading chips for count + `formatSessionLengthWhy()` duration; **Got it** closes. **Do not** revive `#multiSessionWhyTip` tooltip. Cards in `.multi-session-cards-shell` (**z-index 1**, purple `#4620ed` border, 8px pad, **no inner scroll**); white session cards; **Regenerate List** / **Schedule Video**. Skeleton: `data-skel="schedule-multi"` + `paintScheduleMultiSkeleton` / regen inline card skeletons. Calendar: `Part N of M — title` + `&t=` offsets. History: group rows, `#markWatchedConfirmOverlay`, whole-group delete, **Needs Attention** + **Reschedule**. Migration `20260828120000_multi_session_videohistory.sql`. Preview: `?preview=1&schedule=1&multi=1`.
+- **Schedule title word wrap (2026-08-30):** `#videoTitle` keeps the full string; CSS **`text-overflow: ellipsis`** (1-line nowrap) / **`-webkit-line-clamp: 2`** (2-line). Word wrap stays `word-break: normal` — no mid-word CSS break, no JS dropping whole trailing words. `paintSchedTitleFrame` only toggles 1- vs 2-line band.
+- **Popup freeze fix (2026-08-29):** `paintSchedTitleFrame` must **not** rAF-loop while `#realContent` is hidden / skeleton showing (`schedTitleCanMeasure`). Loading title uses plain `textContent`; `hideSkeleton` / `ResizeObserver` trigger one paint. Auth failure paths use `bailInitPopupSkeleton()` so shimmer cannot stick forever.
+- **Change preferences modals (Figma `516:1185` day / `499:1729` time)** — `#schedPrefsOverlay` slide sheet. Chips match schedule slots. Busy hints from scan only. Day: header back at **0% opacity** (layout spacer) even from schedule. Time: `#prefsTimeHeaderBackBtn` → day; no bottom Back. Header icons **28**.
+- **Figma → code playbook** (token-efficient UI) landed in `rules.mdc` + short pointer in `ponytail.mdc` / `AGENTS.md` — Plugin dump over `get_design_context` for tweaks; measure-first parity; numbered scope contract; docs once at end. See **Figma → code** in `rules.mdc`.
+- Pain Hook restyled to Figma **`531:958`** (was `432:527`) / Promise **`546:16896`** (was `434:268`): per-screen pink/green grid wash; `--radius-onb-modal` **16**; Heading **26/32**; card title Highlight 18/22; stamp Label 12/16 (`#fa463d` Pain / `#029431` Promise); chip **+1°** + white→pink stroke; modal entry animation 650ms ease-in-out; `.onb-btn-inner` gradient stroke + 20% sheen, pad 12.
+- Calendar scan sheet handoff: **643:10839** — see dedicated section below (supersedes 422:1593 chrome notes for the sheet itself; grid animation contract unchanged).
+- Auth warn banners → CSS-built `.auth-warn-banner` (Figma `418:1083` / `171:800` / `171:934`); analyzing privacy banner on scan sheet is **full-width** `.auth-warn-banner--sheet` (Label 13/18, no trailing period); connecting/denied stay **300×34**.
+- Design critique pass 2 follow-through: `#failOverlay` schedule failure, history two-line empty states, profile trend → 7-day window, renamed-video → Forced tab, `.history-pager[hidden]` fix
+
+**Open / mock-only gaps (code is correct):**
+- Figma history Watched + Forced tab row subtitles still show Scheduled-tab copy (UI tab is now **Needs Attention** in code)
+- Figma delete-sessions confirm mock variants beyond the shared `#deleteConfirmOverlay` group copy are speculative (mark-watched multi confirm **is** built as `#markWatchedConfirmOverlay`)
+
+**Preview:** serve `Watch Later Extension/` on `:8321`. **`chrome.html`** (forwards hash) or **`popup.html#preview=1`**. `&schedule=1` | `&multi=1` | `&profile=1` | `&history=1` | `&auth=promise|connecting|denied|analyzing` | `&schedule=1&auth=analyzing` (calendar scan loop) | `&wrongurl=1` | `&anim=fall` | `&offline=1` | `&queue=1` | `&success=1` / `&fail=1`. Hash form when `serve` strips query on `.html`.
+
+**Tests after logic changes:** `node tests/selfcheck.js` and `node tests/stress-oauth.js` (slot-algorithm changes also need `node tests/slot-algorithm-stress.js`; queue intercept also `node tests/queue-projection-selfcheck.js`).
+
+## UI status (handoff)
+
+| Surface | Figma / code id | Status |
+|---------|-------|--------|
+| Pain Hook | `onboardingPain` (`531:958`, was `432:527` / 143:4407) | Done — pink Failed-Gradient BG; frame radius 0; Heading 26/32; `#onbModal` + cards radius 16; card title Highlight 18/22; stamp Label 12/16 **#fa463d**; chip +1°; modal entry lines→chip→CTA every visit; **catalog cards** (`Icon/onb/onb-yt-*.jpg`); **2-dot ticker** |
+| Promise | `onboardingPromise` (`546:16896`, was `434:268` / 143:4481) | Done — green Success-Linear BG; same modal chrome as Pain; copy “what actually” / `matters,` + `on` + chip **your time**; stamp **#029431** “Watched …”; Back + Next |
+| Permissions | `onboardingPermissions` (444:6893) + **`#onbPermsSheet` on Promise (`532:2481`)** | Done — normal flow: Promise stays visible; `#onbPermsOverlay` slide sheet + black blur; 3 benefit cards stagger in; Allow → Connecting stacks on top. `#onboardingPermissions` = wrong-URL card-stack BG only |
+| Connecting | `authConnecting` (171:682) | Done — video sheet + CSS warn banner always visible (300×34); click retries login |
+| Sign In Cancelled | `authSignInCancelled` (118:1815) | Done — video + Not Now / Try again; `auth-cancelled.mp4` |
+| Calendar Access Denied | `authCalendarDenied` (118:1923) | Done — video + Try again + CSS why banner (Figma 171:934) |
+| Something Went Wrong | `authSomethingWrong` (118:2002) | Done — video + Retry only; `auth-generic.mp4` |
+| Flow Interrupted | `authFlowInterrupted` (118:2136) | Done — video + “Retry again”; `auth-interrupted.mp4` |
+| Analyzing / calendar scan | `#onbAnalyzeOverlay` / `#onbAnalyzeSheet` · **643:10839** (wrong-URL host `#onboardingAnalyzing`) | Done — `.analyze-sheet` pad 12 / gap 16 / r16; month carousel + day grid loop (`startOnbCalScan`); full-width privacy banner `.auth-warn-banner--sheet`; post-auth mounts on `#popupWrapper` over schedule skeleton; `.is-live` on scan error |
+| Schedule screen | `scheduleScreen` / sheet **`532:2721`** / multi `380:7315` | Done — sheet pad 12 / gap 16 / r16; prefs chip purple; slot time 13/18; multi grows frame; banner `380:7407`; Why `400:9920`–`400:9955` |
+| Multi-session Why | `#multiSessionWhyOverlay` · `400:9920`/`9938`/`9972`/`9955` | Done — blurred black overlay + slide sheet; per-count koala hero; pink chips; Got it. Not a tooltip. |
+| New-user Wrong URL (first time) | Figma `143:4558` → end **`533:9884`** | Done — Pain→…→`#wrongUrlFallAnim` (shared sheet) |
+| New-user Wrong URL (legacy gate) | `newUserWrongUrl` | Empty host → `showWrongUrlFallAnim()` (same `533:9884`) |
+| Wrong URL (all paths) | `#wrongUrlFallAnim` · **`533:9884`** | Done — `.wua-fall` + browser 194.4 + Oops sheet; no schedule snapshot |
+| Wrong URL cards backdrop | `#wrongUrlFallAnim` `.wua-fall` | Done — `Icon/wrong-url-fall-bg.png` + dim + sheet |
+| No Internet | `#networkLostScreen` · **645:13974** / **645:14145** | Done — brown/green fact carousel (5 of 13, 5s); grid tile hero; auto probe every 3s; secondary Try again 40px. Preview `#preview=1&offline=1` |
+| Queue intercept | `#queueInterceptOverlay` · **645:14194** / **645:14320** | Done — hardcoded CSS cards + calendar art; chip **a month** / **3 months**; card stagger; gate both schedule buttons; skip reschedule; profile Waiting / To clear / pace. Preview `#preview=1&schedule=1&queue=1` |
+| Schedule success | `successOverlay` / `#successPanel` · **541:15067** (was 380:5065) | Done — mid-panel green wash; cards fade+rotate (+2/−2); text after shell; stars; medium enter 550. `#schedSheet` stays put. |
+| Schedule failed | `failOverlay` / `#failPanel` · **541:15659** (was 380:5204) | Done — same shell/motion as success, no stars; Failed-Gradient + alert line. |
+| View history playlist | **533:7243** / actions **545:16306** / empty **545:16530**/`16612`/`16646` (was 102:1204 → 116:4021) | Done — tabs Forced; no search/thumbs; panel 436×16; black blur over profile |
+| Profile menu | `profileOverlay` · **533:3931** / **549:17399** / **560:18332** (was 218:1834 / 116:4508) | Done — wash @75%; gift outside stroke; **Scheduled** + **To clear** + journey banner; numbers+stars enter; black blur; radius 16 |
+| Feedback | `#feedbackOverlay` · **533:4984** / **544:16195** (was 118:1358) | Done — stacks over profile; **250-char** field, center title, over-limit toast; Send closes sheet then toasts; `finishFeedbackSend` |
+| Delete confirm | `deleteConfirmOverlay` (116:5060) | Done — gates Delete on all three history tabs |
+| Day preferences | `schedPrefsPanel` · **643:9532** (was 516:1185) | Done — Mon–Sat chips + Sunday banner; **prefs scan banner**; **Save & Next**; validation toast |
+| Time preferences | `schedTimePrefsPanel` · **643:9616** (was 499:1729) | Done — six daytime chips + night-owl banner; **prefs scan banner**; **Save & Close**; header back only |
+
+**Entry routing:**
+- Never logged in + watch → Pain → Promise → permissions → Connecting → **post-auth scan** (skeleton + `#onbAnalyzeOverlay` on schedule) → Schedule.
+- Never logged in + non-watch → same path → `#wrongUrlFallAnim` after scan (`authFlowKind=new-wrong-url` uses `#onboardingAnalyzing` mock chrome during scan).
+- Logged in + non-watch → `#wrongUrlFallAnim` (Figma **533:9884**). Not `#wrongUrlOverlay` / last-video snapshot.
+- **Logout** → clears tokens + `onboardingComplete` + `calendarScanned` → Pain → Promise → … (prefs/history kept remotely). Soft logout no longer jumps to Connecting.
+- **Session expired / refresh revoked** → silent Google re-auth; if that fails → `showReturningConnecting()` (Connecting sheet, skips Pain/Promise). Keeps `onboardingComplete`.
+- Returning logged out + watch (still `onboardingComplete`) → Connecting → OAuth → Schedule (skip Analyzing UI; silent prefs if needed). Non-watch → `newUserWrongUrl`.
+
+**Flags (`chrome.storage.local`):** `onboardingComplete` (cleared on logout so Pain/Promise restarts; kept across session-expiry reconnect; cleared on full erase), `calendarScanned` (wipe on any logout / session-expiry). Migration: session → complete; `user_slot_preferences.selected_days` → scanned. `authFlowKind`: `new` | `new-wrong-url` | `returning`.
+
+**Preview:** serve `Watch Later Extension/` on `:8321`. **`chrome.html`** or **`popup#preview=1`** (hash form when static `serve` strips `?preview=1` on `.html`). `&schedule=1` jumps straight to schedule with a fresh random sample each load. `&multi=1` for multi-session. `#preview=1&auth=promise` opens Promise directly. `#preview=1&wrongurl=1` = first-time Wrong URL onboarding. `#preview=1&auth=permissions|analyzing|connecting|denied|…`. `#preview=1&returning=1` for returning Connecting.
+
+v2 = same OAuth, scheduling, history, analytics (referral UI removed — see the profile menu section). UI surface is `popup.html` + `style.css` + modal markup.
+
+### Design tokens (v2)
+
+- Spacing: 4-point scale `--space-1`…`--space-8` = 4 / 8 / 12 / 16 / 20 / 24 / 28 / 32. Prefer tokens over raw px in v2 UI.
+- Text styles (Figma local): Heading **26/32 Bold** (−2%), Highlight 18/22 Extrabold (−2%), **Button 14/16 Bold** (−0.4%), Body Text 16/22 Semibold (−0.8%), Sub-Text 14/18 Semibold (−1%), Label 12/16 Semibold (−1.4%) → `--type-*` / `--tracking-*` on `--font-condensed` (**Proxima Nova**, bundled in `fonts/`). Call sites: **`.text-*` utility groups** in `style.css` (not per-component `font:`). Button shell **`--btn-h: 40px`**. No Be Vietnam Pro / Barlow.
+- Radius: `--radius-chip|sm|perm|card|modal|pill|screen|button`. **`--radius-screen: 0`** (main popup / `#onboarding` chrome). Pain/Promise `#onbModal` + cards use **`--radius-onb-modal: 16px`** (Figma radius-4 / `531:1125`). Permissions/auth sheets may still use `--radius-card` (12) or `--radius-modal` (12) — check the frame. **No `corner-shape` / corner smoothing** — plain `border-radius` only.
+- Onboarding Pain/Promise tokens: `--color-onb-unwatched: #fa463d`, `--color-onb-watched: #029431`, `--onb-modal-enter-ms: 650ms`, `--onb-modal-enter-stagger: 200ms`, `--onb-modal-enter-travel: 18px`, `--onb-perm-enter-ms: 450ms`, `--onb-perm-stagger-ms: 140ms`. Perms card colors: `--color-perm-keyword: #4b0090`, `--color-perm-text: #494949`, `--color-perm-border: #e6e6e6`, `--color-perm-grad-end: #eee7fd`.
+- Primary button (432:707): shell `--pad-btn-shell` 4px, gradient `#6647F0→#3B13EC`; inner stroke `--btn-stroke-w` 1.5px outside ring white@90%→`#3B13EC`; fill sheen white@20%→transparent; inner radius `--radius-button-inner`.
+- Secondary button (434:448): shell `--pad-btn-shell-secondary` 3px, gradient `#f2f2f2→#d9d9d9`; inner stroke 1px white@75%→`#ccc`; text `#111`; same sheen. `.onb-btn-secondary` + `.success-btn-secondary` share secondary shell/stroke tokens.
+- Colors / shadows / schedule blurs: `--color-*`, `--shadow-*`, `--blur-sched-bg`, `--blur-prefs-backdrop`. Schedule title band: `--sched-title-frame-h-1` (46), `--sched-title-frame-h-2` (68), `--radius-sched-video-title` (16). Prefs Sunday/night-owl banner: `--color-sunday-grad-*`, `--color-sunday-title`, `--color-sunday-sub`, `--color-sunday-check-bg/border`, `--color-sunday-glass`. History tokens: `--history-panel-h` **436**, `--history-nav-icon-size` **28**, `--color-history-tabs-bg-start/end`, `--shadow-history-tab`, `--color-history-row-sub` `#808080`, `--history-row-h` / `--history-row-gap` / `--history-list-h` (5-row slot).
+- Multi-session: `--multi-session-banner-h` (48), `--multi-session-banner-overlap` (20), `--multi-session-banner-pt/pb` (6/8), `--color-multi-session-shell-border` (#4620ed), `--color-multi-session-card-border`, `--color-multi-why-backdrop` (`--gradient-sheet-backdrop` = #3A3A3A→#fff @75%). Frame active height `--frame-h-active` / `html.is-multi-session-frame`.
+- Success/fail sheet: hug height (Figma 414), `--success-card-w` (280), `--success-hero-h` (204), `--success-enter-ms` 550 + `--success-card-ms` 650 / `--success-card-text-ms` 450 / `--success-copy-ms` 550 / `--success-copy-stagger` 200 / `--success-star-ms` 650. Grad cover `--success-grad-cover` 56% / `--fail-grad-cover` 62%. Front rim `--color-success-card-border: #9bff9d`. Backdrop same as all sheets (`--blur-success-backdrop` → `--blur-sheet-backdrop` **2px** + `--gradient-sheet-backdrop`). Secondary btn tokens: `--pad-btn-shell-secondary` 4px, `--btn-stroke-w-secondary` 1.5px, stroke `#fff→#d9d9d9`. Pink chip `--onb-chip-rot: -2deg`. Motion: `--motion-ease: ease-in-out` (see `rules.mdc` → **Motion**).
+- Toast: `--toast-bottom-inset: 40px`, `--toast-hold-ms: 1500ms`, `--toast-slide-ms` ↔ `TOAST_MS` / `TOAST_SLIDE_MS`. Bottom center, slide up/down.
+- Feedback: `--feedback-field-h: 240px`, `--feedback-text-h: 176px`; `FEEDBACK_MAX = 250` in JS.
+
+### Figma measurement cheat sheet (dump these, not React)
+
+When pulling props from Desktop Bridge / Plugin for UI tweaks, read and map:
+
+| Figma | Token / CSS |
+|---|---|
+| Frame corner radius (340×486 screen) | `--radius-screen` (0) |
+| `onbModal` / sheet corner radius | **`--radius-onb-modal` (16)** for Pain/Promise; Permissions/auth often `--radius-card` (12) — check frame |
+| Heading font size / line height | `--type-heading` + `--heading-line-h` (**26/32**) |
+| Highlight / Button / Body / Sub-Text / Label | `.text-highlight` / `.text-btn` / `.text-body` / `.text-subtext` / `.text-sm` + matching `--type-*` / `--tracking-*` |
+| Button outer height | **`--btn-h: 40px`** on all `.onb-btn` |
+| Primary btn inner stroke | `--color-btn-inner-border` → `--color-btn-inner-border-end` gradient + 20% sheen (not opaque fill) |
+| Spacing 4/8/12/16… | `--space-*` |
+| Modal pad / gap | always pad 12 / gap 16 (`--space-3` / `--space-4`) unless prefs expanded (gap 20) |
+
+Full workflow (tool choice, scope contract, measure-first, depth): **`rules.mdc` → Figma → code**.
+
+### Recent UI work (Aug 2026 session — resume from here)
+
+- **Multi-session schedule (Figma `380:7315` / banner `380:7407` / Why `400:9920`–`400:9955`) — current:** see **Latest completed** + **Multi-session schedule** / **Multi-session Why** handoffs below. Preview `&multi=1`. Banner is `.multi-session-banner` only (not `.auth-warn-banner`). Why is a bottom sheet, not a tip.
+- **Schedule video title — current:** word-boundary wrap/truncate via `setSchedVideoTitle` / `schedTitleTruncateToLines`; `schedTitleCanMeasure` blocks paint while skeleton/hidden (freeze fix). Letter-level `break-all` removed.
+- **Onboarding sheet motion + calendar permissions (2026-08-30) — current:** see **Latest completed** + **Calendar permissions modal** handoff. Preview `#preview=1` → Promise → Next; `#preview=1&auth=permissions|connecting`.
+- **Calendar scan sheet (Figma `643:10839`) — current:** see **Calendar scan sheet** handoff below. Preview `#preview=1&schedule=1&auth=analyzing`. Grid animation contract unchanged from 422:1594 (carousel months, empty OOM chips, spring page-turn, `CAL_*` tokens).
+- **Auth warn banners (Figma `authWarnBanner`) — current:** CSS-built `.auth-warn-banner`. **Scan sheet** `#onbAnalyzeStatus` uses **full-width** `.auth-warn-banner--sheet` (13/18, no period). **Connecting / calendar-denied** stay fixed **300×34**. `setAnalyzeBanner()` module-level. See handoff below.
+- **Schedule success (Figma 380:5065) — current:** separate `#successOverlay` / `#successPanel` slides up from the bottom (`successSlideIn` / `successSlideOut`, ease-in-out 420ms). Backdrop fades with the same token. `#schedSheet` is untouched. Open via `showScheduleSuccessModal`; close via `closeScheduleSuccessModal` (holds node for `SUCCESS_SLIDE_MS`). Remounts onto `#scheduleScreen`. Bottom inset 8 (`--space-2`), pad 12, gap 16, radius 12, height 400. Ghost card +2° @ 50% opacity (no border); front −2° with 2px green rim. Copy: “Google Calendar will remind you 15 minutes before the scheduled time.” Buttons: View Playlist (secondary) + Go Back (primary `.onb-btn`). Assets: `Icon/success-topo.png`, `Icon/success-sparkle-tr.svg`, `Icon/success-sparkle-bl.svg`. **Rejected / deleted:** same-`#schedSheet` morph, top→bottom content fade stagger, in-sheet `#schedSuccessSkel` bridge — do not bring back.
+- **Preview schedule jump:** `?preview=1&schedule=1` sets mock tokens + `paintPreviewSchedule()` (5 local thumbs in `Icon/preview/`, random title/duration/slots; avoids last sample on refresh).
+- **Popup frame lock (tiny cropped box fix):** Chrome/Edge size the popup from first paint. `html`/`body`/`.popup-container`/`#popupWrapper`/`#onboarding` are pinned to `--frame-w`×`--frame-h` (340×486) with matching `min-*`. Inline `<style>` in `popup.html` head sets the same size before `style.css` loads. Do **not** use `height: 100%` on html/body in extension mode. Preview (`body.wl-preview`) unlocks the lock.
+- **Wrong URL Permissions/Analyzing BG:** `body.is-onb-wrong-url` hides `.onb-sched-chrome` and shows `.onb-fall-bg` (`Icon/wrong-url-fall-bg.png`) — same modal sheet as correct URL (Figma 116:2318). Correct URL keeps schedule chrome.
+- **Permissions sheet (116:2318):** padding 12 all sides (the Figma frame's pb 8 is overridden — every modal is 12/12/12/12); Allow + revoke note only (Back removed). Heading stack gap 0.
+- **Auth warn banners:** default chrome **300×34** (`--auth-warn-banner-w/h`) for connecting + calendar-denied; **scan sheet** overrides to **full width** via `.auth-warn-banner--sheet`. Analyzing error uses `.is-live` to wrap longer copy.
+- **Pain/Promise cards:** max-width **324px** (`--onb-card-max-w`).
+- **Auth modal chrome:** no drop shadow; sheet padding **12 all sides** on Permissions/Analyzing; gap **16**. Auth dim over schedule: hardcoded CSS `#282828→#FFFFFF @ 50%` + `blur(1px)`.
+- **Auth sheets:** MP4 loops + posters; Wrong URL auth overlays use `#authFlowFallBg` (plus screen-level fall BG when `is-onb-wrong-url`).
+- **First-time Wrong URL onboarding (Figma `143:4558`)** — lands on `#wrongUrlFallAnim` after scan.
+- **Schedule video title (Figma `513:1167` / `513:1176`) — current:** `#schedTitleFrame` bottom-anchored on `.sched-video` (sibling of `.sched-thumb`, not inside clip). Inline SVG bands (`sched-title-frame-bg-1` 46px / `sched-title-frame-bg-2` 68px) + `#videoTitle` on top. `paintSchedTitleFrame()` toggles `is-one-line` / `is-two-line`; **word-boundary** truncate via `setSchedVideoTitle` / `schedTitleTruncateToLines`; `schedTitleCanMeasure` blocks paint under skeleton. No live CSS `backdrop-filter` on title — rejected after Chromium clip-path issues.
+- **Change preferences (Figma `516:1185` / `499:1729`) — current:** chips = schedule slots; Day back 0% opacity always; Time header back only (no bottom Back). See **Change preferences** handoff below.
+
+## File map (`Watch Later Extension/`)
+
+- `manifest.json` — MV3 (v1.1.6); permissions: identity, storage, alarms, activeTab, scripting, tabs, declarativeNetRequestWithHostAccess. No `web_accessible_resources` (`ding.mp3` loads from the popup via `chrome.runtime.getURL`, which needs no WAR — exposing it to `<all_urls>` only let every site fingerprint the extension). No `oauth2` block: it was stale (`chrome.identity.getAuthToken` is never used, and it declared different scopes than the real flow). Contains a `"key"` field pinning the extension ID to `hkekbdlgnmjpbaijipkanenaeabhegfk` — without it the unpacked ID derives from the folder path, changing the `chromiumapp.org` OAuth redirect URI and breaking login (`redirect_uri_mismatch`). Never remove it; `https://hkekbdlgnmjpbaijipkanenaeabhegfk.chromiumapp.org/` must stay in the Google OAuth client's authorized redirect URIs.
+- `popup.js` — all UI logic: session restore, onboarding, auth, scheduling, history, modals. Scan helpers: **`setAnalyzeBanner`**, **`startOnbCalScan`**, **`mountAnalyzeOverlay`**, **`revealPostAuthScheduleSkeleton`**, **`startAnalyzePreviewLoop`**, **`finishPostAuthScan`**.
+- `chrome.html` — preview entry; `location.replace('popup.html' + hash)` forwards `#preview=1&…` params.
+- `preview-stub.js` — localhost preview shim (`window.__WL_PREVIEW__`); mocks `chrome.*` incl. `login`. Active on `chrome.html` or `?preview=1` / `#preview=1`.
+- `lib/google-oauth.js` — shared `launchGoogleWebAuthFlow`, `buildGoogleAuthUrl`, **`auth_oauth_lock`**. Loaded by **popup.html** (interactive) + **background.js** (silent).
+- `lib/slot-algorithm.js` — scoring/suggestion + multi-session helpers; loaded by popup + tests.
+- `lib/queue-projection.js` — queue pace / projection / intercept copy (`WLQueue`); loaded by popup; check `tests/queue-projection-selfcheck.js`.
+- `lib/translate.js` — non-Latin → English (`WLTranslate`); loaded by popup; stress `tests/translate-stress.js`.
+- `fonts/` — Proxima Nova TTFs (Light, Regular, Semibold, Bold, Extrabold) via `@font-face` in `style.css`.
+- `popup.html` + `style.css` — v2 UI. **`popup.html` loads `lib/google-oauth.js` before `popup.js`** (interactive OAuth). Design tokens + **`.text-*` typography utilities** in `:root` / top of CSS. `#feedbackOverlay` static in HTML.
+- `background.js` (~300 lines) — service worker: **silent OAuth only** (`login` + `silent: true`), `completeLogin`, Supabase refresh under `auth_refresh_lock`, 50-min alarm (`enqueueOAuthFlow` for Google). Interactive login **must not** run here.
+- `lib/supabase.js` — bundled supabase-js UMD; the only client library.
+- `supabase/functions/` — Edge Functions: `sendWelcomeEmail`, `sendDailyEmails`, `sendreferralnotification` (Resend; service-role key lives here only). `scanAndScore/` (`index.ts` + `tz.mjs`) source exists but is **not deployed** — live path is client-side in popup.
+- `.github/workflows/daily-send.yml` — cron trigger for daily emails.
+- `tests/selfcheck.js` — guards security, motion pairs, auth OAuth contract (`auth_oauth_lock`, interactive-in-popup), typography tokens, feedback 250, toast 1.5s, `--btn-h`. `tests/stress-oauth.js` — refresh-token rotation + OAuth lock presence.
+- `Icon/onb/onb-thumb-01.png`…`09.png` — 9 local onboarding card thumbs. Titles (life/psychology, multi-line) + durations are random client-side; no YouTube fetch / catalog JSON.
+- Localhost UI preview (no extension / YouTube needed): serve this folder on `:8321`, open **`chrome.html`** or **`popup.html#preview=1&schedule=1&auth=analyzing`** (calendar scan loop). Also: `#preview=1&schedule=1`, `#preview=1&multi=1`, `#preview=1&profile=1`, `#preview=1&wrongurl=1`. Hash form required when `serve` strips query on `.html`.
+- No standalone `content.js` — popup injects into the active YouTube tab via `chrome.scripting.executeScript` for title/duration/ad detection.
+
+### Schedule / onboarding assets (`Icon/`)
+
+- Top nav / profile menu: `avatar-fallback-koala.png` (@3x, used when the Google photo is missing or 404s), `menu-effect.svg` (header rays), `menu-icon-{playlist,clock,feedback,logout}.svg`. `menu-icon-sparkle.svg` and `schedule-icon-menu.svg` are now unused — the trend banner dropped its sparkle icons and the hamburger is gone.
+- Schedule: `schedule-logo.svg`, `schedule-icon-close.svg`, `schedule-duration-pill.svg`, `schedule-thumb-mask.svg` (reference; live clip is inline `#schedThumbClip` in `popup.html`). Title bands: `sched-title-frame-1line.svg`, `sched-title-frame-2line.svg` (Figma 513:1176 / 513:1167; inlined in `popup.html` for popup DOM). Offline: shared grid tile `Icon/onb/onb-grid-tile.svg` (deleted baked `offline-fact-bg.png`). History Tabler exports: `history-icon-{back,close,chevron,search,clear,check,trash}.svg` (`stroke="currentColor"`). Static `schedule-bg.jpg` is unused — BG is the live thumb via `#schedBgImg`. Deleted/unused: `prefs-sunday-koala.png`, `sched-title-scrim` CSS blur stack.
+- Multi-session Why heroes: `Icon/multi-session/why-2.png` … `why-5.png` (Figma `400:9920` / `9938` / `9972` / `9955`).
+- Queue intercept (645:14320): CSS card gradients + `Icon/queue/queue-cal-{now,adding}.png` (Figma nodes 645:14326 / 645:14331).
+- Success (541:15067): `success-star-tr.svg` (40) / `success-star-bl.svg` (28). Preview schedule thumbs: `Icon/preview/01-…`…`05-….png`.
+- Wrong URL: `wrong-url-art.png` (logged-in `#wrongUrlOverlay`), `new-user-wrong-url-art.png` (`#newUserWrongUrl` 137:2490), `wrong-url-fall-bg.png` (cards+grid for `#wrongUrlFallAnim`), `wrong-url-modal-art.png` (fall-anim / shared modal art). Deleted unused `wrong-url-fall-static.png`.
+- Auth/perms: `Icon/auth/auth-*-poster.png` + `auth-*.mp4` (per-state loops); **warn banners** built in CSS from Figma 418:1083 / 171:800 / 171:934 (inline info icon + Sub-Text, tokens `--color-warning-*` / `--shadow-auth-warn`), `perms-art-sprite.png`, `perms-num{1,2,3}.svg`, `perms-info.svg`. Deleted `auth-warn-banner*.png` and unused `auth-info.svg`. Legacy `auth-koala.png` / `auth-koala-grid.png` unused by auth sheets.
+- Onboarding (Pain/Promise): `Icon/onb/onb-thumb-01.png`…`09.png` (card thumbs); `Icon/onb-frame-bg.png` (single square BG export); `onboarding-chevron.svg`. Legacy `onboarding-video-thumb.svg` / `onboarding-calendar.png` / `onboarding-num*.svg` unused by current cards/Permissions.
+
+### New-user Wrong URL first-time (Figma 143:4558) — handoff
+
+**When:** Never logged in (`!onboardingComplete` / no tokens) + active tab is not a YouTube watch URL.
+
+**Figma board flow (layer names):**
+`wrongURLonboardingPain` → `wrongURLonboardingPromise` → `wrongURLCalendarPermission` → `wrongURLConnectingtoGoogle` → (success) `wrongURLscanningcalendar` → `wrongURLwrongURL` (137:2688).
+Error frames (`wrongURLSigninCancel`, access denied, etc.) map to existing `auth*` panels. `wrongURLNointernet` uses the shared `#networkLostScreen`.
+
+**Code mapping (reuse — do not rebuild screens):**
+
+| Figma | DOM |
+|-------|-----|
+| wrongURLonboardingPain | `#onboardingPain` |
+| wrongURLonboardingPromise | `#onboardingPromise` |
+| wrongURLCalendarPermission | `#onboardingPermissions` |
+| wrongURLConnectingtoGoogle | `#authConnecting` (+ other `auth*` panels) |
+| wrongURLscanningcalendar | `#onboardingAnalyzing` |
+| wrongURLwrongURL | `#wrongUrlFallAnim` |
+
+**Routing flag:** `showOnboarding({ wrongUrl: true })` sets `authFlowKind = 'new-wrong-url'`. Watch-URL first login uses `authFlowKind = 'new'` (same screens → Schedule after scan). Returning reconnect = `'returning'`.
+
+**Landing after scan:** `finishPostAuthScan` — if `new-wrong-url` → `showWrongUrlFallAnim()` (hides schedule + onboarding slides). Else → `initPopup()` / Schedule.
+
+**`#wrongUrlFallAnim` (Figma `533:9884`):** `.wua-fall` (`Icon/wrong-url-fall-bg.png`) + `.wua-dim` + `.wua-sheet` (browser mock 324×194.4 + `.wua-panel` pad 12 / copy gap 8 / Body `#666`). CTA `#wuaWrongUrlFixBtn`. Key JS: `showWrongUrlFallAnim`, `stopWrongUrlFallAnim`, `showNewUserWrongUrl` → fall anim, `WRONG_URL_FIX`.
+
+**All wrong-URL paths** (first-time end, returning logged-out non-watch, logged-in non-watch) share this sheet. `#newUserWrongUrl` is an empty host. Legacy `#wrongUrlOverlay` remains in DOM but is no longer opened on wrong URL.
+
+**Preview:** `#preview=1&anim=fall` = sheet only; `#preview=1&wrongurl=1` = first-time onboarding path. Allow skips OAuth in preview → Analyzing → fall. Real extension shows Connecting during `launchWebAuthFlow`.
+
+**Real extension first-login test:** clear extension `chrome.storage.local` (tokens + flags). Dev Girish Shedge auth users were deleted from Supabase for a clean never-logged-in test; `prasadshedge54@gmail.com` remains.
+
+**Do not:** rebuild Pain/Promise/Permissions for Wrong URL; revive DOM-card fall animation experiments; use a full-frame PNG that bakes in the modal (BG image + hardcoded overlay only).
+
+### View history playlist (Figma 102:1204, restyled to 116:4021 / 4236 / 4374) — handoff
+
+**Entry:** Profile menu `#viewHistory` → `openHistoryModal(userId)`. Preview uses `openHistoryModal('preview-user')`.
+
+**Shell:** `#historyOverlay` / `.history-overlay` remounts onto `#scheduleScreen` (same dim gradient + blur backdrop as Wrong URL). Panel `#historyPanel` fills inset `var(--space-2)`. Back + Close + backdrop click all dismiss (`closeHistoryModal`). Does **not** close the extension popup.
+
+**Chrome:** Title “View **history** playlist” (pink `.onb-chip`, rotated −1°, 6px gaps). Nav back/close are **28px** with 14px icons — the pager pair stays 32px/16px. Toolbar: fixed-width filter dropdown (`--history-filter-w: 128px`) Scheduled / Watched / Forced with counts + search pill (`type="text"` + custom clear only — no native search X).
+
+**List layout:**
+- Panel is bottom-anchored at inset 8, width 324, radius 12, padding **12 all sides**, `height: auto`. Its height is constant only because the list slot is reserved at 5 rows (`--history-list-h`) even when empty — don't re-add a hardcoded panel height. **max 5 rows/page** (`HISTORY_PAGE_SIZE = 5`). Toolbar→list gap 16. Pager label: `1-5 of 16 rows | Page 1 of 4`. While Supabase fetch runs, `paintHistorySkeleton()` shows 5 shimmer rows (no “Loading…” text); skipped for `preview-user`.
+- `.history-pager` uses `margin-top: auto` — **always stuck to the bottom** of the panel; slack space sits between list and pager. With 5-row pages a near-empty tab shows a bigger blank gap than it used to. `paintHistoryPage` sets `pagerRow.hidden = !page.total` on an empty tab — `.history-pager` needs its own `[hidden] { display: none }` rule since its base `display: flex` otherwise beats the attribute, same bug pattern as `.profile-persona[hidden]`.
+- Newest first: DB `.order('created_at', { ascending: false })`; client `sortHistoryNewestFirst` — Scheduled/Forced by `created_at`, Watched by `watched_at`.
+- Search filters **current tab only** by title.
+- **Empty state** (Figma two-line design, per tab): grey skeleton thumbnail+lines illustration, bold heading, smaller subtext — `.history-empty` / `-heading` / `-sub` in `style.css`, painted inline by `paintHistoryPage` when `!page.total`. Scheduled: "No scheduled videos here" / "Schedule your first video to view it here". Watched: "No videos marked as watched" / "Videos marked as watched are moved here". Forced: "No forced videos here" / "Videos whose calendar time changed, or that were removed, land here" (no "renamed" — title changes aren't tracked).
+
+**Scheduled tab:**
+- Title truncated one line; subtitle `Scheduled for DD/MM/YY at …`.
+- Within 24h of start (and not missed): CSS swap-loop between scheduled stamp ↔ `Upcoming in X` (2s hold, ease-in-out, infinite).
+- Missed when `now > end_time`: `Unwatched & Missed since X` (`formatRelativeDuration`: mins / hrs / days).
+- Hover: Mark as Watched (purple check) + Delete (grey trash). Check does **not** auto-switch tabs — row animates out, stays on Scheduled, counts update.
+
+**Watched tab:** `Moved to Watched X ago` from `watched_at`. Hover: Delete only.
+
+**Forced tab:** Calendar start/end drift vs stored times, or event fetch fail → `forced=true`. Private/deleted YouTube (oEmbed fail) → `removed=true` **and** `forced=true`. Still-live video whose title changed since it was scheduled (oEmbed title ≠ stored title) → `forced=true` too, joining the same "Scheduled for..." row as a time-drift item — there's no separate "renamed" visual state. Removed rows: 50% opacity, title/subtitle "Video removed by the Channel". Hover: Delete only.
+
+**Row actions:** Check/Delete → slide left (`is-exiting`) then collapse wrap height (`is-collapsing`, ease-in-out ~350ms+350ms); rows below shift up; then `paintHistoryPage` refills. Delete uses `handleRemove` (Calendar DELETE if `google_event_id` + Supabase row delete + `hiddenHistory` storage).
+
+**Key JS:** `openHistoryModal`, `closeHistoryModal`, `loadHistoryItems`, `paintHistoryPage`, `buildHistoryRow`, `markHistoryWatched`, `deleteHistoryItem`, `animateHistoryRowOut`, helpers near top of `popup.js` (`formatRelativeDuration`, `formatHistory*`, `filterHistoryByTitle`, `paginateList`, `sortHistoryNewestFirst`).
+
+**Schema:** `videohistory.watched_at timestamptz` (nullable; set on mark-watched; backfilled for existing watched rows).
+
+**Test seed (dev):** old dev account `831ac5f4-…` + TEST rows for `girishshedge54@gmail.com` were deleted (clean first-login testing). **Current** auth user for that email: `1353fdba-271f-49a8-abd4-34d7f8a46799` (created 2026-08-27) — 2 live multi-session rows, no `public.users` profile row yet. Re-seed with `WHERE title LIKE 'TEST ·%'` if trend/history QA needs richer data.
+
+**Do not revive:** legacy dynamically-created `#historyOverlay.modal-overlay` / `.favourite-modal` chip history UI.
+
+### Auth warn banners (Figma `authWarnBanner`) — handoff
+
+**What:** Amber info strip under analyzing / connecting / calendar-denied sheets. One shared `.auth-warn-banner` component — **built in CSS**, not PNG exports.
+
+| Screen | Figma | DOM | Copy | Width |
+|--------|-------|-----|------|-------|
+| Analyzing (scan sheet) | `418:1083` / **`643:10839`** | `#onbAnalyzeStatus` + `.auth-warn-banner--sheet` | We never check your events or their details | **Full sheet width** |
+| Connecting | `171:800` | `#authPopupBlockedBanner` | Didn't see the sign-in window? **Try again** | 300×34 |
+| Calendar denied | `171:934` | `#authWhyCalendar` | Read why we need calendar access | 300×34 |
+
+**Markup (`popup.html`):** 18×18 inline Tabler info SVG + `<p class="auth-warn-banner-text">` (scan sheet adds `.text-sm`). Connecting link phrase uses `.auth-warn-banner-link`.
+
+**CSS:** Yellow→white gradient, `--shadow-auth-warn`, `--radius-sm`. Scan sheet: `.auth-warn-banner--sheet { width: 100%; height: auto; }`. Scan errors: `.is-live` also full width + wrap.
+
+**JS (`popup.js`):** **`setAnalyzeBanner(mode, msg)`** — module-level; toggles `#onbAnalyzeStatusText` + `.is-live` only. Default copy has **no trailing period** (`ANALYZE_BANNER_DEFAULT`).
+
+**Preview:** `#preview=1&schedule=1&auth=analyzing` loops decorative scan over schedule skeleton (`startAnalyzePreviewLoop`); does not run real freeBusy.
+
+**Do not:** re-export as PNG; revert scan-sheet banner to fixed 300×34.
+
+### Calendar scan sheet (Figma `643:10839`) — handoff
+
+**What:** Post-login calendar scan UI — decorative month carousel + day grid while `analyzeAndSavePrefs` runs. Same DOM for wrong-URL onboarding host, but **watch-URL happy path** mounts overlay on **`#popupWrapper`** over live schedule skeleton (not `#onboardingAnalyzing` mock chrome).
+
+**DOM:** `#onbAnalyzeOverlay` (`.onb-sheet-overlay`) → `#onbAnalyzeSheet.analyze-sheet` → `#onbCal` (header + `#calMonthTrack` + `#onbCalGrid`) + `.auth-copy` (heading + body) + `#onbAnalyzeStatus` + `#onbAnalyzeRetry` (hidden unless scan fails).
+
+**Chrome (643:10839):** Sheet pad **12**, gap **16**, radius **16** (`--radius-onb-modal`). Copy: `.text-heading` / `.text-body`; chip `#scanName`. Header lavender `#ede9fd`, inset **3**, gap **3**, grid pad **8** / gap **8** / r**10**. Side month labels gradient-faded (`--color-cal-month-fade`); center month solid `#6647f0` Highlight 18/22. Privacy banner full-width `.auth-warn-banner--sheet`, Label **13/18**.
+
+**Grid animation (unchanged contract):** `startOnbCalScan()` / `stopOnbCalScan()`. Month carousel (`#calMonthTrack`, `CAL_TRACK_OFF`); 3×7 rows; empty OOM chips; page-turn scale fade (`CAL_FADE_MS` 400); cell scan (`CAL_CELL_MS` 260). Decorative loop does **not** gate real scan — `analyzeAndSavePrefs` runs in parallel inside `finishPostAuthScan`.
+
+**Post-auth watch URL flow (`finishPostAuthScan`):**
+1. `closeAuthFlowAnimated()` + close perms if open
+2. **`revealPostAuthScheduleSkeleton()`** — hide `#realContent`, show `#skeletonLayer`
+3. **`mountAnalyzeOverlay()`** — append `#onbAnalyzeOverlay` to `#popupWrapper`
+4. **`startOnbCalScan()`** + **`openOnbSheet(overlay)`** (420ms slide)
+5. `analyzeAndSavePrefs` (min 2.5s / max 8s) via `runAnalyze` inside `finishPostAuthScan`
+6. On success: **`closeOnbSheet`** → **`initPopup()`** (+ prefs resume if needed)
+
+**Wrong-URL first login:** `authFlowKind === 'new-wrong-url'` → `goTo(3)` on `#onboardingAnalyzing` (mock schedule chrome + fall BG); same `#onbAnalyzeSheet` markup.
+
+**Preview:** `#preview=1&schedule=1&auth=analyzing` or `&analyzing=1` → **`startAnalyzePreviewLoop()`** (skeleton + sheet + infinite decorative loop; no DB scan).
+
+**Key JS:** `startOnbCalScan`, `mountAnalyzeOverlay`, `openOnbSheet` / `closeOnbSheet`, `setAnalyzeBanner`, `finishPostAuthScan`, `startAnalyzePreviewLoop`.
+
+**Do not:** paint scan over `#onboardingAnalyzing` static mock slots on watch-URL post-auth; revive 422:1593 `onb-text-block` / 300×34 analyzing banner on this sheet.
+
+### Pain/Promise onboarding (Figma `531:958` / `546:16896`) — handoff
+
+**What:** Onboarding screens 1–2 (Pain hook + Promise). Rebuilt Aug 2026; Figma layer names match code (`onboardingPain`, `onboardingPromise`, `onbGrid`, `onbModal`, `onbTextFrame`, `onbCards`, `onbCard`, `onbBtn`, …).
+
+**DOM — Pain (`#onboardingPain`):**
+- `.onb-screen-bg` → `.onb-grid-wash--pain` + `.onb-vignette` (hides parent `#onboarding > .onb-grid-bg`)
+- `.onb-cards` carousel (5 cards, 3 visible)
+- `.onb-modal` → `.onb-ticker` + `.onb-modal-main` → `.onb-heading.onb-text-frame` with `.onb-heading-line` rows + `#onbPainNext.onb-modal-cta`
+
+**DOM — Promise (`#onboardingPromise`):** same shell; `.onb-grid-wash--promise`; copy row `matters,` / `on` / chip **your time**; `.onb-btn-row.onb-modal-cta` (Back + Next).
+
+**Copy (Pain):** line 1 row: “Tired of” + chip **100s** + “of unwatched”; lines 2–3: “videos piling up in your” / “YouTube playlist”.
+
+**Copy (Promise):** line 1: “Stop saving everything and start watching what actually”; line 2 row: “matters,” + “on” + chip **your time**.
+
+**Backgrounds:** Pain = Failed-Gradient (`--color-onb-pain-wash-*`); Promise = Success-Linear (`--color-onb-promise-wash-*`); grid tile @ 20% on wash; bottom vignette fades to white over modal area.
+
+**Typography / chrome:** Heading **26/32** Bold (`--type-heading`, `--heading-line-h: 32px`); card title Highlight 18/22; stamp Label 12/16 — Pain `#fa463d`, Promise `#029431`. `#onbModal` + Pain/Promise `.onb-card` radius **16** (`--radius-onb-modal`). Chip **+1°** at rest (`--onb-chip-rot`); white→pink gradient stroke on Pain/Promise chips.
+
+**Modal entry motion (every visit, including Back/Next crossfade):** `playOnbModalEnter(screen)` toggles `.is-modal-entering` on the active screen. Each `.onb-heading-line` animates `onbLineIn` (rise 18px, fade in); chip `onbChipLand` **0°→1°**; then `.onb-modal-cta` `onbModalCtaIn`. **650ms** ease-in-out, **200ms** stagger (`--onb-modal-enter-ms` / `--onb-modal-enter-stagger` ↔ `ONB_MODAL_ENTER_MS` / `ONB_MODAL_STAGGER_MS`). Respects `prefersReducedMotion()`. Separate from card carousel (`startOnbCardScroll`) and Pain↔Promise copy morph (`paintOnbCopySlots`).
+
+**Card carousel + crossfade:** unchanged — see **Onboarding (logged out)** below.
+
+**Key JS:** `playOnbModalEnter`, `formatOnbPainLabel`, `formatOnbPromiseLabel`, `goTo`, `paintOnbCopySlots`, `startOnbCardScroll`, `showOnboarding`.
+
+**Preview:** `chrome.html` or `popup#preview=1`; `#preview=1&auth=promise` for screen 2 cold load (`getPreviewParams()` merges hash + search).
+
+**Do not:** revert to shared neutral `#onboarding > .onb-grid-bg` only on Pain/Promise; revert modal radius to 12; run entry animation only on first paint; use Sub-Text 14/18 for card stamps on these screens.
+
+### Calendar permissions modal (Figma `532:2481`) — handoff
+
+**What:** Slide sheet over **Promise** (not a navigate to `#onboardingPermissions` in the happy path). `#onbPermsOverlay` / `#onbPermsSheet` live inside `#onboardingPromise`.
+
+**DOM:** `.onb-sheet-overlay` + `.onb-sheet-backdrop` (black `@50%` + `--blur-prefs-backdrop`) + `.onb-sheet-slot` + `#onbPermsSheet.auth-sheet`. Heading stack + 3× `.onb-perm` + `.onb-actions` (`.onb-btn` + `.onb-info`).
+
+**Typography (Figma):** Heading **26/32** Bold (`.auth-heading` / `.text-heading`); chip **Google Calendar** pink −1° Highlight 18/22; card labels **Label 12/16** (`.text-sm`) with keywords **Bold 700** `#4b0090` in `<b>`; body words `#494949`; revoke `.onb-perms-note` **13/18** `#666` + info SVG `currentColor`.
+
+**Motion:** Sheet `sheetSlideIn/Out` (`--sheet-slide-ms` 420). Cards stagger up after sheet lands (`#onbPermsSheet.is-perms-entering`, delays `sheet + 0/140/280ms`). Allow → `#authFlowHost` slides on **top** (keep perms open). Auth OK → `finishPostAuthScan` (watch URL: skeleton + `#onbAnalyzeOverlay` on `#popupWrapper`; wrong URL: `goTo(3)` on `#onboardingAnalyzing`).
+
+**Key JS:** `openPromisePermsSheet`, `playPermsSheetEnter`, `openOnbSheet`, `closeOnbSheet`, `startConnectingAndLogin`, `finishPostAuthScan`.
+
+**Preview:** `#preview=1&auth=permissions` or `#preview=1&auth=connecting` (Promise + stacked sheets).
+
+**Do not:** move overlay back under `#onboardingPermissions` only; close perms before Connecting; use `.text-subtext` (14/18) for revoke line; set keyword `<b>` to 600 (must be **700** Bold).
+
+## Onboarding (logged out)
+
+Screens in `#onboarding`, shown by `showOnboarding()` / `showOnboarding({ wrongUrl: true })`. Index: 0 Pain → 1 Promise → 2 Permissions → 3 Analyzing (post-OAuth). Always restarts at Pain when opened logged out.
+
+| Screen | Figma / id | Role |
+|--------|------------|------|
+| Pain | `onboardingPain` (`531:958`) | Pain hook; pink Failed-Gradient BG; frame radius 0; Heading 26/32; `#onbModal` + cards radius 16; chip +1°; stamp **#fa463d**; modal entry every visit; **2-dot ticker**; catalog cards |
+| Promise | `onboardingPromise` (`546:16896`) | Green Success-Linear BG; copy without “actually”; `matters,` + `on` + chip **your time**; **Next only**; `#onbPermsOverlay` child sheet |
+| Permissions | `#onbPermsSheet` on Promise (`532:2481`) | Slide sheet + 3 benefit cards; `#onboardingPermissions` screen = wrong-URL card BG only |
+| Analyzing | `#onbAnalyzeSheet` · **643:10839** | Calendar scan sheet on `#onbAnalyzeOverlay`; wrong-URL host `#onboardingAnalyzing` keeps mock schedule BG; watch-URL post-auth uses skeleton under overlay on `#popupWrapper`; 2.5s min / 8s max scan; then Schedule or `#wrongUrlFallAnim` |
+
+**Card carousel motion (Pain + Promise, shared `startOnbCardScroll`).** The stack translates up one card per step over ~1067ms `ease-in-out`, pauses 600ms, then recycles the top card to the bottom. Per step the leaving card (index 0) fades to 0 and scales to 0.9 while the arriving card (index 3) fades to 1 and scales up from 0.9 — both driven by `onb1CardSlot`, so the resting state of index 3 must equal the end state of index 0 or the recycled card pops in at full size. No overshoot easing anywhere in the loop; the old `cubic-bezier(0.34, 1.4, 0.64, 1)` bounce was removed on request and `tests/selfcheck.js` fails if a >1 control point comes back. `#newUserWrongUrl` shares the same loop.
+
+**Modal entry motion (Pain/Promise only).** On every landing (initial open + each `goTo(0|1)`), `playOnbModalEnter` runs — lines rise, chip lands, CTA slides in. **Pain→Promise forward:** during crossfade Promise gets `is-modal-shell-only` (white modal only, no copy); after fade, `playOnbModalEnter` on Promise. Backward Promise→Pain still uses `paintOnbCopySlots` morph.
+
+**Calendar permissions (normal login).** Promise **Next** → `openPromisePermsSheet()` (not `goTo(2)`). Sheet `#onbPermsSheet` in `#onbPermsOverlay` on `#onboardingPromise`. Allow → `startConnectingAndLogin()` with perms sheet still open; auth slides on top.
+
+**Do not:** revert to `goTo(2)` for Promise Next; close perms before Connecting; skip `is-modal-shell-only` on Pain→Promise (causes copy flash before entry anim).
+
+**Copy + button morph (`paintOnbCopySlots`, Pain↔Promise only).** Phases mirror the card loop: `enter` (parked), `settle`, `exit`, `rest`. The heading translates ±24px — out to the left and in from the right going forward, mirrored on Back — and takes its opacity from the section crossfade, because fading it again makes it vanish before it lands. The button block morphs between one full-width primary and Back+Next by animating the secondary's `max-width` 0 ↔ its natural half plus the row's `column-gap` 0 ↔ 12; flex hands the reclaimed space to the primary, so one property shrinks one button and grows the other. **Both screens animate to the same geometry** (`enter` and `exit` share the collapsed layout) — morphing only the incoming screen leaves the outgoing label sitting beside it as a doubled "Next" for the whole crossfade. The secondary opens to `calc(50% - var(--space-3) / 2)`, not a round 50%, so the two primaries stay pixel-identical instead of drifting ~6px apart. `.onb-btn` carries `overflow: hidden` and `.onb-btn-inner` `white-space: nowrap` so the squeezed label clips instead of reflowing.
+
+**Ticker dots.** Each screen owns its own `.onb-ticker`, and the markup pre-sets each one to its own step — so `goTo` rewinds the incoming ticker to the outgoing step instantly (`setOnbTickerActive(..., { instant: true })`), then animates **both** tickers to the new step during the crossfade. The dots transition `width` 6↔28 and `background-color` over 0.5s ease-in-out in CSS.
+
+Auth panels (`authConnecting`, cancelled, denied, generic, interrupted) = video (1280/720) + white body sheet. Correct URL: schedule chrome under dim. Wrong URL (`authFlowKind=new-wrong-url`): `#authFlowFallBg` = `wrong-url-fall-bg.png` cards behind the same sheets. Old YT-intro onboarding slide / login screen / `heyBtn` deleted.
+
+Shared shell: 340×486 (`--frame-w` / `--frame-h`). Bottom sheets / modals: padding **12 all sides**, gap **16** (`--space-3` / `--space-4`); inset 8 from frame. No drop shadow on modal panels. Auth dim over schedule: hardcoded CSS `linear-gradient(#282828→#FFFFFF @ 50% opacity)` + `blur(1px)` — do not use a PNG export. **`--btn-h: 40px`** `.onb-btn`. Preview (`?preview=1`): `html:has(body.wl-preview)` unlocks the 340px `html` lock so the frame is grid-centered.
+
+## Schedule screen (logged in) — Figma 380:3585 (+ multi `380:7315`)
+
+Root: `#scheduleScreen` / `.sched-screen` (340×486 single; multi grows via `applyPopupFrameHeight`, pad 8, gap 16, flex-start when multi). `#popupWrapper` is also 340px.
+
+| Layer / node | ID | Implementation |
+|--------------|-----|----------------|
+| BG Image | 380:3586 | `#schedBgImg` — live YT thumb (`setYouTubeThumbnail`). CSS blur 80 + stretch approx. Tokens: `--blur-sched-bg`, `--sched-bg-pos-y`. |
+| Backdrop Dim | 380:3587 / 380:3588 | `.sched-dim` — absolute at y=64, 308×172.514, Soft Light + noise + blur(40). |
+| Top Nav | 380:3589 | Pad `8/8/0/8`, SPACE_BETWEEN. Avatar `#navAvatar` + logo + Close — flat `#000@25%`, no glass. |
+| Video card | 380:3595 | Fixed 308×172.514. Notched `#schedThumbClip`. Duration 380:3596 — flat white 53×20 pill, Label 12/16. Title `#schedTitleFrame` (Figma 513:1167/1176) — inline SVG frosted band + Highlight 18/22 white; 1- or 2-line via `paintSchedTitleFrame`; **word-boundary** truncation. |
+| Bottom sheet | **532:2721** / `#schedSheet` (was 380:3609) | Pad 12, gap 16, radius 16 (`--radius-onb-modal`), width 324, `--shadow-modal`. Label Grey `#666` Label 12/16. Change Preferences: `#f3f1fe` + `#3b13ec` + inline pencil. Slots gap 12; time Sub-Text 13/18 `#131313`; selected 1.6px Primary. Single `#schedSingleHome` / multi `#schedMultiHome`. CTA `#scheduleBtn` / `#scheduleMultiBtn`. |
+| Multi banner | 380:7407 | `#multiSessionBanner` — own amber sheet (not auth-warn); Why? → `#multiSessionWhyOverlay`. |
+| Multi Why | 400:9920–9955 | Blurred black overlay + koala hero + chip heading + Got it. |
+| Day prefs | 516:1185 | `#schedPrefsPanel` in `#schedPrefsOverlay`. Mon–Sat chips + Sunday pink banner. Scan hints on chip tops. Next → time step. |
+| Time prefs | 499:1729 | `#schedTimePrefsPanel`. Six daytime chips + night-owl banner. Bottom Back → day step; Save & Close → `user_slot_preferences`. |
+| Wrong URL (all) | **533:9884** | `#wrongUrlFallAnim` — fall + browser 194.4 + Oops. CTA → `WRONG_URL_FIX`. No snapshot overlay. |
+| Schedule success | 380:5065 | `#successOverlay` / `#successPanel` — slides up over schedule; see Schedule success handoff below. |
+| Schedule failed | 380:5204 | `#failOverlay` / `#failPanel` — same slide-up shell as success, pink/red gradient + ghost/front card pair + `.fail-card-error` line. `showScheduleFailModal({ title })` / `closeScheduleFailModal`. Replaces the dead v1 `#failureScreen` (used to auto-hide after 5s with a plain text line and no retry). |
+
+Avatar `#navAvatar` → `#profileOverlay` (see below). Footer / streak / old orange UI kept in DOM but hidden for legacy JS hooks.
+
+Max video length 3 hours; videos longer than 165 min use multi-session split; skip scheduling during YouTube ads.
+
+### Schedule success / fail (Figma 541:15067 / 541:15659) — handoff
+
+**What it is:** After Calendar create (or failure), a **separate** bottom sheet slides up over the schedule UI with a blurred black overlay. `#schedSheet` does not morph.
+
+**DOM:** `#successOverlay` / `#failOverlay` (`.success-overlay`) remounted onto `#popupWrapper`. Backdrop + panel. Not `.wl-modal`. Fail reuses the success shell (`#failPanel`).
+
+**Motion:** sheet `sheetSlideIn` / `sheetSlideOut` (`SUCCESS_SLIDE_MS` ↔ `--sheet-slide-ms` 420, ease-in-out). Cards 0°→+2°/−2° (`successCardGhost` / `successCardFront`, `--success-card-ms` 500). Heading then body then buttons slide up (`successCopyIn`, `--success-copy-ms` 420 / `--success-copy-stagger` 140). Stars scale+rotate (`successStarIn`, `--success-star-ms` 500). Close holds until slide-out ends. Preview loop: `startOutcomePreviewLoop('success'|'fail')`.
+
+**Key JS:** `showScheduleSuccessModal` / `showScheduleFailModal`, `closeScheduleSuccessModal` / `closeScheduleFailModal`, `openOutcomeOverlay`, `formatSuccessSlotLabel` (`HH:MM • Weekday • DD/MM`).
+
+**Do not revive:** `success-topo.png`, `success-sparkle-*.svg`, same-`#schedSheet` morph, `#schedSuccessSkel`, `.wl-modal` scale+fade.
+
+### Schedule video title (Figma 513:1167 / 513:1176) — handoff
+
+**What it is:** Bottom title band over the schedule video card. Frosted gradient + blur exported from Figma as SVG, inlined in `popup.html` (external `<img src>` cannot render the `foreignObject` backdrop-filter reliably).
+
+**DOM:** `.sched-video` → `.sched-thumb` (`#videoThumb`) + `#schedTitleFrame` (`.sched-title-frame`) + `.sched-duration`. Two inline SVGs: `.sched-title-frame-bg-2` (308×68) and `.sched-title-frame-bg-1` (308×46, `hidden` until needed). `#videoTitle.sched-video-title` sits above the active SVG.
+
+**Sizing:** `paintSchedTitleFrame()` measures whether the full title fits one line at inner width (284px); toggles `is-one-line` / `is-two-line` and swaps visible SVG. Deferred via `schedulePaintSchedTitleFrame()`. `ResizeObserver` on `#schedTitleFrame` re-runs on width change. **`schedTitleCanMeasure()`** returns false while `#realContent` is hidden or `#skeletonLayer` is showing — never rAF-retry on 0 width (that froze the popup).
+
+**Typography:** Highlight 18/22 white. Max **2 lines** on two-line band; **word-boundary** wrap/truncate only (`word-break: normal`, `overflow-wrap: normal`). `setSchedVideoTitle(text)` stores full string in `data-fullTitle`; `schedTitleTruncateToLines` drops whole words + `…` — never split mid-word (e.g. "Thumbnail"). One-line band uses `white-space: nowrap`.
+
+**Key JS:** `setSchedVideoTitle`, `paintSchedTitleFrame`, `schedulePaintSchedTitleFrame`, `schedTitleFitsOneLine`, `schedTitleTruncateToLines`, `schedTitleCanMeasure`, `wireSchedTitleFrameOnce`.
+
+**Do not revive:** `.sched-title-scrim`, duplicate blurred thumb copies, `syncSchedTitleScrimImg`, CSS `backdrop-filter` title stack, `tests/sched-title-scrim-stress.js`, letter-level `word-break: break-all`.
+
+### Multi-session schedule (Figma 380:7315 / 380:7379) — handoff
+
+**When:** `computeSessionPlan(durationMin)` returns non-null (`durationMin > LONG_VIDEO_THRESHOLD_MINUTES` 165).
+
+**Shell:** `#schedMultiHome` inside `#schedSheetHome`. Label **Select Slot**. Frame height via `applyPopupFrameHeight(true)` / `computeMultiFrameHeight(sessionCount)`.
+
+**Banner (`380:7407`):** `#multiSessionBanner.multi-session-banner` — amber gradient, 1.6px border, shadow `--shadow-auth-warn`, 48× full sheet width, pad 6/12/8, radius 12, z-index 0, margin-bottom −20 into shell. Copy from `multiSessionBannerText(plan)` + `#multiSessionWhyBtn` + `#multiSessionEachLabel` (`{N} mins each`). **Not** `.auth-warn-banner`.
+
+**Cards:** `.multi-session-cards-shell` (z-index 1, purple border) → `#multiSessionCards`. No `overflow-y: auto` — grow the frame instead.
+
+**Actions:** `#regenerateSlotsBtn` → `regenerateMultiSessionSlots` (`excludeSlotKeys`); `#scheduleMultiBtn` → `scheduleMultiSessionVideo` (disabled until `complete`; note "Complete all sessions first").
+
+**Skeleton:** `showSkeleton('schedule-multi')` / `paintScheduleMultiSkeleton`; regen uses `paintMultiSessionCardsSkeleton`.
+
+**Key JS:** `setScheduleMode`, `paintMultiSessionUI`, `wireMultiSessionUiOnce`, `loadMultiSessionSchedule`, `fetchMultiSessionSlots`, `openMultiSessionWhySheet` / `closeMultiSessionWhySheet`.
+
+### Multi-session Why sheet (Figma 400:9920 / 9938 / 9972 / 9955) — handoff
+
+**What:** Bottom sheet explaining the split — opened from banner **Why?**.
+
+**DOM:** `#multiSessionWhyOverlay` / `.multi-why-overlay` (mount via `mountOverlay`). Backdrop `#multiSessionWhyBackdrop` (black @50% + `--blur-prefs-backdrop`). Panel: hero `#multiSessionWhyHero` (`Icon/multi-session/why-{2..5}.png` by clamped session count) + fade + heading `#multiSessionWhyTitle` (rows with `.onb-chip.multi-why-chip` for count + `formatSessionLengthWhy`) + **Got it** `#multiSessionWhyCloseBtn` (secondary `.onb-btn`).
+
+**Motion:** shared `sheetSlideIn` / `sheetSlideOut` + backdrop fade (`--sheet-slide-ms`). Close on Got it or backdrop; `initPopup` also calls `closeMultiSessionWhySheet`.
+
+**Copy pattern:** “Split into **N** sessions of **{1h|1h 30m|…}** each, sized to fit your usual free time”.
+
+**Do not:** revive `#multiSessionWhyTip` / `multiSessionWhyTooltip`; fold into `.wl-modal` scale+fade.
+
+### Change preferences (Figma 643:9532 / 643:9616) — handoff
+
+**What it is:** Two-step day then time sheet inside `#schedPrefsOverlay` (`.prefs-overlay` / `.prefs-sheet`, **`--prefs-panel-h: 428px`**). Separate from `#schedSheet` — slides up like profile child sheets.
+
+**Entry points:**
+| Caller | `openSchedPrefs` | Header back chevron |
+|--------|------------------|---------------------|
+| `#changePrefsBtn` (schedule) | `('day', { fromSchedule: true })` | Day: 0% opacity spacer; Time: header back works |
+| `#slotPreferences` (profile) | `('day')` | Same |
+| `resumeDestination` (post-scan onboarding) | `('day')` or `('time')` | Same |
+
+**Calendar scan banner (Figma `699:19973` on both steps):** `.prefs-scan-banner.auth-warn-banner` — 300×34, **`authInfoIcon`** (same 18×18 circle-i as other auth warn banners, not triangle). Copy: *Auto fetch slots via calendar scan. **Click here*** — only `.prefs-scan-trigger` is clickable. **Click here** → `startPrefsCalendarScan(step)`: prefs sheet slides down → `#onbAnalyzeOverlay` slides up over schedule (`mountAnalyzeOverlay`, `startOnbCalScan`, min **`ANALYZE_MIN_MS`**) → `analyzeAndSavePrefs(..., { triggeredBy: 'prefs-banner' })` **replaces** `selected_days`/`selected_times` with algorithm suggestions (explicit user opt-in; opportunistic rescan on open still hints-only). Success: scan down, prefs stay closed, `refreshSlotsAfterPrefsSave`, toast **Preferences updated**. Failure: toast **Calendar scan failed. Try again.** → `openSchedPrefs(prefsScanResumeStep)`. Preview: decorative scan loop + mock prefs apply (no real freeBusy).
+
+**Busy hints (chip top labels):** Written on calendar scan to `chrome.storage.local.prefs_hints` (`days` / `slots` maps). Labels: **Free days**, **Moderately busy**, **Occupied** (`prefsBusyHint`). Painted by `paintAllPrefsHints()` / `updatePrefsChipHint()` — **must not** change when user selects/deselects a chip.
+
+**Chips:** Mon–Sat in `#prefsDays`, six time buckets in `#prefsTimes`. Sunday toggle + Night owl (12–3) count toward validation. Selected state = purple border + **one left** `.prefs-day-check` only.
+
+**Banners:** `#prefsSunday` / `#prefsNight` — pink gradient `.prefs-banner` + 32×32 toggle (`.prefs-banner-check`).
+
+**Actions:** Day — **Save & Next** (`#prefsNextBtn`, toast if no day selected). Time — **Save & Close** (`#prefsSaveBtn`, toast if no time slot). Close X on both headers dismisses overlay. No bottom Back on time step.
+
+**Key JS:** `openSchedPrefs`, `closeSchedPrefs`, `closeSchedPrefsAnimated`, `startPrefsCalendarScan`, `showPrefsStep`, `readPrefsFromUi`, `saveUserPrefs`, `refreshSlotsAfterPrefsSave`; scan overwrite gated on `triggeredBy === 'prefs-banner'` inside `analyzeAndSavePrefs`.
+
+**Do not:** tie hint text to `.is-selected`; re-add `#prefsTimeBackBtn`; use triangle warning icon on scan banner; let opportunistic rescan overwrite chip selection.
+
+### Profile menu / feedback / delete confirm (Figma 218:1834, 116:4508, 228:2171, **533:4984**, 116:5060)
+
+Delete confirm is a `.wl-modal` overlay via `openOverlay` / `closeOverlay`. Profile uses `sheetSlideIn` / `sheetSlideOut` with its own content cascade. **Feedback** is **`.feedback-overlay`** (not `.wl-modal`) — `openFeedbackModal` / `closeFeedbackModal(onClosed?)`. All keep 8px inset and 12px panel padding.
+
+**Profile menu** (`#profileOverlay` / `#profilePanel` · Figma **533:3931** / **549:17399** / **560:18332**): slides with `--profile-enter-ms` (= success enter). All chrome visible immediately; only `.profile-stat-value` + `.profile-star` animate after the sheet lands. Wash `--profile-grad-cover: 75%`. Gift uses outside gradient stroke + Figma Tabler SVG. Shadows: gift/avatar `--shadow-chip`; list `--shadow-modal`; stats none. Open/close via `openProfileMenu` / `closeProfileMenu`. **History, preferences, feedback, and logout all stack on top** with a blurred backdrop; closing a child reveals the still-open profile.
+
+**Toast** (Figma `380:7845`): `#toast` bottom center, **`--toast-bottom-inset: 40px`**, slides **up then down** (`toastSlideIn` / `toastSlideOut`). Hold **`TOAST_MS` / `--toast-hold-ms`: 1500ms** ↔ `TOAST_SLIDE_MS` / `--toast-slide-ms`. Kinds: `success` / `error` / `info`. `showToast(msg, kind)`.
+
+**Feedback** (`#feedbackOverlay` · Figma **533:4984**): own `.feedback-overlay` sheet (not `.wl-modal`); stacks over profile. **250 chars** (`FEEDBACK_MAX`); center title **"Give us your feedback"**; over-limit red count + one toast; Send disabled when over. Success: **`finishFeedbackSend`** closes sheet then toasts. `openFeedbackModal` / `closeFeedbackModal(onClosed?)`. Preview: `#preview=1&schedule=1&profile=1`.
+
+- **One layout** with journey-state copy on the stats card + bottom banner — Figma **`643:3182`** / **`643:3790`** / **`671:18962`** / **`671:19188`** (+ **`over-cap`** when `weeksToClear ≥ 26`). See **Profile journey card** handoff.
+- **Persona chip** = badge from **`user_slot_preferences.selected_times`** only (not schedule history); latest selected time bucket wins (Late Night → Night Owl). Updates when prefs change. `SLOT_PERSONAS` keyed by **bucket start hour**, not `SLOT_RANGES` label. `.profile-persona[hidden] { display: none }` required — `.onb-chip` sets `inline-flex`.
+- **Stats** = **Scheduled** (`#profileScheduled`, `formatScheduledCount`) + **To clear** (`#profileClear`, `formatProfileWeeksCell` or `—`). Count-up animates Scheduled only when queue > 0.
+- **Banner** = `#profileBanner` / `#profileBannerText` — always visible 41px strip under stats (`-20px` overlap). Grey = onboarding/pace copy; green (`.is-green`) = queue cleared milestone. **Completion-rate trend removed.**
+
+**Delete confirm** (`#deleteConfirmOverlay`): every Delete on every history tab routes through `deleteHistoryItem`, which only opens this sheet; `performHistoryDelete` does the actual Calendar + Supabase removal on "Yes, delete". Yellow banner shows the YouTube glyph + the row title.
+
+**Dropped with this work:** the whole referral UI — `openReferFriendModal`, `openEnterReferralModal` (which auto-popped on first login off `users.referral_popup_shown`), their CSS, and the popup's only `sendreferralnotification` call — plus the legacy `.profile-menu` dropdown and `#profileIcon`. The `referral_codes` / `referral_redemptions` tables and the Edge Function stay; `wipeUserRemoteData` still clears both tables on full logout.
+
+### Profile journey card — handoff
+
+**What:** Stats card + bottom banner on profile (`#profileStats` + `#profileBannerShell`). Figma nodes above. Copy spec: `profile-card-copy-states.md` (Figma wins on conflicts).
+
+**States (`WLQueue.resolveProfileCardState`):**
+
+| State | Trigger | Scheduled | To clear | Banner |
+|---|---|---|---|---|
+| `first` | `queueSize=0`, never watched | `0 video` | `0 weeks` | Grey · *Schedule your first video to start tracking* |
+| `low` | `queueSize>0`, `confidence:low` | `N Video(s)` | `—` | Grey · *Watch a few more to see your pace* |
+| `regular` | `queueSize>0`, normal pace, `<26w` | `N Videos` | `5.5 Weeks` style | Grey · *Clearing about N video(s) a week on average* |
+| `over-cap` | normal pace, `≥26w` | `N Videos` | `Over N Months` | Same grey pace line |
+| `cleared` | `queueSize=0`, ever watched | `0 Video` | `0 Week` | Green · *Queue empty! Nice work* |
+
+**Key JS:** `paintProfileMenu`, `WLQueue.profileCardCopy`, `formatScheduledCount`, `formatProfileWeeksCell`, `everWatched`. Preview: `PROFILE_PREVIEW_STATES` = `first` / `low` / `regular` / `cleared`.
+
+**Do not:** revive `completionTrend`, `#profileTrendShell`, `#profileWaiting`, or `#profilePace`.
+
+### Offline / no internet modal (Figma `645:13974` / `645:14145`) — handoff
+
+**What:** `#networkLostScreen` (`.offline-overlay.wl-modal`) — full-popup sheet when offline at any flow point.
+
+**Hero:** `.offline-hero-bg` = tiled `Icon/onb/onb-grid-tile.svg` only — **not** a baked PNG (old `offline-fact-bg.png` duplicated badge+card).
+
+**Facts:** `OFFLINE_FACTS` (13 entries) in `popup.js`; `pickOfflineFacts()` shows **5** random per open. Hold **5s** (`OFFLINE_FACT_MS`); crossfade **550ms** (`OFFLINE_FACT_FADE_MS` ↔ `--offline-fact-fade-ms`). Shell alternates **brown** (even index, `#9f5750→#663833`) / **green** (odd, `#a5bfb1→#82a492`, `.is-green`).
+
+**Connectivity:** `wireOfflineNetworkOnce()` → `probeNetworkOnline()` hits `https://www.google.com/generate_204` every **3s** (`OFFLINE_PROBE_MS`); auto show/hide. Try again runs same probe (user control only). Skipped when `__WL_PREVIEW__`.
+
+**Preview:** `#preview=1&offline=1` (loops full carousel in preview stub).
+
+**Key JS:** `showNetworkLostScreen`, `hideNetworkLostScreen`, `startOfflineFactCarousel`, `setOfflineFactTheme`, `probeNetworkOnline`.
+
+**Do not:** re-export full-frame hero PNG; stack duplicate fact cards; use primary CTA (secondary `.onb-btn-secondary`, `--btn-h` 40px).
+
+### Queue impact intercept (Figma `645:14194` / `645:14320`) — handoff
+
+**When:** New schedule only (`#scheduleBtn` / `#scheduleMultiBtn`) after ads, network, token, duplicate — **before** Calendar insert. `rescheduleHistoryGroup` must not call `gateQueueIntercept`.
+
+**Unit:** one `videohistory` row. Unwatched = `watched_at IS NULL` and `removed = false`. Forced rows count when `QUEUE_INCLUDE_NEEDS_ATTENTION=1`. Pace = watched_at in last 28 days; `< 3` → `confidence: 'low'` → no sheet.
+
+**Sheet:** `#queueInterceptOverlay` — pad 12 / gap 16 / radius 16; Now vs Adding this **hardcoded CSS cards** (144×120 gradients + `.queue-cal` @ −10°) + overlaid week text; cards stagger in after sheet (`--queue-card-enter-ms` / `--queue-card-stagger-ms`). Copy pink chip **`a month`** / **`3 months`**. **Schedule instead** proceeds; **View playlist** aborts + history; backdrop aborts. Motion: `--sheet-slide-ms` + card cascade. Backdrop black@50% + 2px blur (shared sheet backdrop group).
+
+**Cooldown:** upsert `queue_intercept_state` **before** paint. Re-show if severity tier worsens or last shown ≥ 30 days. Fail-open on errors.
+
+**Config:** numeric keys on `slot_algorithm_config` (`QUEUE_PACE_WINDOW_DAYS`, `QUEUE_PACE_MIN_SAMPLE`, `QUEUE_INTERCEPT_MIN_WEEKS`, `QUEUE_INTERCEPT_TIER_LOW/HIGH`, `QUEUE_INCLUDE_NEEDS_ATTENTION`, `QUEUE_DISPLAY_CAP_WEEKS`, `QUEUE_INTERCEPT_COOLDOWN_DAYS`).
+
+**Preview:** `#preview=1&schedule=1&queue=1` (live gate skipped in `__WL_PREVIEW__`).
+
+**Key JS:** `gateQueueIntercept`, `showQueueInterceptSheet`, `WLQueue` in `lib/queue-projection.js`. `computeSessionPlan` returns `{ sessionCount }` — never `.length`.
+
+**Do not:** fire on reschedule; store arrays/booleans in `slot_algorithm_config`; invent a `status` column.
+
+## Supabase (project `ayzqfwtoeckgycmqzlve`)
+
+- Tables: `users` (one-to-one profile for `auth.users`), `videohistory` (scheduled video lifecycle; multi-session cols `session_group_id`, `session_index`, `session_count`, `video_offset_start_sec`, `video_offset_end_sec`, `all_sessions_watched`), `feedback`, `button_clicks` (append-only interaction analytics), `referral_codes` (one per user), `referral_redemptions` (one per redeemed user; `notified_at` timestamptz is the idempotency key that stops a replayed `sendreferralnotification` call from mailbombing the referrer), `user_slot_preferences` (canonical selected days/times + setup snapshot), `calendar_slot_scores` (latest 7×7 score grid), `calendar_scan_runs` (scan audit/backoff), `slot_algorithm_config` (server-managed thresholds; includes `LONG_VIDEO_THRESHOLD_MINUTES` + `QUEUE_*` intercept keys), `queue_intercept_state` (per-user intercept cooldown: `last_shown_at`, `last_shown_after_weeks`).
+- Removed in migration `consolidate_and_harden_public_schema`: `UserTokens` (write-only stale base64 token copies; security/revocation risk), `UserSlots` (redundant dual-write), and unused `videohistory.notified` / `published_at`. Three legacy-only `UserSlots` rows belonged to deleted auth users and were intentionally discarded; all 10 active canonical preference rows were preserved.
+- Full logout wipe (`remember` unchecked): `wipeUserRemoteData` deletes `referral_redemptions`, `referral_codes`, `videohistory`, `user_slot_preferences`, `calendar_slot_scores`, `calendar_scan_runs`, `feedback`, `queue_intercept_state`, then `users`. `button_clicks` cascade when `users` is deleted. Migration `logout_wipe_delete_policies` added the missing DELETE RLS/grants.
+- Edge Functions (deployed & live): `sendWelcomeEmail`, `sendreferralnotification` (kept deployed and hardened, but **no longer invoked** — the popup's referral UI was removed). Both authenticate with `auth.getUser()` and return `Access-Control-Allow-Origin` only for `chrome-extension://hkekbdlgnmjpbaijipkanenaeabhegfk`. `scanAndScore` exists in repo only, not deployed.
+- **Retired 2026-08-05** (bodies replaced with a `410 Gone` stub, `verify_jwt` on; delete the slugs in the dashboard to remove the routes entirely): `exchange-token`, `send-reminder-email`, `sendDailyEmails`, `sendReferralNotification` (PascalCase twin). See the security-pass entry under History of fixes for what each one exposed. The live daily send is `scripts/sendDailyEmails.ts` via GitHub Actions, unaffected.
+- **`verify_jwt: true` is not authentication.** It only proves the caller presented a JWT signed by this project — and the anon key shipped inside the extension is exactly that. Every function must call `auth.getUser()` (or check a shared secret) itself. `sendDailyEmails` had no in-function check, so the public anon key was enough to mass-mail every user.
+- Every public table has RLS. Policies are explicitly `TO authenticated`, use `(select auth.uid())`, and have one policy per operation. API grants are least-privilege; `anon` has no public-table access. Client profile reads are column-limited to `id`, `name`, and `referral_popup_shown`; email/avatar are not broadly readable.
+- Reporting views `button_result`, `history_results`, and `referral_summary` remain `security_invoker` dashboard/service-role helpers and are revoked from extension roles.
+- Active foreign keys cascade user deletion; query-shaped indexes cover history, scan, score, feedback, and click access. Unique constraints enforce one referral code and one redemption per user.
+- Auth: Google OIDC via `signInWithIdToken`; JWT lives 1 h; refresh tokens are single-use with reuse detection.
+
+**Security advisors: 0 errors, 2 warnings — both platform settings, neither fixable by SQL/migration or MCP.** Don't waste a session hunting for a code fix.
+
+| Warning | Why it's open | Fix |
+|---|---|---|
+| `auth_leaked_password_protection` | Dashboard/Management-API toggle only. **Functionally moot here** — the project is Google OIDC exclusively, there is no email/password sign-in, so there are no passwords to check against HaveIBeenPwned. Requires Pro plan. | Dashboard → Authentication → Sign In / Providers → Email → enable "Prevent use of leaked passwords" |
+| `vulnerable_postgres_version` | Running `supabase-postgres-15.8.1.054`; patches ship as a platform upgrade, which takes brief downtime. | Dashboard → Settings → Infrastructure → Upgrade project. Take a backup first; the extension will 5xx for a few minutes |
+
+### Slot algorithm v1
+
+- **Scores ≠ prefs.** freeBusy scan writes `calendar_slot_scores` only. Suggestions fill `selected_*` **once** (empty prefs). Rescan / reconnect / opportunistic never overwrite user selection — **except** explicit **`triggeredBy: 'prefs-banner'`** from the prefs scan banner (user clicked **Click here**).
+- **Live path:** popup `analyzeAndSavePrefs` + `lib/slot-algorithm.js` (client freeBusy). Trigger A: `openSchedPrefs` rescans if newest `scanned_at` > `STALENESS_DAYS` — **not awaited**, the sheet opens immediately. Trigger B (server cron) deferred — no Google refresh token server-side yet.
+- **Resume:** after onboarding scan, `resumeDestination` → Schedule if days+times set; else day/time prefs sheet. Wrong-URL first login still lands on `#wrongUrlFallAnim`.
+- **Bucket keys** stay existing `SLOT_RANGES` labels (`Morning (6–9)`, … `Late Night (12–3)`), not plan-draft `6-9am` strings. Late Night = 00:00–03:00 of that same calendar day, matching the scheduler.
+- **Scoring:** per (weekday, bucket) cell, `score` = share of sampled days clearing `FREE_RATIO_THRESHOLD`; `avgFreeRatio` keeps the continuous mean so an all-zero grid (moderately busy calendar) can still be ranked. Days/buckets rank on the **mean** across the other axis — max made every day with one free night look identical.
+- **Failure handling:** `fetchFreeBusyRange` **throws** on non-2xx, on per-calendar `errors` inside a 200, and on failed 401 re-auth (one retry max). An empty busy array must only ever mean "genuinely free". Degraded per-month fallback scores **only the months that answered** (`coveredRanges`); unfetched months are never counted as free.
+- **Scan locking:** `scanIsBlocked` — `running` rows expire after `SCAN_LOCK_TTL_MS` (10 min) because a popup closed mid-scan never writes `completed_at`; `not_before` backoff applies to `opportunistic` rescans only, not user-triggered ones.
+- **Checks:** `node tests/slot-algorithm-selfcheck.js` (behaviour) and `node tests/slot-algorithm-stress.js` (jam-packed / free / hostile input / DST / 26k events / clamp guard, with timings).
+
+### scanAndScore Edge Function (written, NOT deployed)
+
+`supabase/functions/scanAndScore/` — `index.ts` + `tz.mjs`. Correct and reviewed, but deliberately undeployed.
+
+- **Why undeployed:** it takes `googleAccessToken` from the request body, so it can only run while the popup is open holding a live token — at which point the client already scans in 1–60 ms. It only earns its keep once a server-held Google **refresh** token exists (Trigger B / cron). Deploying it as-is buys a network round trip and a second copy of the algorithm.
+- **Contract:** `POST { googleAccessToken, timeZone, triggeredBy? }` + Bearer Supabase JWT. Writes `calendar_slot_scores` only — never `user_slot_preferences`, so a server rescan can't overwrite a user's selection.
+- **Timezone is mandatory and validated.** Edge Functions run in UTC; buckets are wall-clock ranges in the user's zone. `tz.mjs` (`zonedToUtcMs` / `civilNow`) resolves each boundary via `Intl`, re-reading the offset at the candidate instant so DST transitions are exact (spring-forward Late Night = 2 h, fall-back = 4 h). `isValidTimeZone` rejects `''`/non-strings because `Intl` silently falls back to the host zone for those — which would score everyone against UTC.
+- **Parity with the client:** same `SLOT_RANGES` keys, same `FREE_RATIO_THRESHOLD` / `MIN_SAMPLE_SIZE` / `ALGORITHM_VERSION` from `slot_algorithm_config`, same 10-min scan-lock TTL and 1-hour failure backoff, same "throw rather than treat an empty busy array as free" rule. `lib/slot-algorithm.js` stays the reference implementation — change it first, mirror here.
+- Scoring uses one globally merged, window-clamped interval list plus binary search per bucket, instead of the client's per-day index; simpler and DST-safe. It writes no `avgFreeRatio` because it produces scores only, not suggestions.
+- **Check:** `node tests/scanandscore-tz-selfcheck.mjs`.
+
+## Auth flow (the load-bearing part)
+
+1. Login: **silent** OAuth → background (`login` + `silent: true`); **interactive** OAuth → popup (`launchWebAuthFlow` + user gesture) → `completeLogin` → `auth.signInWithIdToken` → session saved only to `chrome.storage.local` (`supabase_token`, `supabase_refresh`, `google_access_token`, `userId`) → upsert `users` → fire `sendWelcomeEmail`. `auth_oauth_lock` serializes all `launchWebAuthFlow` calls across popup + background. There is no server-side token-copy table.
+2. Post-login scan: decorative loop (`startOnbCalScan`) + `analyzeAndSavePrefs` inside **`finishPostAuthScan`**. **Watch URL:** auth down → schedule skeleton → `#onbAnalyzeOverlay` on `#popupWrapper` → scan → sheet down → `initPopup()`. **Wrong URL first login:** `#onboardingAnalyzing` mock chrome + `goTo(3)`. On success: `new-wrong-url` → `#wrongUrlFallAnim`; else → `initPopup()` (+ prefs resume if incomplete).
+3. Stay logged in: 50-min alarm refreshes the Supabase session and silently renews the Google token (`prompt=none`). Popup open runs `auth.setSession(stored pair)`. Every refresh persists the rotated pair back to storage.
+4. Usage: Calendar API (freeBusy, event create) uses the Google token — on 401, silent re-auth then one retry; DB reads/writes use the Supabase JWT. Slot finder reads only canonical `user_slot_preferences`.
+
+## History of fixes (v1 → v2, Aug 2026)
+
+- **OAuth login / re-login (2026-08-30):** Interactive login had been sent to background's silent-only path → consent never opened; concurrent `launchWebAuthFlow` caused `"Only one web auth flow is allowed at a time"`. Fixed: silent → background, interactive → popup (`lib/google-oauth.js`), shared `auth_oauth_lock`, `completeLogin` message path. **Reload unpacked extension** after auth changes.
+- **Typography + buttons (2026-08-30):** Proxima Nova bundled in `fonts/`; `.text-*` utility groups; Button **14/16**; **`--btn-h: 40px`**. Barlow/Condensed fallback removed.
+- **Feedback + toast (2026-08-30):** Feedback **250 chars**, center title, over-limit toast, Send closes sheet then toasts. Toast bottom center, **1.5s** hold, slide up/down.
+- **Pain/Promise onboarding rebuild (2026-08-29):** Figma `531:958` / `546:16896` — per-screen pink/green grid washes (`.onb-screen-bg`), modal+cards radius 16, Heading 26/32, stamps `#fa463d` / `#029431`, modal entry animation (650ms / 200ms stagger, every visit), Promise copy + `.onb-heading-line` markup, Figma layer renames, preview hash params via `getPreviewParams()`.
+- **Auth load failures (2026-08-29):** Empty schedule shell after `Invalid Refresh Token: Already Used` — shared `auth_refresh_lock` (popup + background); dead-token path clears storage and opens Connecting/onboarding instead of empty chrome. Restored `authenticated` grants on `users` + `button_clicks`. Dropped unused `youtube.readonly` (broke silent re-auth). Upsert errors now log `.message`.
+- **Multi-session Why + banner + title + freeze (2026-08-29):** Banner rebuilt as `.multi-session-banner` (Figma `380:7407`, not auth-warn). Why tip replaced by `#multiSessionWhyOverlay` (Figma `400:9920`–`400:9955`, black blur + koala heroes). Schedule title switched to word-boundary truncation. `paintSchedTitleFrame` no longer rAF-loops while skeleton/`realContent` hidden (`schedTitleCanMeasure` + `bailInitPopupSkeleton`).
+- **Multi-session scheduling (2026-08-28):** long videos split into sessions; dynamic frame height; purple card shell; Regenerate with `excludeSlotKeys`; history grouping + Needs Attention + mark-watched confirm.
+- Profile child-sheet stacking fixed: history/preferences used to close the profile, while feedback/logout temporarily removed `.is-stacked-under` and retriggered profile `sheetSlideIn`/`profileContentIn`. All four now stack over a stationary profile with the shared 420ms slide and blurred backdrop; closing a child restores rather than closes profile. Feedback inserts also use the table's allowed `type='text'`.
+- Re-login loop root causes, all fixed: (1) three session copies rotating tokens behind each other → single source of truth in `chrome.storage.local`; (2) profile upsert hit non-existent `Users` table → fixed to `users`, DB backfilled, missing row now self-heals; (3) no silent Google renewal → `prompt=none` flow added.
+- `referral_codes` was missing its INSERT RLS policy — added by migration.
+- Deleted dead code: `welcome.js`, duplicate Supabase clients, `shared/` stubs, favourites feature, `ClientSecret.json` (secret was committed — rotate it in Google Cloud Console if not done).
+- `sendDailyEmails` pointed at wrong table/columns — fixed to `videohistory`/`title`/`start_time`.
+- Schedule duration pill was reading `<video>.duration` only (ad length / NaN) — fixed to prefer player chrome + `ytInitialPlayerResponse`.
+- Schedule hero BG was a static JPG — now the live video thumbnail with blur + stretch approx.
+- Popup errors on `chrome://` / `edge://` tabs (unchecked `runtime.lastError`, null listeners) — inject only via `getActiveInjectableTab()`; duration helpers hoisted; expected Google 401 re-auth no longer `console.warn`s (Chrome lists warns as extension errors). Manifest bumped to `1.1.4`.
+- YouTube embed in popup failed with error 153 (no Referer on extension sub_frames) — fixed with `declarativeNetRequestWithHostAccess` rule setting `Referer: https://www.youtube.com/` for `youtube.com/embed/` initiated by the extension; CSP `frame-src` allows YouTube.
+- View history playlist rebuilt as v2 overlay (102:1204): replaced legacy chip modal; added `watched_at`; fixed panel + sticky pager; newest-first; row exit animation.
+- First-time Wrong URL (143:4558): never-logged-in + non-watch runs full onboarding with `authFlowKind=new-wrong-url`, lands on `#wrongUrlFallAnim` (image BG + hardcoded modal) instead of Schedule; `#newUserWrongUrl` kept for returning logged-out only.
+- Slot algorithm v1: scores table separate from prefs; rescans never overwrite selection; opportunistic rescan on prefs open if scores >30d stale; Trigger B (cron) deferred until Google refresh tokens exist server-side.
+- Slot algorithm hardening (stress test pass): `fetchFreeBusyRange` returned `[]` on 403/500 and on per-calendar errors inside a 200, so any Calendar outage scored the user's whole calendar as free and suggested bogus slots — now throws. Degraded per-month fallback scored unfetched months as free — now scores `coveredRanges` only. A popup closed mid-scan left a `running` row that blocked every future scan forever — now a 10-min TTL. `not_before` was written but never read (unbounded retries against Google) — now honoured for opportunistic rescans. Multi-year freeBusy blocks expanded into ~36.5k day buckets (101ms for one event) — now clamped to the window (1.3ms). `mergeIntervals` returned `[undefined]` when every input was unusable. Day/bucket ranking used max across the other axis, so every weekday of a booked calendar tied — now mean, with `avgFreeRatio` as tiebreak. Deleted dead `analyzeCalendarPrefs` + duplicate local `prefsAnalysisWindow`.
+- `scanAndScore` Edge Function fixed: it used `setHours()` for bucket boundaries while running in UTC, so an IST user's "Morning (6–9)" would have been scored as 11:30–14:30 local — every score row in the wrong bucket. Now takes a validated IANA `timeZone` and resolves boundaries through `Intl` (`tz.mjs`). Also carried over the client hardening it had missed: per-calendar `errors` inside a 200 no longer read as a free calendar, busy intervals are clamped to the window, `mergeIntervals` can't return `[undefined]`, `freeRatio` is clamped to [0,1], scan lock/backoff is honoured, and a failed score upsert now marks the run `failed` instead of reporting success. Dropped the `URL` global shadow, unused `WEEKDAY_KEYS`, and reflect-any-origin CORS.
+- **Security pass (2026-08-05).** Four orphan Edge Functions were live and dangerous; all four are now `410` stubs with `verify_jwt` on. (1) `exchange-token` ran with `verify_jwt: false` and `ACAO: *`, giving the public internet `/exchange` (any auth code → Google tokens using our **client secret**, then a service-role DB write), `/refresh` (any refresh token → a fresh access token, again on our client secret), and `/debug` (an unauthenticated service-role insert). **Rotate `GOOGLE_CLIENT_SECRET`** — it backed a public endpoint for ~16 months. (2) `send-reminder-email` had no `serve()` handler at all: `main()` ran at module load, so a cold start alone mass-mailed every auth user. (3) `sendDailyEmails` did no in-function auth, so the public anon key triggered a mailout to all users. (4) `sendReferralNotification` was an abandoned twin of the live slug carrying the same body-trust flaw. Live functions fixed: `sendreferralnotification` took `referrerId` / `friendName` / `referralCode` straight from the request body, so any signed-in user could mail **any** user arbitrary HTML from our sending domain (phishing), and probe which user ids exist via 404-vs-200 — it now derives referrer, code and friend name from the caller's own redemption row, HTML-escapes every interpolation, and marks `notified_at` so it can't be replayed; both live functions stopped reflecting arbitrary `Origin`. Client fixes: a referrer's Google display name was written to `innerHTML` in the privileged popup (CSP blocked script, but not injected markup) → escaped; history row `href` was escaped but not scheme-checked, so a `javascript:` URL would still fire on click → `safeExternalUrl`; `background.js` answered runtime messages from any installed extension (`login` opens a Google consent window) → sender check; the OAuth `nonce` came from `Math.random()` → `crypto.randomUUID()`; manifest dropped `web_accessible_resources` (fingerprinting), the stale `oauth2` block, and a scope string sitting in `host_permissions`.
+- History playlist restyled to Figma 116:4021 / 4236 / 4374: page size 4 → **5**, pager label regained the `| Page X of Y` counter that 102:1204 had dropped, filter pill 140 → 128px, nav buttons 32 → 28px with 14px icons, chip rotation −2° → −1°, panel radius 16 → 12. The hardcoded `--history-panel-h: 379px` is gone — the panel is `height: auto` over a 5-row list slot, which is what actually kept it from jumping. Markup was already correct; this was CSS plus three lines of JS.
+- Modal padding unified at **12 on all four sides**. The 12/12/8 variant survived in the history panel and the Permissions/Analyzing auth sheets, and the `--pad-modal-top/x/bottom` trio existed only to express that asymmetry (all three were already 12px, so they bought nothing but a way to reintroduce it). Tokens deleted, all six call sites now use `var(--space-3)`, and `tests/selfcheck.js` fails if either the 12/12/8 pattern or the tokens come back. Gaps are 16 everywhere except the expanded prefs sheet, which keeps 20 per Figma 36:2189.
+- **Shared white-modal motion.** History, logged-in Wrong URL, offline, and delete confirm use `.wl-modal` / `.wl-modal-panel` (feedback uses `.feedback-overlay`). Backdrop fades while the panel scales `0.96 → 1` and rises 8px, 240ms ease-in-out, reversed on close via `openOverlay()` / `closeOverlay()` (`MODAL_ANIM_MS` = 240).
+- History row hover controls animate now: they were `display: none` → `flex`, which can't transition. The actions column opens from `max-width: 0` to its content width (38 or 84 via `:has(.history-action + .history-action)`) with the 12px gap carried as an animatable `margin-left` — the row's own `gap` is 0, otherwise a collapsed column would still steal 12px from the title. Buttons slide in from the right inside the clipped column, and the title reflows shorter, matching the Figma hover state. Page turns and tab switches repaint behind a 160ms opacity cross-fade (`repaintHistoryPageFaded`); typing in search still repaints instantly.
+- **Top nav + profile menu (218:1834 / 116:4508 / 228:2171).** Dropped the Figma Glass emulation on the two nav buttons — `backdrop-filter`, the light rims, the `#schedGlassRefract` SVG filter and the `--sched-glass-*` tokens are all gone, leaving flat `#000@25%` circles with white icons. The hamburger became the user's Google photo, with `Icon/avatar-fallback-koala.png` behind an `onerror` handler because Google's `lh3` URLs 404 once a photo is changed. The menu replaces the scheduling sheet rather than floating over it. Two bugs found only by rendering it: `SLOT_PERSONAS` keyed by bucket **label** never matched, since `SLOT_RANGES` labels use en dashes and the copy used hyphens (now keyed by start hour, with a self-check that every bucket has a badge); and `.profile-persona[hidden]` needed an explicit `display: none`, because `.onb-chip`'s `inline-flex` beats the `hidden` attribute. The trend strip also has to stay one line — at 12px padding the sentence plus both sparkles is 281px in a 276px box, and wrapping pushed the text up behind the stats card, out of view.
+- Pain↔Promise copy morph added: the heading slides ±24px across the crossfade and the single Next morphs into Back+Next. First attempt animated only the incoming screen, which rendered two "Next" labels side by side for the whole 450ms — the outgoing button was still full width underneath. Fixed by giving both screens the same collapsed/expanded geometry, and by targeting the secondary's natural half width rather than 50%, which had left the two primaries ~6px out of step.
+- Onboarding card carousel reworked: bounce easing dropped for `ease-in-out`, and the two cards involved in a step now scale as well as fade (leaving 100→90%, arriving 90→100%). The ticker dots looked static through a page change for a subtler reason — the dots aren't shared between slides, and each slide's markup already marks its own dot active, so the incoming ticker faded in already finished. `goTo` now rewinds it to the outgoing step with transitions off, then animates both tickers together under the crossfade.
+- Referral UI deleted. It had no entry point in the new menu, `openReferFriendModal` was already unreachable, and `openEnterReferralModal` auto-popped the legacy chip modal on first login — which would now land on top of the new profile UI. ~320 lines of JS, 120 lines of CSS and the popup's only `sendreferralnotification` call went with it; the tables, the Edge Function and the logout wipe stay.
+- Legacy v1 `#scheduleBtn` CSS deleted (52px orange button with a 6px bottom border, plus two dead `.confirm-btn.with-icon` shimmer rules — `#scheduleBtn` hasn't carried those classes since v2). The `#scheduleBtn.onb-btn` block existed only to beat it and restated `.onb-btn` almost verbatim, but with a 4px shell instead of 3px, so the schedule CTA was subtly *not* the same button as "Yes, I allow". All three blocks are gone; the CTA is now plain `.onb-btn` and computes identically to every other modal primary.
+- **Schedule success rebuilt to Figma 380:5065**, then simplified: tried same-`#schedSheet` morph + skeleton bridge (felt jerky); replaced with a separate `#successPanel` that slides up / down. Selfcheck guards `--success-slide-ms` ↔ `SUCCESS_SLIDE_MS` and rejects the deleted morph helpers.
+- **Design critique pass 2 comment triage (2026-08-12):** worked through the user's replies on all 17 second-batch comment threads, then got answers on the three open decisions and finished them:
+  - **Renamed-video detection — built.** The Forced tab was meant to cover removed, renamed, *and* time-drifted videos, but code only ever detected the first and third. `loadHistoryItems`'s existing per-row oEmbed call (already used to catch a removed video) now also reads the live title and flags `forced = true` if it differs from the stored one — joining the same "Scheduled for..." bucket as a time-drift row, no separate visual state. Empty-state copy on all three tabs now says "...changed, were renamed, or were removed...". Guarded by a new `tests/selfcheck.js` assertion (`meta.title !== item.title`).
+  - **Grey button gradient — Figma had drifted, not code.** Batch-fixed 112 nodes `#cccccc` → `#d9d9d9`. Lone-CTA auth screens switched to purple primary in Figma. **Resolved — do not re-open.**
+  - **Pain/Promise CTA — kept "Next".** Figma frames updated. **Resolved — do not re-open.**
+  Also fixed two more mock-only issues found while re-checking: the Watched empty-state subtext still had the original "Videos mark as watched" typo in Figma (grammar fix had only landed in code, not the mock) — now reads "marked"; and the Forced empty-state subtext still trailed off ("Any videos deleted from google calendar") — reworded to match the shipped copy. Delete-confirm mock's mismatched video title and un-fixed run-on sentence were also brought in line with the already-fixed shipped code. Double-checked the delete-sessions confirm's button order (flagged as backwards in the original critique) — it was already "Go Back" then "Yes, delete" left-to-right, so no change was needed there.
+- **Design critique pass 2 follow-through (2026-08-12):** acted on the two biggest gaps the pass flagged. Built `#failOverlay`/`#failPanel` — a real v2 schedule-failure sheet (`showScheduleFailModal`/`closeScheduleFailModal`) reusing the success overlay's shell with a pink/red gradient and a `.fail-card-error` line, replacing the dead v1 `#failureScreen` that auto-hid after 5s with a plain text line and no retry. Built the two-line empty state (grey skeleton illustration + heading + subtext) for all three history tabs, worded per what each tab actually tracks — the Forced copy deliberately omits "renamed" since title changes aren't tracked, only calendar-time drift and removal. Switched the profile trend window from 30 days to 7 (`TREND_WINDOW_DAYS`) and its copy to "since last week" to match the Figma mocks (dropped 30-day here made "since last month" copy just wrong, not a rounding choice), and deleted the now-unused sparkle icons/CSS since the copy already states the direction. Found one more `[hidden]` CSS bug in the process — `.history-pager`'s `display: flex` beat the `hidden` attribute exactly like `.profile-persona` once did, so an empty tab kept showing "0-0 of 0 rows"; fixed with a `.history-pager[hidden] { display: none }` override. All four are guarded by new `tests/selfcheck.js` assertions.
+- **Auth warn banners rebuilt in CSS (2026-08-12):** replaced three PNG exports (`auth-warn-banner-privacy.png`, `auth-warn-banner.png`, `auth-warn-banner-why.png`) with one `.auth-warn-banner` component — inline Tabler info icon + Sub-Text, tokens `--color-warning-*` / `--shadow-auth-warn`. `setAnalyzeBanner()` no longer toggles img nodes; `.is-live` handles scan-error wrap. Parity 100/100 vs Figma `418:1083` / `171:800` / `171:934`. PNGs deleted from repo; selfcheck guards against reintroduction.
+- **Design critique pass 2 (2026-08-12), 18 prefs/profile/schedule-outcome/history/session/feedback screens vs code:** ~~Biggest gap: schedule failure had no v2 UI~~ **built** (`#failOverlay`/`#failPanel`). ~~History empty states not built~~ **built** (two-line heading + subtext + skeleton illustration per tab). Remaining mock gaps: the **history Watched and Forced tab mocks show the wrong row copy** — both were seemingly cloned from the Scheduled tab without updating the per-row subtitle, so they show "Scheduled for.../Upcoming in.../Missed" instead of what those tabs actually render (Watched: `Moved to Watched X ago` only; Forced: `Scheduled for...` drift or dimmed "Video removed by the Channel" only, never Upcoming/Missed). The mark-watched-sessions and delete-sessions confirm screens are speculative, tied to the not-yet-built multi-session-scheduling feature (real mark-watched has no confirm step at all; real delete only ever removes one video). Time-preferences mock has 3 of 6 slot labels with swapped AM/PM (e.g. "9AM -12 AM" instead of "9AM - 12PM") plus a wrong night-owl parenthetical — confirmed **Figma-only drift**, the shipped `TIME_CHIP_LABELS` (popup.js:411-416) and night-owl copy (popup.html:920) were already correct. ~~Profile trend used 30-day window~~ **fixed** — code now uses 7-day window (`TREND_WINDOW_DAYS`) with "since last week" copy. Fixed live in code (not just Figma): `success-heading-line` "Google calendar" → "Google Calendar" (popup.html:1200); `deleteBody` run-on "This can't be undone it'll be removed…" → em dash added (popup.html:1107); `feedbackTitle` "Share us your feedback" (not valid English) → "Give us your feedback" (popup.html:1073); day-prefs Sunday banner "Go out have fun :)" → "Go out, have fun :)" (popup.html:874). Renamed all ~515 auto-named "Frame ####"/"Group ####" layers across these 18 screens to semantic names matching the code's structure, and the 18 screen roots to `correctURL*` ids (two marked `_NOT_BUILT` where there's no code counterpart at all). Posted 17 pinned Figma comments, all prefixed "🤖 Cursor Agent". **Known tooling limitation:** no API to mark Figma comments resolved — fixed items are prefixed "Fixed" in-thread; ticking "Resolved" is manual.
+- **Design critique pass (2026-08-12), 14 onboarding/auth screens vs code:** unified auth retry CTA to "Try again" + primary `.onb-btn` on all four error sheets. Fixed copy bugs, added `prefersReducedMotion()` gating on auth MP4s, corrected `--tracking-label` to 1.6%. ~~Left open: grey gradient end-stop and Pain/Promise CTA~~ **both resolved** in design critique pass 2 triage (grey → `#d9d9d9` in Figma; CTA kept "Next").
+
+## Design
+
+- v2 UI Figma: https://www.figma.com/design/PrF1j2l2jxbROee7Ek6PW8/Extension---V2
+- FigJam (OAuth + Supabase flow diagram): https://www.figma.com/board/TagmnCD2yLx2PQtVHfvQSG/Extension-V2
+- Key nodes: **Pain `531:958`** / **Promise `546:16896`**, **calendar scan sheet `643:10839`**, analyzing overlay host `380:2820`, schedule `380:3585` (nav `380:3589`, video `380:3595`, title bands `513:1167`/`513:1176`, sheet **`532:2721`**), **multi-session schedule `380:7315` / `380:7379`**, **banner `380:7407`**, **Why `400:9920`/`9938`/`9972`/`9955`**, day prefs `516:1185`, time prefs `499:1729`, wrong URL **`533:9884`**, **first-time Wrong URL board `143:4558`**, no internet **645:13974** / **645:14145**, schedule success `541:15067`, schedule failed `541:15659`, **auth warn banner `418:1083`** (connecting `171:800`, calendar why `171:934`), view history **533:7243** / actions **545:16306**. Profile menu **533:3931**, feedback **533:4984**, delete confirm `116:5060`, queue intercept **645:14194** / **645:14320**, profile journey banner **671:18895**.
+- Agent UI workflow: prefer Plugin property dumps for token tweaks; full playbook in `rules.mdc` → **Figma → code**. Preview: serve `Watch Later Extension/` → **`chrome.html`** or **`popup#preview=1`** (+ `#preview=1&schedule=1` for schedule; `#preview=1&auth=promise` for Promise; `#preview=1&multi=1` for multi-session; `#preview=1&wrongurl=1` for first-time Wrong URL path). Use hash when `serve` strips query on `.html`.
+
+## Keeping this file useful
+
+Update the relevant section (and the "Last updated" line) in the same task whenever you change schema, flows, files, or fix a notable bug. Facts here must match the code — when in doubt, re-verify against the source before editing.

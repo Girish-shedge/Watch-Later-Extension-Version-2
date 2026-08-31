@@ -373,37 +373,37 @@
       <div class="onb-sheet-overlay hidden" id="onbAnalyzeOverlay" hidden aria-hidden="true">
         <div class="onb-overlay onb-sheet-backdrop" aria-hidden="true"></div>
         <div class="onb-sheet-slot">
-          <div class="onb-modal auth-sheet" id="onbAnalyzeSheet">
-        <div class="cal-month-header" id="onbCal">
-          <div class="cal-month-slider" id="calMonthSlider">
-            <div class="cal-month-track" id="calMonthTrack"></div>
-          </div>
-          <div class="cal-grid-stack">
-            <div class="cal-grid" id="onbCalGrid" aria-hidden="true">
-              <!-- filled by startOnbCalScan(): 3×7 Mon–Sun weeks -->
+          <div class="analyze-sheet auth-sheet" id="onbAnalyzeSheet">
+            <div class="cal-month-header" id="onbCal">
+              <div class="cal-month-slider" id="calMonthSlider">
+                <div class="cal-month-track" id="calMonthTrack"></div>
+              </div>
+              <div class="cal-grid-stack">
+                <div class="cal-grid" id="onbCalGrid" aria-hidden="true">
+                  <!-- filled by startOnbCalScan(): 3×7 Mon–Sun weeks -->
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div class="onb-text-block">
-          <div class="onb-heading">
-            <div class="onb-heading-row tall">
-              <p>Hey</p>
-              <span id="scanName" class="onb-chip">there,</span>
-              <p>hold on - we&rsquo;re</p>
+            <div class="auth-copy analyze-copy">
+              <div class="auth-heading-stack">
+                <div class="auth-heading-row">
+                  <p class="text-heading">Hey</p>
+                  <span id="scanName" class="onb-chip">there,</span>
+                  <p class="text-heading">hold on - we&rsquo;re</p>
+                </div>
+                <p class="text-heading">scanning your calendar</p>
+              </div>
+              <p class="auth-body text-body">We&rsquo;re looking at your free/busy patterns to suggest slots that actually fit your schedule.</p>
             </div>
-            <p>scanning your calendar</p>
-          </div>
-          <p class="onb-body">We&rsquo;re looking at your free/busy patterns to suggest slots that actually fit your schedule.</p>
-        </div>
-        <div class="auth-warn-banner" id="onbAnalyzeStatus">
-          <svg class="auth-warn-banner-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M9 6.75H9.0075M8.25 9H9V12H9.75M2.25 9C2.25 9.88642 2.42459 10.7642 2.76381 11.5831C3.10303 12.4021 3.60023 13.1462 4.22703 13.773C4.85382 14.3998 5.59794 14.897 6.41689 15.2362C7.23583 15.5754 8.11358 15.75 9 15.75C9.88642 15.75 10.7642 15.5754 11.5831 15.2362C12.4021 14.897 13.1462 14.3998 13.773 13.773C14.3998 13.1462 14.897 12.4021 15.2362 11.5831C15.5754 10.7642 15.75 9.88642 15.75 9C15.75 7.20979 15.0388 5.4929 13.773 4.22703C12.5071 2.96116 10.7902 2.25 9 2.25C7.20979 2.25 5.4929 2.96116 4.22703 4.22703C2.96116 5.4929 2.25 7.20979 2.25 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <p class="auth-warn-banner-text" id="onbAnalyzeStatusText">We never check your events or their details.</p>
-        </div>
-        <button type="button" id="onbAnalyzeRetry" class="onb-btn hidden" hidden>
-          <span class="onb-btn-inner">Retry scan</span>
-        </button>
+            <div class="auth-warn-banner auth-warn-banner--sheet" id="onbAnalyzeStatus">
+              <svg class="auth-warn-banner-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M9 6.75H9.0075M8.25 9H9V12H9.75M2.25 9C2.25 9.88642 2.42459 10.7642 2.76381 11.5831C3.10303 12.4021 3.60023 13.1462 4.22703 13.773C4.85382 14.3998 5.59794 14.897 6.41689 15.2362C7.23583 15.5754 8.11358 15.75 9 15.75C9.88642 15.75 10.7642 15.5754 11.5831 15.2362C12.4021 14.897 13.1462 14.3998 13.773 13.773C14.3998 13.1462 14.897 12.4021 15.2362 11.5831C15.5754 10.7642 15.75 9.88642 15.75 9C15.75 7.20979 15.0388 5.4929 13.773 4.22703C12.5071 2.96116 10.7902 2.25 9 2.25C7.20979 2.25 5.4929 2.96116 4.22703 4.22703C2.96116 5.4929 2.25 7.20979 2.25 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p class="auth-warn-banner-text" id="onbAnalyzeStatusText">We never check your events or their details</p>
+            </div>
+            <button type="button" id="onbAnalyzeRetry" class="onb-btn hidden" hidden>
+              <span class="onb-btn-inner">Retry scan</span>
+            </button>
           </div>
         </div>
       </div>
@@ -518,7 +518,7 @@
         </div>
         <div class="auth-actions">
           <button type="button" class="onb-btn" data-auth-retry><span class="onb-btn-inner">Try again</span></button>
-          <button type="button" class="auth-warn-banner auth-why-btn" id="authWhyCalendar">
+          <button type="button" class="auth-warn-banner auth-warn-banner--sheet auth-why-btn" id="authWhyCalendar">
             <svg class="auth-warn-banner-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M9 6.75H9.0075M8.25 9H9V12H9.75M2.25 9C2.25 9.88642 2.42459 10.7642 2.76381 11.5831C3.10303 12.4021 3.60023 13.1462 4.22703 13.773C4.85382 14.3998 5.59794 14.897 6.41689 15.2362C7.23583 15.5754 8.11358 15.75 9 15.75C9.88642 15.75 10.7642 15.5754 11.5831 15.2362C12.4021 14.897 13.1462 14.3998 13.773 13.773C14.3998 13.1462 14.897 12.4021 15.2362 11.5831C15.5754 10.7642 15.75 9.88642 15.75 9C15.75 7.20979 15.0388 5.4929 13.773 4.22703C12.5071 2.96116 10.7902 2.25 9 2.25C7.20979 2.25 5.4929 2.96116 4.22703 4.22703C2.96116 5.4929 2.25 7.20979 2.25 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -828,26 +828,30 @@
                 </div>
 
                 <div class="prefs-slot-column">
+                  <div class="auth-warn-banner prefs-scan-banner" role="note">
+                    <svg class="auth-warn-banner-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path d="M9 6.75H9.0075M8.25 9H9V12H9.75M2.25 9C2.25 9.88642 2.42459 10.7642 2.76381 11.5831C3.10303 12.4021 3.60023 13.1462 4.22703 13.773C4.85382 14.3998 5.59794 14.897 6.41689 15.2362C7.23583 15.5754 8.11358 15.75 9 15.75C9.88642 15.75 10.7642 15.5754 11.5831 15.2362C12.4021 14.897 13.1462 14.3998 13.773 13.773C14.3998 13.1462 14.897 12.4021 15.2362 11.5831C15.5754 10.7642 15.75 9.88642 15.75 9C15.75 7.20979 15.0388 5.4929 13.773 4.22703C12.5071 2.96116 10.7902 2.25 9 2.25C7.20979 2.25 5.4929 2.96116 4.22703 4.22703C2.96116 5.4929 2.25 7.20979 2.25 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p class="auth-warn-banner-text text-subtext">Auto fetch slots via calendar scan. <button type="button" class="auth-warn-banner-link prefs-scan-trigger">Click here</button></p>
+                  </div>
                   <div class="prefs-days" id="prefsDays" role="group" aria-label="Preferred days"></div>
 
                   <div class="prefs-banner" id="prefsSunday">
-                    <div class="prefs-banner-inner">
-                      <div class="prefs-banner-copy">
-                        <p class="prefs-banner-title">Include Sunday too?</p>
-                        <p class="prefs-banner-sub">Sundays are for fun. Go out have fun:)</p>
-                      </div>
-                      <button type="button" class="prefs-banner-check" id="prefsSundayBtn" aria-pressed="false" aria-label="Include Sunday">
-                        <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
-                          <path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </button>
+                    <div class="prefs-banner-copy">
+                      <p class="prefs-banner-title text-btn">Include Sunday too?</p>
+                      <p class="prefs-banner-sub text-sm">Sundays are for fun. Go out have fun :)</p>
                     </div>
+                    <button type="button" class="prefs-banner-check" id="prefsSundayBtn" aria-pressed="false" aria-label="Include Sunday">
+                      <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
+                        <path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
                 <div class="prefs-actions">
                   <button type="button" class="onb-btn" id="prefsNextBtn">
-                    <span class="onb-btn-inner">Next</span>
+                    <span class="onb-btn-inner">Save &amp; Next</span>
                   </button>
                 </div>
               </div>
@@ -868,20 +872,24 @@
                 </div>
 
                 <div class="prefs-slot-column">
+                  <div class="auth-warn-banner prefs-scan-banner" role="note">
+                    <svg class="auth-warn-banner-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path d="M9 6.75H9.0075M8.25 9H9V12H9.75M2.25 9C2.25 9.88642 2.42459 10.7642 2.76381 11.5831C3.10303 12.4021 3.60023 13.1462 4.22703 13.773C4.85382 14.3998 5.59794 14.897 6.41689 15.2362C7.23583 15.5754 8.11358 15.75 9 15.75C9.88642 15.75 10.7642 15.5754 11.5831 15.2362C12.4021 14.897 13.1462 14.3998 13.773 13.773C14.3998 13.1462 14.897 12.4021 15.2362 11.5831C15.5754 10.7642 15.75 9.88642 15.75 9C15.75 7.20979 15.0388 5.4929 13.773 4.22703C12.5071 2.96116 10.7902 2.25 9 2.25C7.20979 2.25 5.4929 2.96116 4.22703 4.22703C2.96116 5.4929 2.25 7.20979 2.25 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p class="auth-warn-banner-text text-subtext">Auto fetch slots via calendar scan. <button type="button" class="auth-warn-banner-link prefs-scan-trigger">Click here</button></p>
+                  </div>
                   <div class="prefs-days" id="prefsTimes" role="group" aria-label="Preferred time slots"></div>
 
                   <div class="prefs-banner" id="prefsNight">
-                    <div class="prefs-banner-inner">
-                      <div class="prefs-banner-copy">
-                        <p class="prefs-banner-title">Are you a night owl?</p>
-                        <p class="prefs-banner-sub">Do you stay up past midnight (12 AM - 3 AM)?</p>
-                      </div>
-                      <button type="button" class="prefs-banner-check" id="prefsNightBtn" aria-pressed="false" aria-label="Include late night 12AM to 3AM">
-                        <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
-                          <path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </button>
+                    <div class="prefs-banner-copy">
+                      <p class="prefs-banner-title text-btn">Are you a night owl?</p>
+                      <p class="prefs-banner-sub text-sm">Do you stay up midnight (12AM - 3AM)</p>
                     </div>
+                    <button type="button" class="prefs-banner-check" id="prefsNightBtn" aria-pressed="false" aria-label="Include late night 12AM to 3AM">
+                      <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
+                        <path d="m4.5 10.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
@@ -952,8 +960,10 @@
       <button type="button" class="profile-gift" id="profileGiftBtn" aria-label="Referrals">
         <img class="profile-gift-icon" src="Icon/menu-icon-gift.svg" width="14" height="14" alt="" />
       </button>
-      <button type="button" class="nav-icon-btn profile-close" id="profileCloseBtn" aria-label="Close menu">
-        <img class="nav-icon" src="Icon/history-icon-close.svg" width="16" height="16" alt="" />
+      <button type="button" class="profile-close" id="profileCloseBtn" aria-label="Close menu">
+        <svg class="profile-close-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
 
       <div class="profile-content">
@@ -974,19 +984,21 @@
 
         <div class="profile-stats-wrap">
           <div class="profile-stats" id="profileStats">
-            <div class="profile-stat">
-              <span class="profile-stat-label">Scheduled</span>
-              <span class="profile-stat-value" id="profileScheduled">0 Videos</span>
-            </div>
-            <span class="profile-stat-divider" aria-hidden="true"></span>
-            <div class="profile-stat">
-              <span class="profile-stat-label">Watched</span>
-              <span class="profile-stat-value" id="profileWatched">0 Videos</span>
+            <div class="profile-stats-row">
+              <div class="profile-stat">
+                <span class="profile-stat-label">Scheduled</span>
+                <span class="profile-stat-value" id="profileScheduled">0 video</span>
+              </div>
+              <span class="profile-stat-divider" aria-hidden="true"></span>
+              <div class="profile-stat">
+                <span class="profile-stat-label">To clear</span>
+                <span class="profile-stat-value" id="profileClear">0 weeks</span>
+              </div>
             </div>
           </div>
-          <div class="profile-trend-shell" id="profileTrendShell" hidden>
-            <div class="profile-trend" id="profileTrend">
-              <span id="profileTrendText"></span>
+          <div class="profile-banner-shell" id="profileBannerShell">
+            <div class="profile-banner" id="profileBanner">
+              <span class="text-sm" id="profileBannerText">Schedule your first video to start tracking</span>
             </div>
           </div>
         </div>
@@ -1273,6 +1285,50 @@
     </div>
   </div>
 
+  <!-- 645:14194 Queue intercept — slides over schedule before Calendar insert -->
+  <div id="queueInterceptOverlay" class="queue-overlay hidden" hidden aria-hidden="true">
+    <div class="queue-backdrop" id="queueInterceptBackdrop"></div>
+    <div class="queue-panel" id="queueInterceptPanel" role="dialog" aria-labelledby="queueHeadline1">
+      <div class="queue-cards">
+        <div class="queue-card queue-card--now">
+          <img class="queue-cal-art" src="Icon/queue/queue-cal-now.png" width="80" height="80" alt="" aria-hidden="true" />
+          <p class="queue-card-label text-sm">Now</p>
+          <p class="queue-card-value text-highlight" id="queueNowValue">
+            <span id="queueNowLine">About 5</span>
+            <span id="queueNowUnit">weeks</span>
+          </p>
+        </div>
+        <div class="queue-card queue-card--adding">
+          <img class="queue-cal-art" src="Icon/queue/queue-cal-adding.png" width="80" height="80" alt="" aria-hidden="true" />
+          <p class="queue-card-label text-sm">Adding this</p>
+          <p class="queue-card-value text-highlight" id="queueAfterValue">
+            <span id="queueAfterLine">About 5.5</span>
+            <span id="queueAfterUnit">weeks</span>
+          </p>
+        </div>
+      </div>
+      <div class="queue-copy">
+        <h2 class="queue-heading">
+          <span class="queue-heading-line text-heading" id="queueHeadline1">This video would push</span>
+          <span class="queue-heading-line">
+            <span class="text-heading" id="queueHeadlineBefore">your queue</span>
+            <span class="onb-chip" id="queueHeadlineChip">a month</span>
+            <span class="text-heading" id="queueHeadlineAfter" hidden></span>
+          </span>
+        </h2>
+        <p class="queue-body text-body" id="queueBody">You've got 24 waiting, clearing about 5 a week on average.</p>
+      </div>
+      <div class="onb-btn-row queue-actions">
+        <button type="button" class="onb-btn onb-btn-secondary" id="queueScheduleInsteadBtn">
+          <span class="onb-btn-inner">Schedule instead</span>
+        </button>
+        <button type="button" class="onb-btn" id="queueViewPlaylistBtn">
+          <span class="onb-btn-inner">View playlist</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 36:2102 Wrong URL — remounted onto #onboarding or #scheduleScreen -->
   <div id="wrongUrlOverlay" class="wrong-url-overlay wl-modal hidden" hidden aria-hidden="true">
     <div class="wrong-url-backdrop" id="wrongUrlBackdrop"></div>
@@ -1294,14 +1350,14 @@
     </div>
   </div>
 
-  <!-- 36:3008 No internet — remounted onto current screen -->
+  <!-- 645:13974 No internet — remounted onto current screen -->
   <div id="networkLostScreen" class="offline-overlay wl-modal hidden" hidden aria-hidden="true">
     <div class="offline-backdrop" id="offlineBackdrop"></div>
     <div class="offline-panel wl-modal-panel" id="offlinePanel">
       <div class="offline-hero">
-        <img class="offline-hero-bg" src="Icon/offline-fact-bg.png" alt="" width="300" height="204" />
+        <div class="offline-hero-bg" aria-hidden="true"></div>
         <div class="offline-fact">
-          <div class="offline-fact-badge">DO YOU KNOW?</div>
+          <div class="offline-fact-badge">DO YOU KNOW ?</div>
           <div class="offline-fact-shell">
             <div class="offline-fact-inner">
               <p class="offline-fact-text" id="offlineFactText"></p>
@@ -1317,14 +1373,14 @@
         <span class="offline-tick"></span>
       </div>
       <div class="offline-copy">
-        <div class="offline-title">
+        <div class="offline-title text-heading">
           <span>No</span>
           <span class="onb-chip">internet</span>
           <span>connection</span>
         </div>
-        <p class="offline-body">Hang tight we’ll retry as soon as you’re back online.</p>
+        <p class="offline-body">Hang tight we'll retry as soon as you're back online.</p>
       </div>
-      <button type="button" class="onb-btn" id="tryAgainBtn">
+      <button type="button" class="onb-btn onb-btn-secondary" id="tryAgainBtn">
         <span class="onb-btn-inner">Try again</span>
       </button>
     </div>
@@ -1338,6 +1394,7 @@
   <script src="lib/google-oauth.js"></script>
   <script src="lib/slot-algorithm.js"></script>
   <script src="lib/translate.js"></script>
+  <script src="lib/queue-projection.js"></script>
   <script src="popup.js"></script>
 
 </body>
