@@ -322,6 +322,7 @@
   --color-history-tab-text: rgba(19, 19, 19, 0.75);
   --color-history-row-sub: #808080; /* Text-Secondary — Figma 533:7287 */
   --shadow-history-tab: 0 -2px 8px rgba(0, 0, 0, 0.05); /* Figma 533:7259 active tab */
+  --history-tab-slide-ms: 280ms;
   --history-nav-icon-size: 28px; /* Figma 533:7245 / 533:7253 */
   --color-history-divider: #e6e6e6;
   --color-history-icon-bg: rgba(0, 0, 0, 0.06);
@@ -446,11 +447,11 @@
   --radius-sm: 8px;          /* permission-card inner, calendar day cell */
   --radius-perm: 10px;
   --radius-card: 12px;
-  --radius-modal: 12px; /* Figma 499+ — all modals / bottom sheets */
+  --radius-onb-modal: 16px; /* Figma radius-4 — Pain/Promise onbModal 531:1125 / 546:17046 */
+  --radius-modal: var(--radius-onb-modal); /* sheets / modals — 16 */
   --radius-sched-video-title: 16px; /* 380:3607 schedTitleFrame bottom corners */
   --radius-pill: 17px;
   --radius-screen: 0; /* Figma 432:527+ — main 340×486 frames have no corner radius */
-  --radius-onb-modal: 16px; /* Figma radius-4 — Pain/Promise onbModal 531:1125 / 546:17046 */
   --size-tick: 6px; /* Figma ticker dot 38:4970 / 38:4971 */
   --radius-button: 40px;
   --radius-button-inner: calc(var(--radius-button) - var(--pad-btn-shell));
@@ -1877,7 +1878,7 @@ body.dark-mode select {
   opacity: 0.5;
 }
 
-/* ?? SKELETON SHIMMER ? mirrors v2 schedule / wrong-url / offline shells ?? */
+/* Skeleton shimmer — schedule / multi shells (mirrors live .sched-screen) */
 @keyframes skeleton-shimmer {
   0% { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
@@ -1902,17 +1903,20 @@ body.dark-mode select {
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  min-height: var(--frame-h);
-  padding: var(--space-2);
+  min-height: var(--frame-h-active, var(--frame-h));
+  padding: var(--pad-screen-t) var(--pad-screen-x) var(--pad-screen-b);
 }
 
 .skel-screen {
   display: none;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: var(--space-4); /* 16 — matches .sched-screen */
+  box-sizing: border-box;
   width: 100%;
-  min-height: calc(var(--frame-h) - var(--space-4));
+  height: 100%;
+  min-height: 0;
 }
 .skel-screen.is-active {
   display: flex;
@@ -1925,10 +1929,11 @@ body.dark-mode select {
   box-sizing: border-box;
   width: 100%;
   padding: var(--space-2) var(--space-2) 0;
+  flex-shrink: 0;
 }
 .skel-icon {
-  width: var(--space-8);
-  height: var(--space-8);
+  width: 36px; /* matches .sched-icon-btn */
+  height: 36px;
   border-radius: var(--radius-button);
   flex-shrink: 0;
 }
@@ -1953,8 +1958,9 @@ body.dark-mode select {
   box-sizing: border-box;
   width: 100%;
   padding: var(--space-3);
-  border-radius: var(--radius-modal);
+  border-radius: var(--radius-onb-modal);
   background: var(--color-surface-white);
+  flex-shrink: 0;
 }
 .skel-sheet-head {
   display: flex;
@@ -1972,21 +1978,11 @@ body.dark-mode select {
   height: var(--space-6);
   border-radius: var(--radius-chip);
 }
-.skel-slots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  width: 100%;
-}
-.skel-slot {
-  width: calc((100% - var(--space-4)) / 2);
-  height: 52px;
-  border-radius: var(--radius-card);
-}
 .skel-cta {
   width: 100%;
   height: var(--btn-h);
   border-radius: var(--radius-button);
+  flex-shrink: 0;
 }
 
 /* Multi-session schedule skeleton (Figma 380:7332 / 380:7407 / 380:7410) */
@@ -2106,38 +2102,6 @@ body.dark-mode select {
 .multi-session-skel-offset {
   width: 88px;
   height: 18px;
-}
-
-/* Wrong-URL / offline skeleton shells (same 4pt rhythm) */
-.skel-art {
-  width: 100%;
-  height: 180px;
-  border-radius: var(--radius-modal);
-}
-.skel-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  width: 100%;
-}
-.skel-title {
-  width: 72px;
-  height: var(--space-7);
-}
-.skel-chip {
-  width: 88px;
-  height: var(--space-6);
-  border-radius: var(--radius-chip);
-}
-.skel-body {
-  width: 100%;
-  height: var(--space-5);
-}
-.skel-body-short {
-  width: 70%;
-  height: var(--space-5);
-  margin: 0 auto;
 }
 
 /* ??????????????????????????????????????????????????????????????????
@@ -3935,7 +3899,8 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px; /* Figma headingRow 444:8015 */
+  flex-wrap: nowrap;
+  gap: 6px; /* Figma 533:10014 */
   width: 100%;
   color: var(--color-text-primary);
   font-feature-settings: 'dlig' 1;
@@ -3989,7 +3954,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   pointer-events: auto;
   box-sizing: border-box;
   justify-content: flex-end;
-  align-items: stretch;
+  align-items: center; /* Figma 533:10010 counterAxis CENTER */
 }
 .wua-fall {
   position: absolute;
@@ -4012,7 +3977,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
   z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center; /* Figma 533:10010 CENTER */
   gap: 0;
   width: 100%;
   max-width: 324px; /* Figma 533:10010 */
@@ -4027,6 +3992,7 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 .wua-browser {
   position: relative;
   flex-shrink: 0;
+  align-self: stretch;
   width: 100%;
   height: 194.4px; /* Figma 533:10011 */
   overflow: hidden;
@@ -4051,14 +4017,17 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 }
 .wua-panel {
   position: relative;
+  inset: auto; /* beat leftover .wrong-url-panel left/right/bottom */
   z-index: 2;
   margin: 0;
+  align-self: stretch;
   width: 100%;
   max-width: none;
   max-height: none;
   display: flex;
   flex-direction: column;
   align-items: center; /* Figma 533:10012 primary+counter CENTER */
+  justify-content: center;
   gap: var(--space-4); /* 16 — Figma 533:10012 */
   padding: var(--space-3); /* 12 */
   border-radius: 0;
@@ -4076,6 +4045,10 @@ body.is-onb-wrong-url #authFlowFallBg { display: block; }
 }
 .wua-panel .wrong-url-copy {
   align-self: stretch;
+  width: 100%;
+  max-width: 300px; /* Figma 533:10013 */
+  align-items: center;
+  text-align: center;
 }
 .wua-panel .onb-chip {
   flex-shrink: 0;
@@ -4409,6 +4382,7 @@ button.prefs-scan-trigger {
   background: var(--color-surface-white);
   color: var(--color-slot-time);
   text-align: center;
+  transition: background-color 0.2s var(--motion-ease);
 }
 .prefs-day-label-inner {
   display: flex;
@@ -4420,6 +4394,9 @@ button.prefs-scan-trigger {
 }
 .prefs-day.is-selected .prefs-day-label {
   border-color: var(--color-accent-grad-end);
+  background: var(--color-sched-prefs-bg);
+}
+.prefs-day:not(.is-selected):hover .prefs-day-label {
   background: var(--color-sched-prefs-bg);
 }
 .prefs-day-check {
@@ -4640,7 +4617,9 @@ button.prefs-scan-trigger {
 
 #schedSheet.is-slots-empty,
 #schedSheet.is-slots-stack-1,
-#schedSheet.is-slots-stack-2 {
+#schedSheet.is-slots-stack-2,
+.skel-sheet.is-slots-stack-1,
+.skel-sheet.is-slots-stack-2 {
   height: var(--sched-sheet-h-compact);
   min-height: var(--sched-sheet-h-compact);
 }
@@ -4657,7 +4636,9 @@ button.prefs-scan-trigger {
 }
 #schedSheet.is-slots-empty .sched-slots,
 #schedSheet.is-slots-stack-1 .sched-slots,
-#schedSheet.is-slots-stack-2 .sched-slots {
+#schedSheet.is-slots-stack-2 .sched-slots,
+.skel-sheet.is-slots-stack-1 .sched-slots,
+.skel-sheet.is-slots-stack-2 .sched-slots {
   flex: 1;
   min-height: 0;
   max-height: var(--sched-slot-area-h);
@@ -4718,10 +4699,14 @@ button.prefs-scan-trigger {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: background-color 0.2s var(--motion-ease);
 }
 
 .sched-slot.selected .sched-slot-time {
   border-color: var(--color-accent-grad-end); /* 1.6px Primary — Figma 532:2742 */
+  background: var(--color-sched-prefs-bg);
+}
+.sched-slot:not(.selected):not(:disabled):not(.sched-slot--empty):not(.sched-slot--skeleton):hover .sched-slot-time {
   background: var(--color-sched-prefs-bg);
 }
 
@@ -4792,7 +4777,8 @@ button.prefs-scan-trigger {
 html.is-multi-session-frame,
 html.is-multi-session-frame body,
 html.is-multi-session-frame .popup-container,
-html.is-multi-session-frame #popupWrapper {
+html.is-multi-session-frame #popupWrapper,
+html.is-multi-session-frame #skeletonLayer {
   height: var(--frame-h-active, var(--frame-h-multi));
   min-height: var(--frame-h-active, var(--frame-h-multi));
 }
@@ -5023,6 +5009,23 @@ html.is-multi-session-frame #popupWrapper {
 #scheduleMultiBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+#scheduleBtn.is-cta-loading:disabled,
+#scheduleMultiBtn.is-cta-loading:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.cta-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  color: inherit;
+}
+.cta-loading-dots .loading-dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  margin: 0;
 }
 
 /* beat any leftover #videoTitle specificity from legacy rules */
@@ -5288,8 +5291,10 @@ html.is-multi-session-frame #popupWrapper {
 }
 
 .history-tabs {
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0;
   box-sizing: border-box;
   width: 100%;
@@ -5303,11 +5308,30 @@ html.is-multi-session-frame #popupWrapper {
   );
   flex-shrink: 0;
 }
+.history-tab-pill {
+  position: absolute;
+  top: var(--space-1);
+  left: 0;
+  height: 28px;
+  box-sizing: border-box;
+  transform-origin: center center;
+  border-radius: var(--radius-sm); /* 8 — Figma 533:7259 */
+  border: 1px solid var(--color-surface-white);
+  background: var(--color-surface-white);
+  box-shadow: var(--shadow-history-tab);
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    transform var(--history-tab-slide-ms) var(--motion-ease),
+    width var(--history-tab-slide-ms) var(--motion-ease);
+}
 .history-tab {
   display: flex;
   flex: 1 1 0;
   align-items: center;
   justify-content: center;
+  position: relative;
+  z-index: 1;
   min-width: 0;
   height: 28px;
   padding: 0 var(--space-2);
@@ -5317,18 +5341,18 @@ html.is-multi-session-frame #popupWrapper {
   color: var(--color-history-tab-text);
   cursor: pointer;
   white-space: nowrap;
+  text-align: center;
   box-sizing: border-box;
-  transition:
-    background-color 0.2s var(--motion-ease),
-    color 0.2s var(--motion-ease),
-    box-shadow 0.2s var(--motion-ease);
+  transition: color var(--history-tab-slide-ms) var(--motion-ease);
 }
 .history-tab.is-active {
-  border-radius: var(--radius-sm); /* 8 — Figma 533:7259 */
-  border: 1px solid var(--color-surface-white);
-  background: var(--color-surface-white);
   color: var(--color-history-title);
-  box-shadow: var(--shadow-history-tab);
+  font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+  .history-tab-pill {
+    transition: none;
+  }
 }
 
 .history-list {
@@ -5534,10 +5558,7 @@ html.is-multi-session-frame #popupWrapper {
     margin-left 0.3s var(--motion-ease);
 }
 .history-row-actions:has(.history-row-action + .history-row-action) {
-  --history-actions-w: 84px; /* 38 + 8 + 38 */
-}
-.history-row-actions:has(.history-row-action + .history-row-action + .history-row-action) {
-  --history-actions-w: 130px; /* 38 + 8 + 38 + 8 + 38 */
+  --history-actions-w: calc(var(--btn-h) * 2 + var(--space-2));
 }
 .history-row:hover .history-row-actions,
 .history-row:focus-within .history-row-actions {
@@ -5561,6 +5582,7 @@ html.is-multi-session-frame #popupWrapper {
 .history-row-actions .onb-btn.icon-only .onb-btn-inner {
   padding: 0;
 }
+.history-row-actions .onb-btn.icon-only .history-action-icon,
 .history-row-actions .onb-btn.icon-only img,
 .history-row-actions .onb-btn.icon-only svg {
   width: 18px;

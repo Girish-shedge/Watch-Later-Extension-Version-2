@@ -305,6 +305,9 @@ assert.strictEqual(ordinalDay(23), '23rd');
     formatSuccessGhostTime('2026-03-23T18:16:00', '2026-03-23T19:17:00').includes(' - '),
     true
   );
+  assert.ok(src.includes("This is a Multi-session event"), 'multi success ghost copy');
+  assert.ok(src.includes('SUCCESS_GHOST_MULTI'), 'multi ghost label is a named constant');
+  assert.ok(/multi:\s*true/.test(src), 'multi schedule passes multi: true to success modal');
 }
 
 assert.strictEqual(formatRelativeDuration(15 * 60000), '15 mins');
@@ -499,7 +502,7 @@ assert.deepStrictEqual(
   assert.ok(!html.includes('onbPermsClose'), 'permissions must not use schedule close chrome');
   assert.ok(/id="onboardingPermissions"[\s\S]*?class="onb-cards"/.test(html), 'permissions uses card stack not schedule chrome');
   assert.ok(css.includes('--radius-screen: 0'), 'main popup screen radius is 0');
-  assert.ok(css.includes('--radius-modal: 12px'), 'modal/sheet radius is 12px per Figma 499+');
+  assert.ok(css.includes('--radius-modal: var(--radius-onb-modal)'), 'modal/sheet radius aliases 16px --radius-onb-modal');
   assert.ok(css.includes('--radius-sched-video-title: 16px'), 'sched video title frame bottom radius is 16px');
   assert.ok(css.includes('--sched-title-frame-h-1: 46px'), 'sched 1-line title band height');
   assert.ok(css.includes('--sched-title-frame-h-2: 68px'), 'sched 2-line title band height');
@@ -953,6 +956,21 @@ assert.deepStrictEqual(
   assert.ok(css.includes('justify-content: center'), 'prefs slot label inner is centered');
   assert.ok(css.includes('--color-history-tabs-bg-start: #f2f2f2'), 'history tabs gradient start');
   assert.ok(css.includes('--shadow-history-tab:'), 'history active tab shadow');
+  assert.ok(css.includes('--history-tab-slide-ms:'), 'history tab pill slide duration');
+  assert.ok(html.includes('id="historyTabPill"'), 'history tabs use a sliding pill');
+  assert.ok(src.includes('function syncHistoryTabPill'), 'history tab pill must track the active tab');
+  assert.ok(src.includes('tabRect.left - tabsRect.left'), 'history tab pill positions from tab rect (center-aligned)');
+  assert.ok(css.includes('transform-origin: center center'), 'history tab pill grows/slides from center');
+  assert.ok(/\.history-tab \{[\s\S]*?text-align: center/.test(css), 'history tab labels are center aligned');
+  assert.ok(/\.history-tab\.is-active\s*\{[^}]*font-weight:\s*700/.test(css), 'active history tab is Bold 700');
+  assert.ok(css.includes('--history-actions-w: calc(var(--btn-h) * 2 + var(--space-2))'), 'history two-action width uses --btn-h (40)');
+  assert.ok(src.includes('HIST_CHECK_SVG') && src.includes('HIST_TRASH_SVG'), 'history actions inline currentColor SVGs');
+  assert.ok(!src.includes('data-action="reschedule"'), 'Forced tab hover is delete-only');
+  assert.ok(!src.includes('sessions watched'), 'history must not show N of M sessions watched');
+  assert.ok(src.includes('function setScheduleCtaLoading'), 'schedule CTAs swap label for loading dots');
+  assert.ok(css.includes('.cta-loading-dots'), 'schedule CTA loading dots style');
+  assert.ok(css.includes('.prefs-day:not(.is-selected):hover .prefs-day-label'), 'unselected prefs chips hover Primary 5%');
+  assert.ok(css.includes('.sched-slot:not(.selected):not(:disabled)'), 'unselected schedule slots hover Primary 5%');
   assert.ok(css.includes('--history-nav-icon-size: 28px'), 'history nav icons 28');
   assert.ok(css.includes('--color-history-row-sub: #808080'), 'history row sub Text-Secondary');
   assert.ok(!src.includes('setPrefsHeaderBackVisible'), 'prefs no longer hide back from schedule');
@@ -1186,6 +1204,11 @@ assert.ok(
   assert.ok(src.includes('function openMultiSessionWhySheet'), 'Why button must open bottom sheet');
   assert.ok(!html.includes('multiSessionWhyTip'), 'Why tooltip must not return');
   assert.ok(html.includes('data-skel="schedule-multi"'), 'multi-session initial skeleton must exist');
+  assert.ok(html.includes('id="skelSlots"'), 'schedule skeleton slots are painted to match live layout');
+  assert.ok(!html.includes('data-skel="wrong-url"'), 'unused wrong-url skeleton screen must stay gone');
+  assert.ok(!html.includes('data-skel="offline"'), 'unused offline skeleton screen must stay gone');
+  assert.ok(src.includes('function fillSlotSkeleton'), 'slot skeletons share fillSlotSkeleton');
+  assert.ok(css.includes('min-height: var(--frame-h-active, var(--frame-h))'), 'skeleton layer tracks --frame-h-active');
   assert.ok(src.includes('function paintMultiSessionCardsSkeleton'), 'regenerate must skeletonize slot cards');
   assert.ok(src.includes('function paintScheduleMultiSkeleton'), 'multi-session load skeleton must match session count');
   assert.ok(!css.match(/\.sched-screen\.is-multi-session[\s\S]{0,120}?gap:\s*var\(--space-2\)/), 'multi schedule screen must use 16px gap like single-session');

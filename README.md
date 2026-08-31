@@ -45,6 +45,8 @@ npx --yes serve -p 8321
 | `#preview=1&success=1` / `&fail=1` | Outcome sheets (`541:15067` / `541:15659`) |
 | `#preview=1&auth=…` | Auth / analyzing / permissions |
 
+Hosted preview is the same static folder on Vercel (`/` rewrites to `chrome.html`). After deploy, use hash flags on that origin the same way (`/#preview=1&schedule=1`).
+
 ## Tests
 
 ```bash

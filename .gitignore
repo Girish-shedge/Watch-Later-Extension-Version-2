@@ -12,6 +12,9 @@ ClientSecret.json
 **/ClientSecret.json
 *.pem
 
+# Vercel CLI
+.vercel/
+
 # Supabase CLI temp
 supabase/.temp/
 

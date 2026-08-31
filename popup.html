@@ -603,7 +603,7 @@
 
       <div id="skeletonLayer" class="skel-layer">
 
-        <!-- Schedule screen skeleton (mirrors 36:1906) -->
+        <!-- Schedule screen skeleton — mirrors live .sched-screen (pad 8, 36 nav, compact/grid sheet) -->
         <div class="skel-screen is-active" data-skel="schedule" aria-hidden="true">
           <div class="skel-nav">
             <div class="skeleton skel-icon"></div>
@@ -616,50 +616,7 @@
               <div class="skeleton skel-label"></div>
               <div class="skeleton skel-prefs"></div>
             </div>
-            <div class="skel-slots">
-              <div class="skeleton skel-slot"></div>
-              <div class="skeleton skel-slot"></div>
-              <div class="skeleton skel-slot"></div>
-              <div class="skeleton skel-slot"></div>
-            </div>
-            <div class="skeleton skel-cta"></div>
-          </div>
-        </div>
-
-        <!-- Wrong URL skeleton (mirrors 36:2102 / 36:3080 sheet) -->
-        <div class="skel-screen" data-skel="wrong-url" aria-hidden="true">
-          <div class="skel-nav">
-            <div class="skeleton skel-icon"></div>
-            <div class="skeleton skel-logo"></div>
-            <div class="skeleton skel-icon"></div>
-          </div>
-          <div class="skel-sheet">
-            <div class="skeleton skel-art"></div>
-            <div class="skel-title-row">
-              <div class="skeleton skel-title"></div>
-              <div class="skeleton skel-chip"></div>
-            </div>
-            <div class="skeleton skel-body"></div>
-            <div class="skeleton skel-body-short"></div>
-            <div class="skeleton skel-cta"></div>
-          </div>
-        </div>
-
-        <!-- Offline / network skeleton (mirrors 36:2941 sheet) -->
-        <div class="skel-screen" data-skel="offline" aria-hidden="true">
-          <div class="skel-nav">
-            <div class="skeleton skel-icon"></div>
-            <div class="skeleton skel-logo"></div>
-            <div class="skeleton skel-icon"></div>
-          </div>
-          <div class="skel-sheet">
-            <div class="skeleton skel-art"></div>
-            <div class="skel-title-row">
-              <div class="skeleton skel-title"></div>
-              <div class="skeleton skel-chip"></div>
-            </div>
-            <div class="skeleton skel-body"></div>
-            <div class="skeleton skel-body-short"></div>
+            <div class="sched-slots" id="skelSlots"></div>
             <div class="skeleton skel-cta"></div>
           </div>
         </div>
@@ -1187,6 +1144,7 @@
 
       <div class="history-panel-inner">
         <div class="history-tabs" id="historyTabs" role="tablist" aria-label="Playlist filter">
+          <span class="history-tab-pill" id="historyTabPill" aria-hidden="true"></span>
           <button type="button" class="history-tab is-active" role="tab" aria-selected="true" data-filter="scheduled" id="historyTabScheduled">Scheduled (0)</button>
           <button type="button" class="history-tab" role="tab" aria-selected="false" data-filter="watched" id="historyTabWatched">Watched (0)</button>
           <button type="button" class="history-tab" role="tab" aria-selected="false" data-filter="forced" id="historyTabForced">Forced (0)</button>

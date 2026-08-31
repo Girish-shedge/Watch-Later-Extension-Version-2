@@ -7,12 +7,37 @@ let cachedVideoDurationMin = 10;
 let currentAuthUser   = null;
 let multiSessionState = { plan: null, assigned: [], complete: false, loading: false };
 
-function setScheduleBtnLabel(text) {
-  const btn = document.getElementById('scheduleBtn');
+const SCHEDULE_CTA_LABEL = {
+  scheduleBtn: 'Schedule to Google Calendar',
+  scheduleMultiBtn: 'Schedule video',
+};
+const CTA_DOTS_HTML =
+  '<span class="cta-loading-dots" aria-hidden="true">' +
+  '<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>' +
+  '</span>';
+
+function setScheduleCtaLoading(btn, loading) {
   if (!btn) return;
   const inner = btn.querySelector('.onb-btn-inner');
-  if (inner) inner.textContent = text;
-  else btn.textContent = text;
+  const fallback = SCHEDULE_CTA_LABEL[btn.id] || 'Schedule';
+  if (loading) {
+    btn.disabled = true;
+    btn.classList.add('is-cta-loading');
+    btn.setAttribute('aria-busy', 'true');
+    if (inner) {
+      if (!inner.dataset.label) inner.dataset.label = (inner.textContent || fallback).trim();
+      inner.innerHTML = CTA_DOTS_HTML;
+    }
+    return;
+  }
+  btn.classList.remove('is-cta-loading');
+  btn.removeAttribute('aria-busy');
+  if (inner) inner.textContent = inner.dataset.label || fallback;
+}
+
+function resetScheduleCta(btn) {
+  setScheduleCtaLoading(btn, false);
+  if (btn) btn.disabled = false;
 }
 
 function formatDurationLabel(totalSec) {
@@ -182,9 +207,7 @@ function skeletonCountForSlots(count) {
   return 4;
 }
 
-function applySchedSheetSlotLayout(layout) {
-  const sheet = document.getElementById('schedSheet');
-  const grid = document.getElementById('slotGrid');
+function applySchedSheetSlotLayout(layout, sheet = document.getElementById('schedSheet'), grid = document.getElementById('slotGrid')) {
   if (!sheet) return;
   sheet.classList.remove('is-slots-empty', 'is-slots-stack-1', 'is-slots-stack-2', 'is-slots-grid');
   if (grid) {
@@ -318,14 +341,12 @@ async function populateDropdown(slots, opts = {}) {
   selectedSlotData = slots[0];
 }
 
-function paintSlotGridSkeleton(count = 4) {
-  const grid = document.getElementById('slotGrid');
+function fillSlotSkeleton(grid, count = 4) {
   if (!grid) return;
   grid.innerHTML = '';
-  selectedSlotData = null;
-  const layout = slotLayoutMode(count === 1 ? 1 : count === 2 ? 2 : 4);
-  applySchedSheetSlotLayout(layout === 'grid' ? 'grid' : layout);
   const n = skeletonCountForSlots(count);
+  const sheet = grid.closest('#schedSheet, .skel-sheet');
+  applySchedSheetSlotLayout(slotLayoutMode(n), sheet, grid);
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'sched-slot sched-slot--skeleton';
@@ -333,6 +354,13 @@ function paintSlotGridSkeleton(count = 4) {
     el.innerHTML = '<span class="skeleton sched-slot-skel"></span>';
     grid.appendChild(el);
   }
+}
+
+function paintSlotGridSkeleton(count = 4) {
+  const grid = document.getElementById('slotGrid');
+  if (!grid) return;
+  selectedSlotData = null;
+  fillSlotSkeleton(grid, count);
 }
 
 function computeMultiFrameHeight(sessionCount = 3) {
@@ -395,10 +423,11 @@ function paintScheduleMultiSkeleton(sessionCount = 2) {
   }
 }
 
-function applyPopupFrameHeight(isMulti) {
+function applyPopupFrameHeight(isMulti, sessionCount) {
   const defaultH = '499px';
+  const n = sessionCount || multiSessionState.plan?.sessionCount || 3;
   const h = isMulti
-    ? `${computeMultiFrameHeight(multiSessionState.plan?.sessionCount || 3)}px`
+    ? `${computeMultiFrameHeight(n)}px`
     : defaultH;
   document.documentElement.style.setProperty('--frame-h-active', h);
   document.documentElement.classList.toggle('is-multi-session-frame', isMulti);
@@ -1142,7 +1171,7 @@ if (localStorage.getItem('theme') === 'dark') {
 
 
 
-function showSkeleton(kind = 'schedule') {
+function showSkeleton(kind = 'schedule', opts = {}) {
   const layer = document.getElementById('skeletonLayer');
   if (!layer) return;
   layer.classList.remove('hidden');
@@ -1151,6 +1180,14 @@ function showSkeleton(kind = 'schedule') {
     el.classList.toggle('is-active', on);
     el.setAttribute('aria-hidden', on ? 'false' : 'true');
   });
+  if (kind === 'schedule-multi') {
+    const n = opts.sessions || multiSessionState.plan?.sessionCount || 2;
+    paintScheduleMultiSkeleton(n);
+    applyPopupFrameHeight(true, n);
+  } else {
+    fillSlotSkeleton(document.getElementById('skelSlots'), opts.slots ?? 4);
+    applyPopupFrameHeight(false);
+  }
 }
 
 function hideSkeleton() {
@@ -1515,23 +1552,30 @@ function paintPreviewSchedule() {
     scheduleBtn.disabled = plan ? false : !availableSlots?.length;
     if (!plan) {
       scheduleBtn.onclick = () => {
+        setScheduleCtaLoading(scheduleBtn, true);
         const slot = availableSlots?.[0];
-        showScheduleSuccessModal({
-          title: cachedVideoTitle || document.getElementById('videoTitle')?.textContent,
-          start: slot?.start || new Date().toISOString(),
-          end: slot?.end || new Date(Date.now() + 3600000).toISOString()
-        });
+        setTimeout(() => {
+          showScheduleSuccessModal({
+            title: cachedVideoTitle || document.getElementById('videoTitle')?.textContent,
+            start: slot?.start || new Date().toISOString(),
+            end: slot?.end || new Date(Date.now() + 3600000).toISOString()
+          });
+        }, 500);
       };
     }
   }
   if (scheduleMultiBtn && plan) {
     scheduleMultiBtn.onclick = () => {
+      setScheduleCtaLoading(scheduleMultiBtn, true);
       const first = multiSessionState.assigned?.[0]?.slot;
-      showScheduleSuccessModal({
-        title: cachedVideoTitle,
-        start: first?.start || new Date().toISOString(),
-        end: first?.end || new Date(Date.now() + 3600000).toISOString()
-      });
+      setTimeout(() => {
+        showScheduleSuccessModal({
+          title: cachedVideoTitle,
+          start: first?.start || new Date().toISOString(),
+          end: first?.end || new Date(Date.now() + 3600000).toISOString(),
+          multi: true
+        });
+      }, 500);
     };
   }
 
@@ -3849,8 +3893,7 @@ if (el.videoTitle) {
     WLSlotAlgorithm.computeSessionPlan(videoDuration, config);
 
   if (isMulti) {
-    paintScheduleMultiSkeleton(isMulti.sessionCount);
-    showSkeleton('schedule-multi');
+    showSkeleton('schedule-multi', { sessions: isMulti.sessionCount });
     setScheduleMode('multi');
     await loadMultiSessionSchedule(authUser.id, google_access_token, videoDuration);
     availableSlots = [];
@@ -3891,15 +3934,13 @@ el.scheduleBtn.onclick = async () => {
   recordButtonClick('Schedule to Google Calendar');
   if (!selectedSlotData) return;
 
-  el.scheduleBtn.disabled   = true;
-  setScheduleBtnLabel('Checking for ads…');
+  setScheduleCtaLoading(el.scheduleBtn, true);
 
   // 2) Get the active tab ID once — skip chrome:// / edge://
   const activeTab = await getActiveInjectableTab();
   if (!activeTab) {
     showToast('Open a YouTube video to schedule.', 'info');
-    el.scheduleBtn.disabled = false;
-    setScheduleBtnLabel('Schedule to Google Calendar');
+    resetScheduleCta(el.scheduleBtn);
     return;
   }
 
@@ -3915,8 +3956,7 @@ el.scheduleBtn.onclick = async () => {
   if (adCheck?.result) {
     // 4) If an ad is playing, show an error and reset
     showToast('Please wait until the ad finishes before scheduling.', 'info');
-    el.scheduleBtn.disabled   = false;
-    setScheduleBtnLabel('Schedule to Google Calendar');
+    resetScheduleCta(el.scheduleBtn);
     return;
   }
 
@@ -3931,15 +3971,13 @@ el.scheduleBtn.onclick = async () => {
   // Condition 3: Network Lost
   if (!navigator.onLine) {
     showNetworkLostScreen();
-    el.scheduleBtn.disabled = false;
-    setScheduleBtnLabel('Schedule to Google Calendar');
+    resetScheduleCta(el.scheduleBtn);
     return;
   }
 
   const valid = await ensureValidGoogleToken();
   if (!valid) {
-    el.scheduleBtn.disabled = false;
-    setScheduleBtnLabel('Schedule to Google Calendar');
+    resetScheduleCta(el.scheduleBtn);
     return;
   }
 
@@ -3955,22 +3993,17 @@ el.scheduleBtn.onclick = async () => {
     .maybeSingle();
   if (dup) {
     showToast('This video is already scheduled', 'info');
-    el.scheduleBtn.disabled = false;
-    setScheduleBtnLabel('Schedule to Google Calendar');
+    resetScheduleCta(el.scheduleBtn);
     return;
   }
 
-  const resetScheduleBtn = () => {
-    el.scheduleBtn.disabled = false;
-    setScheduleBtnLabel('Schedule to Google Calendar');
-  };
+  const resetScheduleBtn = () => resetScheduleCta(el.scheduleBtn);
 
   await gateQueueIntercept({
     userId: authUser.id,
     durationMin: cachedVideoDurationMin,
     onAbort: resetScheduleBtn,
     onProceed: async () => {
-      setScheduleBtnLabel('Scheduling…');
       let { google_access_token } = await new Promise(res =>
         chrome.storage.local.get('google_access_token', res)
       );
@@ -4127,6 +4160,8 @@ function formatSuccessGhostTime(startIso, endIso) {
   return `${startT} - ${endT}`;
 }
 
+const SUCCESS_GHOST_MULTI = 'This is a Multi-session event';
+
 function successMountParent() {
   return document.getElementById('popupWrapper') || document.getElementById('scheduleScreen');
 }
@@ -4193,7 +4228,7 @@ function openOutcomeOverlay(overlay) {
  * Figma 541:15067 — after a successful Calendar schedule.
  * Sheet slides up; cards rotate 0→±2° while copy/stars cascade in.
  */
-function showScheduleSuccessModal({ title, start, end } = {}) {
+function showScheduleSuccessModal({ title, start, end, multi } = {}) {
   wireSuccessOverlayOnce();
   const overlay = mountSuccessOverlay();
   const panel = document.getElementById('successPanel');
@@ -4201,7 +4236,7 @@ function showScheduleSuccessModal({ title, start, end } = {}) {
 
   const t = String(title || cachedVideoTitle || 'Video').trim() || 'Video';
   const frontTime = formatSuccessSlotLabel(start, end);
-  const ghostTime = formatSuccessGhostTime(start, end);
+  const ghostTime = multi ? SUCCESS_GHOST_MULTI : formatSuccessGhostTime(start, end);
 
   const setText = (id, text) => {
     const el = document.getElementById(id);
@@ -4213,6 +4248,8 @@ function showScheduleSuccessModal({ title, start, end } = {}) {
   setText('successGhostTime', ghostTime);
 
   openOutcomeOverlay(overlay);
+  resetScheduleCta(document.getElementById('scheduleBtn'));
+  resetScheduleCta(document.getElementById('scheduleMultiBtn'));
 }
 
 function mountFailOverlay() {
@@ -4272,6 +4309,8 @@ function showScheduleFailModal({ title, start, end } = {}) {
   setText('failGhostTime', ghostTime);
 
   openOutcomeOverlay(overlay);
+  resetScheduleCta(document.getElementById('scheduleBtn'));
+  resetScheduleCta(document.getElementById('scheduleMultiBtn'));
 }
 
 function stopOutcomePreviewLoop() {
@@ -4535,7 +4574,8 @@ const historyState = {
   page: 1,
   items: null,
   counts: { scheduled: 0, watched: 0, forced: 0 },
-  wired: false
+  wired: false,
+  pillReady: false
 };
 
 function historyMountParent() {
@@ -4576,6 +4616,7 @@ function wireHistoryOverlayOnce() {
     if (!next || next === historyState.filter) return;
     historyState.filter = next;
     historyState.page = 1;
+    updateHistoryTabLabels();
     repaintHistoryPageFaded();
   });
 
@@ -4625,6 +4666,7 @@ function openHistoryModal(userId) {
   historyState.filter = 'scheduled';
   historyState.page = 1;
   historyState.items = null;
+  historyState.pillReady = false;
 
   wireHistoryOverlayOnce();
   const overlay = mountHistoryOverlay();
@@ -4706,13 +4748,6 @@ async function recomputeAllSessionsWatched(sessionGroupId) {
     .from('videohistory')
     .update({ all_sessions_watched: !!allDone, watched: !!allDone })
     .eq('session_group_id', sessionGroupId);
-}
-
-function formatHistorySessionProgress(item) {
-  const total = item.session_count || 1;
-  const watched = item.watched_count ?? 0;
-  if (total <= 1) return null;
-  return `${watched} of ${total} sessions watched`;
 }
 
 function splitHistoryLists(items) {
@@ -4886,6 +4921,24 @@ function updateHistoryTabLabels() {
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-selected', active ? 'true' : 'false');
   });
+  syncHistoryTabPill({ instant: !historyState.pillReady });
+  historyState.pillReady = true;
+}
+
+function syncHistoryTabPill({ instant } = {}) {
+  const tabs = document.getElementById('historyTabs');
+  const pill = document.getElementById('historyTabPill');
+  const active = tabs?.querySelector('.history-tab.is-active');
+  if (!tabs || !pill || !active) return;
+  if (instant) pill.style.transition = 'none';
+  const tabsRect = tabs.getBoundingClientRect();
+  const tabRect = active.getBoundingClientRect();
+  pill.style.width = `${tabRect.width}px`;
+  pill.style.transform = `translateX(${tabRect.left - tabsRect.left}px)`;
+  if (instant) {
+    void pill.offsetWidth;
+    pill.style.transition = '';
+  }
 }
 
 /**
@@ -4993,6 +5046,15 @@ function safeExternalUrl(url) {
   }
 }
 
+const HIST_CHECK_SVG =
+  '<svg class="history-action-icon" viewBox="0 0 18.0952 18.0952" width="18" height="18" fill="none" aria-hidden="true">' +
+  '<path d="M3.77 9.05 7.54 12.82 15.08 5.28" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
+const HIST_TRASH_SVG =
+  '<svg class="history-action-icon" viewBox="0 0 18.0952 18.0952" width="18" height="18" fill="none" aria-hidden="true">' +
+  '<path d="M3.02 5.28h12.06M7.54 8.29v4.52M10.56 8.29v4.52M3.77 5.28l.75 9.05a1.51 1.51 0 0 0 1.51 1.5h6.03a1.51 1.51 0 0 0 1.51-1.5l.75-9.05M6.79 5.28V3.02a.75.75 0 0 1 .75-.75h3.02a.75.75 0 0 1 .75.75v2.26" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '</svg>';
+
 function buildHistoryRow(item, filter, now) {
   const row = document.createElement('div');
   row.className = 'history-row' + (item.removed ? ' is-removed' : '');
@@ -5005,51 +5067,37 @@ function buildHistoryRow(item, filter, now) {
   } else if (filter === 'watched') {
     subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(formatHistoryMovedToWatched(item.watched_at || item.start_time, now))}</div>`;
   } else if (filter === 'forced') {
-    const progress = formatHistorySessionProgress(item);
     const base = formatHistoryScheduledFor(item.start_time, now);
-    subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(progress ? `${progress} · ${base}` : base)}</div>`;
+    subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(base)}</div>`;
   } else {
-    const progress = formatHistorySessionProgress(item);
     const missed = formatHistoryMissedLabel(item.end_time, now);
     const upcoming = !missed && formatHistoryUpcomingLabel(item.start_time, now);
     const scheduled = formatHistoryScheduledFor(item.start_time, now);
     if (missed) {
-      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(progress ? `${progress} · ${missed}` : missed)}</div>`;
+      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(missed)}</div>`;
     } else if (upcoming) {
-      const line1 = progress ? `${progress} · ${scheduled}` : scheduled;
       subtitleHtml = `
         <div class="history-row-sub history-row-sub--swap" aria-label="${escapeHistoryHtml(upcoming)}">
           <div class="history-sub-track">
-            <div class="history-sub-line">${escapeHistoryHtml(line1)}</div>
+            <div class="history-sub-line">${escapeHistoryHtml(scheduled)}</div>
             <div class="history-sub-line">${escapeHistoryHtml(upcoming)}</div>
           </div>
         </div>`;
     } else {
-      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(progress ? `${progress} · ${scheduled}` : scheduled)}</div>`;
+      subtitleHtml = `<div class="history-row-sub">${escapeHistoryHtml(scheduled)}</div>`;
     }
   }
 
   const showWatch = filter === 'scheduled' && !item.removed;
-  const showReschedule = filter === 'forced' && !item.removed;
   const href = item.removed ? '#' : escapeHistoryHtml(safeExternalUrl(item.video_url));
   const actions = `
     <div class="history-row-actions">
-      ${showReschedule ? `
-        <button type="button" class="onb-btn onb-btn-secondary icon-only history-row-action" data-action="reschedule" title="Reschedule" aria-label="Reschedule">
-          <span class="onb-btn-inner">
-            <img src="Icon/menu-icon-clock.svg" width="18" height="18" alt="" />
-          </span>
-        </button>` : ''}
       ${showWatch ? `
         <button type="button" class="onb-btn icon-only history-row-action" data-action="watch" title="Mark as Watched" aria-label="Mark as Watched">
-          <span class="onb-btn-inner">
-            <img src="Icon/history-icon-check.svg" width="18" height="18" alt="" />
-          </span>
+          <span class="onb-btn-inner">${HIST_CHECK_SVG}</span>
         </button>` : ''}
       <button type="button" class="onb-btn onb-btn-secondary icon-only history-row-action" data-action="delete" title="Delete" aria-label="Delete">
-        <span class="onb-btn-inner">
-          <img src="Icon/history-icon-trash.svg" width="18" height="18" alt="" />
-        </span>
+        <span class="onb-btn-inner">${HIST_TRASH_SVG}</span>
       </button>
     </div>`;
 
@@ -5069,11 +5117,6 @@ function buildHistoryRow(item, filter, now) {
     e.preventDefault();
     e.stopPropagation();
     await markHistoryWatched(item, row);
-  });
-  row.querySelector('[data-action="reschedule"]')?.addEventListener('click', async e => {
-    e.preventDefault();
-    e.stopPropagation();
-    await rescheduleHistoryGroup(item);
   });
   row.querySelector('[data-action="delete"]')?.addEventListener('click', async e => {
     e.preventDefault();
@@ -6613,12 +6656,12 @@ async function scheduleMultiSessionVideo() {
   if (!authUser || !plan || !multiSessionState.complete || !assigned.length) return;
 
   const schedBtn = document.getElementById('scheduleMultiBtn');
-  if (schedBtn) schedBtn.disabled = true;
+  if (schedBtn) setScheduleCtaLoading(schedBtn, true);
 
   const activeTab = await getActiveInjectableTab();
   if (!activeTab) {
     showToast('Open a YouTube video to schedule.', 'info');
-    if (schedBtn) schedBtn.disabled = false;
+    resetScheduleCta(schedBtn);
     return;
   }
 
@@ -6632,19 +6675,19 @@ async function scheduleMultiSessionVideo() {
 
   if (adCheck?.result) {
     showToast('Please wait until the ad finishes before scheduling.', 'info');
-    if (schedBtn) schedBtn.disabled = false;
+    resetScheduleCta(schedBtn);
     return;
   }
 
   if (!navigator.onLine) {
     showNetworkLostScreen();
-    if (schedBtn) schedBtn.disabled = false;
+    resetScheduleCta(schedBtn);
     return;
   }
 
   const valid = await ensureValidGoogleToken();
   if (!valid) {
-    if (schedBtn) schedBtn.disabled = false;
+    resetScheduleCta(schedBtn);
     return;
   }
 
@@ -6660,11 +6703,11 @@ async function scheduleMultiSessionVideo() {
     .maybeSingle();
   if (dup) {
     showToast('This video is already scheduled', 'info');
-    if (schedBtn) schedBtn.disabled = false;
+    resetScheduleCta(schedBtn);
     return;
   }
 
-  const resetMultiBtn = () => { if (schedBtn) schedBtn.disabled = false; };
+  const resetMultiBtn = () => resetScheduleCta(schedBtn);
 
   await gateQueueIntercept({
     userId: authUser.id,
@@ -6753,6 +6796,7 @@ async function scheduleMultiSessionVideo() {
         title: cachedVideoTitle,
         start: firstSlot.start,
         end: firstSlot.end,
+        multi: true,
       });
       await initStreak(authUser.id);
       resetMultiBtn();
