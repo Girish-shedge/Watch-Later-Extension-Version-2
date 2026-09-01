@@ -1072,6 +1072,12 @@ assert.ok(src.includes('escapeHistoryHtml(safeExternalUrl(item.video_url))'), 'h
 
   const oauthSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'google-oauth.js'), 'utf8');
   assert.ok(oauthSrc.includes('auth_oauth_lock'), 'OAuth flows must share auth_oauth_lock across popup + background');
+  assert.ok(!/if \(n >= 100\) return Promise.resolve\(owner\)/.test(oauthSrc), 'OAuth lock timeout must not fake-acquire');
+  assert.ok(/if \(!owner\)/.test(oauthSrc), 'busy OAuth lock must return flow_busy without launching');
+  assert.ok(/user did not approve/.test(oauthSrc), 'expected Google cancel must not console.warn');
+  assert.ok(/typeof onClosed === 'function'/.test(src), 'close callbacks must ignore click events');
+  assert.ok(src.includes("addEventListener('click', () => closeFeedbackModal())"), 'feedback backdrop must not pass MouseEvent as onClosed');
+  assert.ok(src.includes('function sbMessage'), 'PostgREST errors must stringify via sbMessage');
 
   const html = fs.readFileSync(path.join(__dirname, '..', 'popup.html'), 'utf8');
   assert.ok(html.includes('lib/google-oauth.js'), 'popup must load google-oauth for interactive login');
@@ -1084,6 +1090,15 @@ assert.ok(src.includes('escapeHistoryHtml(safeExternalUrl(item.video_url))'), 'h
   // Any web-accessible resource lets every site fingerprint the extension.
   assert.ok(!mf.web_accessible_resources, 'no web_accessible_resources expected');
   assert.ok(mf.key, 'extension id must stay pinned (OAuth redirect URI + CORS origin)');
+  assert.strictEqual(mf.icons['16'], 'Icon/WatchLater-16.png');
+  assert.strictEqual(mf.icons['32'], 'Icon/WatchLater-32.png');
+  assert.strictEqual(mf.icons['48'], 'Icon/WatchLater-48.png');
+  assert.strictEqual(mf.icons['128'], 'Icon/WatchLater.png');
+  assert.ok(mf.action && mf.action.default_icon, 'toolbar must use sized default_icon');
+  ['16', '32', '48', '128'].forEach((size) => {
+    const rel = mf.icons[size];
+    assert.ok(fs.existsSync(path.join(__dirname, '..', rel)), `missing icon ${rel}`);
+  });
   assert.ok(
     !mf.host_permissions.some(h => h.includes('/auth/')),
     'host_permissions must be URL patterns, not OAuth scopes'
@@ -1149,7 +1164,10 @@ assert.ok(
     'profile close must sit above head/stats so it stays clickable'
   );
   assert.ok(html.includes('id="logoutOverlay"'), 'logout confirm overlay missing');
-  assert.ok(html.includes('logout-koala-hero.png'), 'logout hero image missing');
+  assert.ok(html.includes('logout-koala-hero.jpg'), 'logout hero image missing');
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'data')), 'legacy data/ auth mp4s must stay deleted');
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'Icon', 'auth-koala.png')), 'unused auth-koala.png must stay deleted');
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'Icon', 'onb', 'onb-thumb-01.png')), 'unused onb-thumb PNGs must stay deleted');
   assert.ok(
     css.includes('.logout-overlay') && css.includes('z-index: 59'),
     'logout overlay must stack above profile menu'

@@ -198,7 +198,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
   if (google?.access_token) {
     await persistGoogleAccessToken(google.access_token);
     console.log('✅ Google token refreshed silently');
-  } else {
+  } else if (google?.error !== 'flow_busy' && google?.error !== 'cancelled') {
     console.warn('Silent Google refresh failed (user may be signed out of Google)');
   }
 });

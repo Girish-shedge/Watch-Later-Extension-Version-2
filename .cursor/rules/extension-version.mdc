@@ -1,0 +1,16 @@
+---
+description: Bump Watch Later Extension manifest version when shipping runtime changes
+alwaysApply: true
+---
+
+# Extension version
+
+`Watch Later Extension/manifest.json` `"version"` is what Chrome/Edge show for the unpacked/store build.
+
+**Bump the patch** in the same task as any shipped runtime change (popup/background/lib JS, CSS, HTML, icons, manifest, Edge Functions, or DB behavior users hit). Example: `1.1.6` → `1.1.7`.
+
+Do **not** bump for docs/rules-only edits, comments, or tests that are not packaged.
+
+Chrome requires 1–4 dot-separated integers. Patch is the default. Minor (`1.2.0`) only for a user-visible feature set. Never skip numbers.
+
+If this session already changed runtime files and the version is still the pre-change number, bump it before finishing. Update the `manifest.json` mention in `project.mdc` in the same edit.

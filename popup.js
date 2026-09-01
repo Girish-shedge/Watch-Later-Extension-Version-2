@@ -570,7 +570,7 @@ function paintMultiSessionWhySheet(plan) {
   if (!plan || !algo || !hero || !title) return;
 
   const count = Math.min(5, Math.max(2, plan.sessionCount));
-  hero.src = `Icon/multi-session/why-${count}.png`;
+  hero.src = `Icon/multi-session/why-${count}.jpg`;
   const dur = algo.formatSessionLengthWhy(plan.sessionLengthMin);
   title.innerHTML = `
     <div class="multi-why-heading-row">
@@ -993,28 +993,23 @@ async function persistSupabaseSession(session) {
   });
 }
 
-/**
- * Record a button click in Supabase.
- * @param {string} name  The human‐readable button name
- */
+function sbMessage(err) {
+  return err?.message || err?.details || (err ? JSON.stringify(err) : '');
+}
+
 async function recordButtonClick(name) {
-  // get the current user
   const {
     data: { user },
     error: authErr
   } = await supabaseClient.auth.getUser();
-
-  if (authErr || !user) {
-    console.warn('⚠️ Cannot track click, user not authenticated');
-    return;
-  }
+  if (authErr || !user) return;
 
   const { error: trackErr } = await supabaseClient
     .from('button_clicks')
     .insert([{ user_id: user.id, button_name: name }]);
-
-  if (trackErr) {
-    console.error('❌ Button‐click tracking failed:', trackErr.message);
+  // 23503 = no public.users row yet (analytics fail-open)
+  if (trackErr && trackErr.code !== '23503') {
+    console.error('Button-click tracking failed:', sbMessage(trackErr));
   }
 }
 
@@ -3816,12 +3811,13 @@ document.querySelector('.coffee-btn')?.addEventListener('click', () => {
     userRow = {
       name: authUser.user_metadata?.name || authUser.email
     };
-    await supabaseClient.from('users').upsert({
+    const { error: healErr } = await supabaseClient.from('users').upsert({
       id: authUser.id,
       email: authUser.email,
       name: authUser.user_metadata?.name,
       avatar_url: authUser.user_metadata?.picture
     });
+    if (healErr) console.error('Failed to upsert user:', sbMessage(healErr));
   }
 
   el.greeting?.classList.add('hidden');
@@ -4382,9 +4378,10 @@ function paintQueueInterceptSheet(impact, config) {
 }
 
 function closeQueueInterceptModal(onClosed) {
+  const done = typeof onClosed === 'function' ? onClosed : null;
   const overlay = document.getElementById('queueInterceptOverlay');
   if (!overlay || overlay.hidden) {
-    if (onClosed) onClosed();
+    done?.();
     return;
   }
   overlay.setAttribute('aria-hidden', 'true');
@@ -4395,7 +4392,7 @@ function closeQueueInterceptModal(onClosed) {
     overlay.classList.add('hidden');
     overlay.hidden = true;
     overlay._pending = null;
-    if (onClosed) onClosed();
+    done?.();
   }, SHEET_SLIDE_MS);
 }
 
@@ -5924,7 +5921,7 @@ function wireFeedbackOnce() {
     event.stopPropagation();
     closeFeedbackModal();
   });
-  document.getElementById('feedbackBackdrop')?.addEventListener('click', closeFeedbackModal);
+  document.getElementById('feedbackBackdrop')?.addEventListener('click', () => closeFeedbackModal());
   document.getElementById('feedbackSendBtn')?.addEventListener('click', async () => {
     const message = (input?.value || '').trim();
     if (!message || message.length > FEEDBACK_MAX) return;
@@ -5982,9 +5979,10 @@ function openFeedbackModal(userId) {
 }
 
 function closeFeedbackModal(onClosed) {
+  const done = typeof onClosed === 'function' ? onClosed : null;
   const overlay = document.getElementById('feedbackOverlay');
   if (!overlay || overlay.hidden) {
-    onClosed?.();
+    done?.();
     return;
   }
 
@@ -5998,7 +5996,7 @@ function closeFeedbackModal(onClosed) {
     overlay.classList.remove('is-open', 'is-closing');
     overlay.classList.add('hidden');
     overlay.hidden = true;
-    onClosed?.();
+    done?.();
   }, SHEET_SLIDE_MS);
 
   // Keep profile frozen until feedback has fully slid out.
@@ -6244,7 +6242,7 @@ async function saveUserPrefs(userId, { days, slots }, opts = {}) {
     .from('user_slot_preferences')
     .upsert(prefRow);
   if (prefError) {
-    console.error('Failed to save user_slot_preferences:', prefError);
+    console.error('Failed to save user_slot_preferences:', sbMessage(prefError));
     return false;
   }
   return true;
@@ -6446,7 +6444,7 @@ async function analyzeAndSavePrefs(userId, accessToken, { force = false, trigger
     const { error: scoreErr } = await supabaseClient
       .from('calendar_slot_scores')
       .upsert(upsertRows, { onConflict: 'user_id,weekday,time_bucket' });
-    if (scoreErr) console.error('calendar_slot_scores upsert failed:', scoreErr);
+    if (scoreErr) console.error('calendar_slot_scores upsert failed:', sbMessage(scoreErr));
   }
 
   if (runId) {
@@ -7438,67 +7436,4 @@ function showConfetti() {
   el.textContent = "🎉";
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2000);
-}
-
-/**
- * Build & display a simple “Share This Extension on Twitter” modal:
- *   • Heading: “Share it on Twitter”
- *   • Subheading: “Help us grow”
- *   • A banner image of your choice
- *   • A “Tweet” button that opens twitter.com/intent/tweet with prefilled text
- */
-function openShareModal() {
-  // 1) Hide any open profile menu
-
-  // 2) Create the overlay + modal container
-  const overlay = document.createElement('div');
-  overlay.id = 'shareOverlay';
-  overlay.className = 'modal-overlay';
-
-  const modal = document.createElement('div');
-  modal.className = 'favourite-modal';
-  modal.style.width = '300px'; // adjust width as needed
-  modal.innerHTML = `
-    <div class="modal-header">
-      <h2 class="modal-title">Share it on Twitter</h2>
-      <button class="close-modal" id="closeShareModal">
-        <img src="Icon/close.svg" alt="Close" width="16" height="16" />
-      </button>
-    </div>
-    <p class="modal-subheading">Help us grow</p>
-    <!-- Banner image: point to your static asset here -->
-    <img 
-      id="shareBanner" 
-      src="Icon/ShareTwitter.png" 
-      alt="Share Banner" 
-      style="width:100%; border-radius:8px; margin:12px 0;"
-    />
-    <button id="tweetBtn" class="confirm-btn" style="margin-top:0;">
-      Tweet
-    </button>
-  `;
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  // 3) Close-modal logic
-  modal.querySelector('#closeShareModal').onclick = () => overlay.remove();
-
-  // 4) Tweet button logic
-modal.querySelector('#tweetBtn').onclick = () => {
-  recordButtonClick('Tweet');
-const tweetText = encodeURIComponent(`
-Just discovered this amazing extension🚀!
-
-Still been procrastinating over your videos on YouTube Watch Later list?
-
-Not any more: https://watchlaterextension.in/
-
-#WatchLaterExtension #Productivity #YouTube
-`);
-
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
-  window.open(twitterUrl, '_blank');
-};
-
 }
